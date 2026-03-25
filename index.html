@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>陳OO 意圖選擇器</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f4; margin: 0; padding: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .btn {
+            height: 120px; border: none; border-radius: 20px; font-size: 28px; font-weight: bold;
+            color: white; box-shadow: 0 6px #999; cursor: pointer;
+        }
+        .btn:active { box-shadow: 0 2px #666; transform: translateY(4px); }
+        .emergency { background-color: #FF4B4B; }
+        .normal { background-color: #4B7BFF; }
+        .teach { background-color: #888; grid-column: span 2; height: 80px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="status" style="text-align: center; color: #666;">載入中...</div>
+    <div class="grid" id="grid"></div>
+
+    <script>
+        const emergencyWords = ["緊急", "求救", "救命", "去醫院", "不舒服"];
+
+        async function initLIFF() {
+            try {
+                await liff.init({ liffId: "您的LIFF_ID" }); // 填入您的 LIFF ID
+                const urlParams = new URLSearchParams(window.location.search);
+                const options = urlParams.get('options')?.split(',') || [];
+                const ini = urlParams.get('ini') || "";
+                
+                document.getElementById('status').innerText = `聲母「${ini}」的可能意圖：`;
+                const grid = document.getElementById('grid');
+
+                options.forEach(word => {
+                    const button = document.createElement('button');
+                    button.innerText = word;
+                    button.className = emergencyWords.includes(word) ? "btn emergency" : "btn normal";
+                    button.onclick = () => {
+                        liff.sendMessages([{ type: 'text', text: `【確認】：${word}` }])
+                            .then(() => liff.closeWindow());
+                    };
+                    grid.appendChild(button);
+                });
+
+                // 加入教學按鈕
+                const teachBtn = document.createElement('button');
+                teachBtn.innerText = "以上都不是 (教導模式)";
+                teachBtn.className = "btn teach";
+                teachBtn.onclick = () => {
+                    liff.sendMessages([{ type: 'text', text: `我不認識「${ini}」，請教我。` }])
+                        .then(() => liff.closeWindow());
+                };
+                grid.appendChild(teachBtn);
+
+            } catch (err) {
+                document.getElementById('status').innerText = "LIFF 初始化失敗";
+            }
+        }
+        initLIFF();
+    </script>
+</body>
+</html>
