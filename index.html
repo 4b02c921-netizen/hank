@@ -3,140 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>意圖選擇器</title>
+    <title>陳OO 意圖選擇器</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 15px;
-            overflow-x: hidden;
-        }
-        #status {
-            text-align: center;
-            color: #666;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* 兩列佈局，確保按鈕夠大 */
-            gap: 15px;
-        }
+        body { font-family: sans-serif; background-color: #f8f9fa; padding: 15px; margin: 0; }
+        #status { text-align: center; color: #666; margin-bottom: 15px; font-size: 16px; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .btn {
-            height: 120px; /* 超大按鈕，方便陳先生點擊 */
-            border: none;
-            border-radius: 18px;
-            font-size: 26px;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            transition: transform 0.1s, opacity 0.2s;
+            height: 120px; border: none; border-radius: 20px; font-size: 28px; font-weight: bold;
+            color: white; box-shadow: 0 6px rgba(0,0,0,0.1); cursor: pointer;
         }
-        .btn:active {
-            transform: scale(0.95);
-            opacity: 0.8;
-        }
-        /* 紅色：緊急狀況 */
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px rgba(0,0,0,0.1); }
         .emergency { background-color: #FF4B4B; }
-        /* 藍色：一般需求 */
         .normal { background-color: #4B7BFF; }
-        /* 灰色：教學/其他按鈕 */
-        .teach { 
-            background-color: #6c757d; 
-            grid-column: span 2; 
-            height: 80px; 
-            font-size: 20px;
-            margin-top: 10px;
-        }
-        .loading-spinner {
-            text-align: center;
-            margin-top: 50px;
-            font-size: 20px;
-        }
+        .teach { background-color: #6c757d; grid-column: span 2; height: 80px; font-size: 20px; margin-top: 10px; }
     </style>
 </head>
 <body>
-
-    <div id="status">正在初始化守護系統...</div>
-    
-    <div class="grid" id="grid">
-        </div>
+    <div id="status">正在同步守護系統...</div>
+    <div class="grid" id="grid"></div>
 
     <script>
-        // 定義會觸發紅色的緊急詞彙
-        const emergencyKeywords = ["緊急", "求救", "救命", "去醫院", "呼吸困難", "跌倒", "不舒服"];
+        const emergencyKeywords = ["緊急", "求救", "救命", "去醫院", "不舒服", "呼吸困難", "跌倒"];
+
+        function renderButtons(options, ini) {
+            const gridEl = document.getElementById('grid');
+            const statusEl = document.getElementById('status');
+            gridEl.innerHTML = "";
+
+            if (options.length === 0) {
+                statusEl.innerText = "目前無資料 (測試模式)";
+                options = ["測試1", "緊急測試", "喝水", "翻身"];
+            } else {
+                statusEl.innerText = `聲母「${ini}」的可能意圖：`;
+            }
+
+            options.forEach(word => {
+                const btn = document.createElement('button');
+                btn.innerText = word;
+                const isEmergency = emergencyKeywords.some(k => word.includes(k));
+                btn.className = isEmergency ? "btn emergency" : "btn normal";
+                btn.onclick = () => {
+                    if (liff.isInClient()) {
+                        liff.sendMessages([{ type: 'text', text: `【確認】：${word}` }])
+                            .then(() => liff.closeWindow());
+                    } else {
+                        alert("偵測到選擇：" + word);
+                    }
+                };
+                gridEl.appendChild(btn);
+            });
+
+            // 教學按鈕
+            const teachBtn = document.createElement('button');
+            teachBtn.innerText = "以上都不是 (教導模式)";
+            teachBtn.className = "btn teach";
+            teachBtn.onclick = () => {
+                if (liff.isInClient()) {
+                    liff.sendMessages([{ type: 'text', text: `我不認識「${ini}」，請教我。` }])
+                        .then(() => liff.closeWindow());
+                }
+            };
+            gridEl.appendChild(teachBtn);
+        }
 
         async function main() {
-            const statusEl = document.getElementById('status');
-            const gridEl = document.getElementById('grid');
-
             try {
-                // 1. 初始化 LIFF (請務必填入您的 LIFF ID)
-                await liff.init({ liffId: "2009598618-mYOYGEoM" }); 
-
-                if (!liff.isLoggedIn()) {
-                    statusEl.innerText = "驗證中，請稍候...";
+                // 填入您的 LIFF ID
+                await liff.init({ liffId: "2009598618-mYOYGEoM" }).catch(() => console.log("Outside LINE"));
+                
+                if (liff.isInClient() && !liff.isLoggedIn()) {
                     liff.login();
                     return;
                 }
 
-                // 2. 抓取網址參數 (由 app.py 傳過來的 ini 與 options)
                 const urlParams = new URLSearchParams(window.location.search);
                 const ini = urlParams.get('ini') || "";
-                const optionsString = urlParams.get('options') || "";
-                const options = optionsString ? optionsString.split(',') : [];
-
-                if (options.length === 0) {
-                    statusEl.innerText = "目前沒有候選詞彙。";
-                } else {
-                    statusEl.innerText = `聲母「${ini}」的可能意圖：`;
-                }
-
-                // 3. 動態渲染按鈕
-                options.forEach(word => {
-                    const btn = document.createElement('button');
-                    btn.innerText = word;
-                    
-                    // 根據詞彙決定按鈕顏色
-                    const isEmergency = emergencyKeywords.some(k => word.includes(k));
-                    btn.className = isEmergency ? "btn emergency" : "btn normal";
-
-                    btn.onclick = () => {
-                        // 將結果傳回 LINE 對話框
-                        liff.sendMessages([{
-                            type: 'text',
-                            text: `【確認】：${word}`
-                        }]).then(() => {
-                            liff.closeWindow(); // 傳完自動關閉網頁
-                        }).catch(err => {
-                            alert("訊息傳送失敗：" + err);
-                        });
-                    };
-                    gridEl.appendChild(btn);
-                });
-
-                // 4. 加入「都不是」按鈕
-                const teachBtn = document.createElement('button');
-                teachBtn.innerText = "以上都不是，教我新詞";
-                teachBtn.className = "btn teach";
-                teachBtn.onclick = () => {
-                    liff.sendMessages([{
-                        type: 'text',
-                        text: `我不認識「${ini}」，請教我。`
-                    }]).then(() => liff.closeWindow());
-                };
-                gridEl.appendChild(teachBtn);
-
+                const options = urlParams.get('options')?.split(',') || [];
+                
+                renderButtons(options, ini);
             } catch (err) {
-                statusEl.innerHTML = `<span style="color:red">❌ 初始化失敗</span><br><small>${err.code}: ${err.message}</small>`;
-                console.error("LIFF Error:", err);
+                document.getElementById('status').innerText = "系統初始化異常";
+                renderButtons([], "");
             }
         }
-
-        // 啟動程式
         main();
     </script>
 </body>
