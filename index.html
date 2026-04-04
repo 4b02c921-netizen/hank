@@ -3,39 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 科研實戰版 V58</title>
+    <title>HMI 終極鎖死版 V60</title>
     <style>
         :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 6px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         
-        /* 顯示區 */
-        .display { background: var(--card); padding: 12px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 5px; }
-        #sentence-box { font-size: 24px; min-height: 30px; word-break: break-all; font-weight: 500; }
-        #buffer-box { font-size: 16px; color: var(--primary); margin-top: 4px; font-weight: bold; }
+        /* 1. 顯示區 */
+        .display { background: var(--card); padding: 10px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 4px; }
+        #sentence-box { font-size: 22px; min-height: 26px; word-break: break-all; }
+        #buffer-box { font-size: 14px; color: var(--primary); font-weight: bold; }
 
-        /* 預測列：支援更多詞彙 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 10px 0; min-height: 55px; scrollbar-width: thin; }
-        .predict-item { background: var(--card); padding: 10px 18px; border-radius: 12px; font-size: 20px; border: 1px solid #E5E5EA; white-space: nowrap; }
-        .predict-item.local { color: var(--success); font-weight: bold; }
-        .predict-item.ai { color: var(--primary); }
+        /* 2. 預測列：確保 20 個詞好滑動 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 8px; min-height: 50px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 8px 16px; border-radius: 10px; font-size: 19px; border: 1px solid #E5E5EA; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .predict-item.local { color: var(--success); font-weight: bold; border-color: var(--success); }
+        .predict-item.ai { color: var(--primary); border-color: var(--primary); }
 
-        /* 鍵盤區：紅圈處放大 */
-        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 8px; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .key:active { background: #E5E5EA; }
-        .key.fn { background: #D1D1D6; font-size: 16px; }
+        /* 3. 鍵盤區：魏先生紅圈要求的大按鍵 */
+        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 5px; }
+        .key { background: var(--card); border: none; border-radius: 10px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .key.fn { background: #D1D1D6; font-size: 15px; }
 
-        /* 控制列：語音 + 傳送 */
-        .controls { display: grid; grid-template-columns: 70px 1fr; gap: 10px; margin-bottom: 8px; }
-        .btn-voice { background: var(--danger); color: white; border-radius: 14px; border: none; font-size: 24px; display: flex; align-items: center; justify-content: center; }
-        .btn-send { background: var(--primary); color: white; padding: 16px; border-radius: 14px; border: none; font-size: 20px; font-weight: bold; }
+        /* 4. 控制列 */
+        .controls { display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-bottom: 5px; }
+        .btn-voice { background: var(--danger); color: white; border-radius: 10px; border: none; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+        .btn-send { background: var(--primary); color: white; padding: 12px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; }
 
-        /* 紀錄區：藍圈處縮小 + 分頁 */
-        .history-panel { background: rgba(255,255,255,0.7); padding: 8px; border-radius: 14px; border: 1px solid #DDD; font-size: 13px; height: 80px; display: flex; flex-direction: column; }
-        .history-content { flex-grow: 1; overflow-y: hidden; }
-        .history-controls { display: flex; justify-content: space-between; margin-top: 5px; }
-        .page-btn { background: #E5E5EA; border: none; padding: 2px 10px; border-radius: 4px; font-size: 12px; }
-        .log-item { padding: 2px 0; border-bottom: 1px solid #EEE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* 5. 紀錄區：魏先生藍圈要求的分頁小窗 */
+        .history-panel { background: rgba(255,255,255,0.7); padding: 6px; border-radius: 12px; border: 1px solid #DDD; font-size: 12px; height: 75px; display: flex; flex-direction: column; }
+        .history-content { flex-grow: 1; overflow: hidden; }
+        .history-controls { display: flex; justify-content: space-between; align-items: center; }
+        .page-btn { background: #E5E5EA; border: none; padding: 1px 8px; border-radius: 4px; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -51,18 +49,19 @@
     <div class="history-panel">
         <div class="history-content" id="history-box"></div>
         <div class="history-controls">
-            <button class="page-btn" onclick="changePage(-1)">◀ 上一頁</button>
-            <span id="page-info" style="color:#888">1 / 1</span>
-            <button class="page-btn" onclick="changePage(1)">下一頁 ▶</button>
+            <button class="page-btn" onclick="changePage(-1)">◀ 上頁</button>
+            <span id="page-info">1 / 1</span>
+            <button class="page-btn" onclick="changePage(1)">下頁 ▶</button>
         </div>
     </div>
 
 <script>
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
+    
     const instantFlow = {
         "DEFAULT": ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"],
-        "想大便": ["肚子痛", "快一點", "要換尿布"], "想小便": ["憋不住了", "要尿壺", "快幫我"],
+        "想大便": ["肚子很痛", "快一點", "換尿布"], "想小便": ["憋不住了", "要用尿壺", "快幫我"],
         "緊急": ["叫醫生", "我不舒服", "跌倒了"], "喝水": ["要溫的", "還要喝", "太燙了", "謝謝"],
         "早安": ["吃飽了", "睡得好", "天氣好"]
     };
@@ -73,10 +72,10 @@
         const kb = document.getElementById('keyboard'); kb.innerHTML = "";
         bpmf.forEach(c => {
             const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = c;
-            btn.onclick = () => { inputBuffer += c; updateUI(); callAI(true); };
+            btn.onclick = () => { inputBuffer += c; updateUI(); callAI(); };
             kb.appendChild(btn);
         });
-        addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(true); }, "key fn");
+        addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(); }, "key fn");
         addKey("全清", () => { handleClear(); }, "key fn");
         updatePredicts(instantFlow.DEFAULT, "local");
         loadHistory();
@@ -93,11 +92,9 @@
         if (inputBuffer !== "") document.getElementById('predict-bar').innerHTML = ""; 
     }
 
-    async function callAI(isTyping) {
-        if (isTyping && inputBuffer.length < 2) {
-            if (inputBuffer === "") updatePredicts(instantFlow.DEFAULT, "local");
-            return;
-        }
+    async function callAI() {
+        if (inputBuffer === "" && sentence === "") { updatePredicts(instantFlow.DEFAULT, "local"); return; }
+        if (inputBuffer !== "" && inputBuffer.length < 2) return;
         try {
             const res = await fetch(BACKEND_URL, {
                 method: 'POST',
@@ -105,8 +102,7 @@
                 body: JSON.stringify({ initials: inputBuffer, context: sentence })
             });
             const data = await res.json();
-            const filtered = data.choices.filter(c => c !== "我" && !sentence.endsWith(c));
-            if (inputBuffer !== "" || sentence !== "") updatePredicts(filtered, "ai", true);
+            if (inputBuffer !== "" || sentence !== "") updatePredicts(data.choices, "ai", true);
         } catch (e) { }
     }
 
@@ -119,14 +115,12 @@
                 let final = word.replace(/[🚨🚽💩💧🕰️☀️]/g, "");
                 if (final === "報時") {
                     const now = new Date();
-                    const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
-                    final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
+                    final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${["週日","週一","週二","週三","週四","週五","週六"][now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} `;
                 }
                 sentence += final; inputBuffer = ""; updateUI();
-                let nextL = [];
-                for (let key in instantFlow) { if (final.includes(key)) { nextL = instantFlow[key]; break; } }
-                updatePredicts(nextL.length > 0 ? nextL : ["謝謝", "還要", "快點"], "local");
-                callAI(false);
+                let nextL = instantFlow[final] || ["謝謝", "還要", "快點"];
+                updatePredicts(nextL, "local");
+                callAI();
             };
             bar.appendChild(d);
         });
@@ -134,50 +128,42 @@
 
     function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(instantFlow.DEFAULT, "local"); }
 
-    // 語音輸入邏輯
+    // 語音輸入
     let isListening = false;
     const recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
     if (recognition) {
-        recognition.lang = "zh-TW"; recognition.continuous = false;
-        recognition.onresult = (e) => { sentence += e.results[0][0].transcript; updateUI(); toggleVoice(); };
+        recognition.lang = "zh-TW"; recognition.onresult = (e) => { sentence += e.results[0][0].transcript; updateUI(); toggleVoice(); };
     }
     function toggleVoice() {
-        if (!recognition) return alert("瀏覽器不支援語音");
+        if (!recognition) return alert("支援失敗");
         isListening = !isListening;
         document.getElementById('voice-btn').style.background = isListening ? "#34C759" : "#FF3B30";
         isListening ? recognition.start() : recognition.stop();
     }
 
-    // 分頁紀錄邏輯
+    // 分頁歷史紀錄
     function sendAndClear() {
         if (sentence.trim()) {
-            const timeStr = `${new Date().getHours()}:${new Date().getMinutes()}`;
-            historyLogs.unshift(`[${timeStr}] ${sentence}`);
-            localStorage.setItem('hmi_v58_logs', JSON.stringify(historyLogs));
+            historyLogs.unshift(`[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}`);
+            localStorage.setItem('hmi_v60_logs', JSON.stringify(historyLogs));
             currentPage = 0; loadHistory();
         }
         handleClear();
     }
-
     function loadHistory() {
-        historyLogs = JSON.parse(localStorage.getItem('hmi_v58_logs') || '[]');
+        historyLogs = JSON.parse(localStorage.getItem('hmi_v60_logs') || '[]');
         const box = document.getElementById('history-box');
         const itemsPerPage = 3;
         const totalPages = Math.max(1, Math.ceil(historyLogs.length / itemsPerPage));
-        
         const start = currentPage * itemsPerPage;
-        const pageItems = historyLogs.slice(start, start + itemsPerPage);
-        
-        box.innerHTML = pageItems.map(log => `<div class="log-item">${log}</div>`).join('');
+        box.innerHTML = historyLogs.slice(start, start + itemsPerPage).map(log => `<div style='padding:2px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
         document.getElementById('page-info').innerText = `${currentPage + 1} / ${totalPages}`;
     }
-
     function changePage(dir) {
         const totalPages = Math.ceil(historyLogs.length / 3);
-        currentPage = Math.min(Math.max(0, currentPage + dir), totalPages - 1);
+        currentPage = Math.min(Math.max(0, currentPage + dir), Math.max(0, totalPages - 1));
         loadHistory();
     }
-
     renderKB();
 </script>
 </body>
