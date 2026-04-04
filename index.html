@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 終極集成 V37</title>
+    <title>HMI 終極收官版 V39</title>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --text: #fff; --dim: #8e8e93; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; box-sizing: border-box; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        .display { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; height: 100vh; }
+        .display { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; flex-shrink: 0; }
         #sentence-box { font-size: 26px; color: #00ffcc; min-height: 35px; word-break: break-all; }
-        #buffer-box { font-size: 20px; color: #ffcc00; margin-top: 5px; height: 25px; font-weight: bold; letter-spacing: 3px; }
-        .predict-bar { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 15px; min-height: 75px; scrollbar-width: none; }
-        .predict-item { background: #2c2c2e; padding: 15px 30px; border-radius: 20px; white-space: nowrap; font-size: 24px; border: 2px solid #444; color: #fff; }
-        .predict-item.local { border-color: var(--success); color: var(--success); font-weight: bold; }
+        #buffer-box { font-size: 20px; color: #ffcc00; margin-top: 5px; font-weight: bold; }
+        .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 10px; min-height: 75px; scrollbar-width: none; }
+        .predict-item { background: #2c2c2e; padding: 12px 24px; border-radius: 18px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
+        .predict-item.local { border-color: var(--success); color: var(--success); }
         .predict-item.ai { border-color: var(--primary); color: var(--primary); }
-        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 15px; color: white; font-size: 26px; font-weight: bold; height: 60px; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 0 #000; }
+        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
+        .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 50px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #000; }
         .key.fn { background: #3a3a3c; font-size: 18px; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
-        .btn { padding: 18px; border-radius: 15px; border: none; font-weight: bold; font-size: 20px; color: white; }
+        .record-panel { background: #111; border-top: 2px solid #333; margin-top: 10px; padding: 10px; border-radius: 12px; flex-shrink: 0; }
+        .record-content { font-size: 13px; color: #888; max-height: 80px; overflow-y: auto; background: #000; padding: 8px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -28,27 +28,24 @@
     </div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <div class="controls">
-        <button class="btn" style="background:#3a3a3c" onclick="handleClearAll()">🧹 全清</button>
-        <button class="btn" style="background:#0a84ff" onclick="sendAndClear()">✅ 傳送</button>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+        <button onclick="handleClearAll()" style="background:#3a3a3c; color:white; border-radius:12px; padding:15px; border:none; font-size:18px;">🧹 全清</button>
+        <button onclick="sendAndClear()" style="background:#0a84ff; color:white; border-radius:12px; padding:15px; border:none; font-size:18px;">✅ 傳送</button>
+    </div>
+    <div class="record-panel">
+        <div style="color:var(--success); font-weight:bold; font-size:14px; margin-bottom:5px;">📊 科研發送紀錄</div>
+        <div class="record-content" id="log-display">尚未有發送紀錄...</div>
     </div>
 
 <script>
-    // ⚠️ 請填寫您最新的 ngrok 網址
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
-    
-    // 全部資料鎖死
-    const localDict = { "ㄒㄅ": "想小便🚽", "ㄉㄅ": "想大便💩", "ㄏㄕ": "喝水💧", "ㄅㄕ": "報時🕰️", "ㄐㄐ": "緊急🚨", "ㄉㄉ": "對對對對" };
+    const localDict = { "ㄒㄅ": "想小便🚽", "ㄉㄅ": "想大便💩", "ㄏㄕ": "喝水💧", "ㄅㄕ": "報時🕰️", "ㄐㄐ": "緊急🚨" };
     const nextFlow = {
-        "想大便": ["肚子很痛", "快一點", "要換尿布", "我便秘了"],
-        "想小便": ["憋不住了", "要尿壺", "快幫我", "。"],
-        "喝水": ["我要溫的", "還要喝", "太燙了", "謝謝"],
-        "緊急": ["我不舒服", "救救我", "幫我叫醫生"],
-        "我不舒服": ["我頭很痛", "我肚子痛", "我喘不過氣"]
+        "想大便": ["肚子很痛", "快一點", "要換尿布"], "想小便": ["憋不住了", "拿尿壺", "快幫我"],
+        "喝水": ["我要溫的", "還要喝", "太燙了"]
     };
     const defaultNeeds = ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"];
-
     let sentence = "", inputBuffer = "";
 
     function renderKB() {
@@ -72,14 +69,18 @@
     function updateUI() {
         document.getElementById('buffer-box').innerText = inputBuffer;
         document.getElementById('sentence-box').innerText = sentence;
+        // 如果正在打字，清空預測列，等待 AI
         if (inputBuffer !== "") {
-            let list = localDict[inputBuffer] ? [localDict[inputBuffer]] : [];
-            if (list.length > 0) updatePredicts(list, "local");
+            document.getElementById('predict-bar').innerHTML = "";
+            if (localDict[inputBuffer]) updatePredicts([localDict[inputBuffer]], "local");
         }
     }
 
     async function callAI() {
-        if (inputBuffer.length < 2) return;
+        if (inputBuffer.length < 2) {
+            if (inputBuffer === "") updatePredicts(defaultNeeds, "local");
+            return;
+        }
         try {
             const res = await fetch(BACKEND_URL, {
                 method: 'POST',
@@ -88,19 +89,19 @@
             });
             const data = await res.json();
             if (inputBuffer !== "") updatePredicts(data.choices, "ai");
-        } catch (e) { console.log("AI Offline"); }
+        } catch (e) { }
     }
 
     function updatePredicts(list, type) {
         const bar = document.getElementById('predict-bar');
-        if (type === "local" || bar.innerHTML === "") bar.innerHTML = "";
+        // 打字時 (inputBuffer有值)，強制只顯示 AI 或對應的單一 local 詞，隱藏預設綠色按鈕
+        if (inputBuffer !== "" || type === "local") bar.innerHTML = "";
         list.forEach(word => {
             const d = document.createElement('div');
-            d.className = `predict-item ${type === 'local' ? 'local' : 'ai'}`;
+            d.className = `predict-item ${type}`;
             d.innerText = word;
             d.onclick = () => {
                 let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
-                // 魏先生指定的日期格式
                 if (final === "報時") {
                     const now = new Date();
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
@@ -116,8 +117,17 @@
     }
 
     function handleClearAll() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(defaultNeeds, "local"); }
-    function sendAndClear() { if (sentence.trim()) alert("已發送: " + sentence); handleClearAll(); }
-
+    
+    function sendAndClear() {
+        if (sentence.trim()) {
+            const now = new Date();
+            const logBox = document.getElementById('log-display');
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            if (logBox.innerText.includes("尚未有")) logBox.innerHTML = "";
+            logBox.innerHTML = `<div>[${timeStr}] ${sentence}</div>` + logBox.innerHTML;
+        }
+        handleClearAll();
+    }
     renderKB();
 </script>
 </body>
