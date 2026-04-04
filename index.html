@@ -3,152 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 私人智慧輸入系統</title>
+    <title>HMI 智慧科研輸入系統</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --blue: #4B7BFF; --red: #FF4B4B; --text: #e0e0e0; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-        
-        /* 顯示區 */
-        .display-box { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #333; }
-        #sentence-out { font-size: 24px; color: #00ffcc; min-height: 30px; margin-bottom: 5px; }
-        #buffer-out { font-size: 16px; color: #888; }
-
-        /* 數據監測 */
-        .stats { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #666; }
-
-        /* 九宮格 */
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex-grow: 1; }
-        .btn { 
-            background: var(--card); border: 1px solid #444; border-radius: 10px; color: white; 
-            font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; transition: 0.1s; 
+        :root {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --primary: #0a84ff;
+            --success: #30d158;
+            --danger: #ff453a;
+            --text: #ffffff;
+            --dim: #8e8e93;
         }
-        .btn:active { background: var(--blue); }
-        .btn.history { border-color: #00ffcc; color: #00ffcc; } /* 歷史紀錄顏色區分 */
-        .btn.nav { background: #333; color: #ffcc00; font-size: 14px; }
 
-        /* 控制列 */
-        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .ctrl-btn { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-        .btn-v { background: var(--red); color: white; }
-        .btn-c { background: #444; color: white; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* 數據監測區 */
+        .metrics {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--dim);
+            padding: 5px 0;
+            font-family: monospace;
+        }
+
+        /* 句子顯示區 */
+        .display-area {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 12px;
+            min-height: 60px;
+            margin-bottom: 10px;
+            border: 1px solid #333;
+        }
+        #sentence-box { font-size: 26px; color: #00ffcc; min-height: 32px; word-break: break-all; }
+        #buffer-box { font-size: 16px; color: var(--dim); margin-top: 4px; height: 20px; }
+
+        /* AI 預測列 (水平滾動) */
+        .predict-bar {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding: 10px 0;
+            min-height: 45px;
+            scrollbar-width: none;
+        }
+        .predict-bar::-webkit-scrollbar { display: none; }
+        .predict-item {
+            background: #2c2c2e;
+            padding: 8px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+            font-size: 18px;
+            border: 1px solid #444;
+        }
+        .predict-item.history { border-color: var(--success); color: var(--success); }
+
+        /* 鍵盤/九宮格區 */
+        .input-area { flex-grow: 1; display: flex; flex-direction: column; }
+        .grid-3x3 { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr); 
+            gap: 10px; 
+            height: 100%; 
+        }
+        .key {
+            background: var(--card);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .key:active { background: var(--primary); }
+        .key.nav { color: #ffcc00; font-size: 16px; background: #2c2c2e; }
+
+        /* 功能控制列 */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .ctrl-btn {
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            background: #3a3a3c;
+            color: white;
+        }
+        .btn-main { background: var(--primary); }
+        .btn-danger { background: var(--danger); }
     </style>
 </head>
 <body>
 
-    <div class="stats">
-        <span id="stat-wpm">速度: 0 WPM</span>
-        <span id="stat-mode">模式: 聲母輸入</span>
+    <div class="metrics">
+        <span id="metric-wpm">速度: 0 字/分</span>
+        <span id="metric-status">模式: 3x3 聲母</span>
     </div>
 
-    <div class="display-box">
-        <div id="sentence-out"></div>
-        <div id="buffer-out">等待聲母輸入...</div>
+    <div class="display-area">
+        <div id="sentence-box"></div>
+        <div id="buffer-box"></div>
     </div>
 
-    <div class="grid" id="main-grid"></div>
+    <div class="predict-bar" id="predict-bar">
+        </div>
+
+    <div class="input-area">
+        <div class="grid-3x3" id="keyboard"></div>
+    </div>
 
     <div class="controls">
-        <button class="ctrl-btn btn-c" onclick="toggleMode()">切換模式</button>
-        <button class="ctrl-btn btn-v" onclick="startVoice()">語音輸入</button>
-        <button class="ctrl-btn btn-c" onclick="clearAndSave()">送出並學習</button>
+        <button class="ctrl-btn" onclick="toggleLayout()">切換全鍵盤</button>
+        <button class="ctrl-btn btn-danger" onclick="startVoice()">語音輸入</button>
+        <button class="ctrl-btn btn-main" onclick="sendAndClear()">傳送/儲存</button>
     </div>
 
-    <script>
-        let inputBuffer = "";
-        let sentence = "";
-        let startTime = null;
-        let wordCount = 0;
-        const LIFF_ID = "2009598618-mYOYGEoM";
+<script>
+    // 配置
+    const LIFF_ID = "2009598618-mYOYGEoM";
+    const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
+    const aiDefault = { "ㄐㄐ": ["緊急", "救命", "解決", "姐姐"], "ㄉㄅ": ["大便", "代表", "翻身"] };
 
-        // 模擬 AI Agent 靜態庫
-        const aiLib = { "ㄐㄐ": ["緊急", "救命", "姐姐"], "ㄉㄅ": ["大便", "代表"] };
+    // 狀態
+    let layout = 'grid'; // 'grid' (3x3) or 'full'
+    let inputBuffer = "";
+    let sentence = "";
+    let page = 0;
+    let startTime = null;
+    let wordCount = 0;
 
-        // --- 核心：私人記憶功能 ---
-        function saveToLocal(word) {
-            let history = JSON.parse(localStorage.getItem('hmi_history') || '{}');
-            if (!history[inputBuffer]) history[inputBuffer] = [];
-            // 增加權重或簡單存入（避免重複）
-            if (!history[inputBuffer].includes(word)) {
-                history[inputBuffer].unshift(word);
-                history[inputBuffer] = history[history[inputBuffer].slice(0, 10)]; // 只記前 10 個
-            }
-            localStorage.setItem('hmi_history', JSON.stringify(history));
+    // --- 核心：靜音學習系統 ---
+    function learnHabit(ini, word) {
+        if (!ini || !word) return;
+        let habits = JSON.parse(localStorage.getItem('hmi_habits') || '{}');
+        if (!habits[ini]) habits[ini] = [];
+        // 移到最前 (LRU 邏輯)
+        habits[ini] = [word, ...habits[ini].filter(w => w !== word)].slice(0, 5);
+        localStorage.setItem('hmi_habits', JSON.stringify(habits));
+    }
+
+    function getHabits(ini) {
+        let habits = JSON.parse(localStorage.getItem('hmi_habits') || '{}');
+        return habits[ini] || [];
+    }
+
+    // --- 介面渲染 ---
+    function renderKeyboard() {
+        const kb = document.getElementById('keyboard');
+        kb.innerHTML = "";
+        
+        if (layout === 'grid') {
+            const start = page * 7;
+            const keys = bpmf.slice(start, start + 7);
+            keys.forEach(k => createKey(k, () => handleKey(k)));
+            createKey("⬅", () => { page = Math.max(0, page - 1); renderKeyboard(); }, "nav");
+            createKey("➡", () => { page = (page + 1) % 6; renderKeyboard(); }, "nav");
+        } else {
+            // 簡易全鍵盤 (示範用)
+            bpmf.slice(0, 9).forEach(k => createKey(k, () => handleKey(k)));
+        }
+    }
+
+    function createKey(text, onclick, cls = "") {
+        const btn = document.createElement('button');
+        btn.className = `key ${cls}`;
+        btn.innerText = text;
+        btn.onclick = onclick;
+        document.getElementById('keyboard').appendChild(btn);
+    }
+
+    function handleKey(char) {
+        if (!startTime) startTime = new Date();
+        inputBuffer += char;
+        document.getElementById('buffer-box').innerText = inputBuffer;
+        updatePredictions();
+    }
+
+    function updatePredictions() {
+        const bar = document.getElementById('predict-bar');
+        bar.innerHTML = "";
+        
+        const history = getHabits(inputBuffer);
+        const defaults = aiDefault[inputBuffer] || [];
+        const combined = [...new Set([...history, ...defaults, "然後", "好的"])];
+
+        combined.forEach(word => {
+            const div = document.createElement('div');
+            div.className = `predict-item ${history.includes(word) ? 'history' : ''}`;
+            div.innerText = word;
+            div.onclick = () => selectWord(word);
+            bar.appendChild(div);
+        });
+    }
+
+    function selectWord(word) {
+        if (inputBuffer) learnHabit(inputBuffer, word);
+        sentence += word;
+        wordCount += word.length;
+        document.getElementById('sentence-box').innerText = sentence;
+        inputBuffer = "";
+        document.getElementById('buffer-box').innerText = "";
+        updatePredictions();
+        updateMetrics();
+        // 自動聯想下一個詞 (AI Agent 邏輯)
+        suggestNext(word);
+    }
+
+    function suggestNext(word) {
+        const bar = document.getElementById('predict-bar');
+        const nextMap = { "喝水": ["謝謝", "太燙", "還要"], "緊急": ["救命", "找醫生", "快點"] };
+        const suggestions = nextMap[word] || ["然後", "。"];
+        suggestions.forEach(w => {
+            const div = document.createElement('div');
+            div.className = 'predict-item';
+            div.innerText = w;
+            div.onclick = () => selectWord(w);
+            bar.appendChild(div);
+        });
+    }
+
+    // --- 功能邏輯 ---
+    function updateMetrics() {
+        if (!startTime) return;
+        const mins = (new Date() - startTime) / 60000;
+        const wpm = Math.round(wordCount / mins) || 0;
+        document.getElementById('metric-wpm').innerText = `速度: ${wpm} 字/分`;
+    }
+
+    function sendAndClear() {
+        if (sentence.trim() === "") return;
+        
+        // 傳送給 LINE (靜默執行)
+        if (liff.isInClient()) {
+            liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
         }
 
-        function getPersonalHistory(ini) {
-            let history = JSON.parse(localStorage.getItem('hmi_history') || '{}');
-            return history[ini] || [];
-        }
+        // 靜默重置
+        sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
+        document.getElementById('sentence-box').innerText = "";
+        document.getElementById('buffer-box').innerText = "";
+        document.getElementById('metric-wpm').innerText = "速度: 0 字/分";
+        renderKeyboard();
+    }
 
-        // 渲染九宮格
-        function renderGrid(mode, key = "") {
-            const grid = document.getElementById('main-grid');
-            grid.innerHTML = "";
-            
-            if (mode === 'initial') {
-                const initials = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ"]; // 範例前 9 個
-                initials.forEach(char => createBtn(char, () => handleInitial(char)));
-            } else if (mode === 'prediction') {
-                // 混合：私人紀錄 + AI 預測
-                let personal = getPersonalHistory(key);
-                let standard = aiLib[key] || ["自定義", "詞彙"];
-                let combined = [...new Set([...personal, ...standard])];
+    function toggleLayout() {
+        layout = (layout === 'grid' ? 'full' : 'grid');
+        document.getElementById('metric-status').innerText = `模式: ${layout === 'grid' ? '3x3 聲母' : '全鍵盤'}`;
+        renderKeyboard();
+    }
 
-                combined.slice(0, 8).forEach(word => {
-                    const isHistory = personal.includes(word);
-                    createBtn(word, () => selectWord(word), isHistory ? "history" : "");
-                });
-                createBtn("返回", () => renderGrid('initial'), "nav");
-            }
-        }
+    function startVoice() {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'zh-TW';
+        recognition.onstart = () => document.getElementById('metric-status').innerText = "🎤 聆聽中...";
+        recognition.onresult = (e) => selectWord(e.results[0][0].transcript);
+        recognition.onerror = () => alert("語音啟動失敗，請確認 HTTPS 權限");
+        recognition.onend = () => document.getElementById('metric-status').innerText = `模式: ${layout === 'grid' ? '3x3 聲母' : '全鍵盤'}`;
+        recognition.start();
+    }
 
-        function createBtn(text, onclick, cls = "") {
-            const btn = document.createElement('div');
-            btn.className = `btn ${cls}`;
-            btn.innerText = text;
-            btn.onclick = onclick;
-            document.getElementById('main-grid').appendChild(btn);
-        }
-
-        function handleInitial(char) {
-            if (!startTime) startTime = new Date();
-            inputBuffer += char;
-            document.getElementById('buffer-out').innerText = inputBuffer;
-            if (inputBuffer.length >= 2) renderGrid('prediction', inputBuffer);
-        }
-
-        function selectWord(word) {
-            saveToLocal(word); // 學習此詞彙
-            sentence += word;
-            wordCount += word.length;
-            document.getElementById('sentence-out').innerText = sentence;
-            inputBuffer = "";
-            document.getElementById('buffer-out').innerText = "學習完成，繼續輸入...";
-            renderGrid('initial');
-            updateWPM();
-        }
-
-        function updateWPM() {
-            if (!startTime) return;
-            const elapsed = (new Date() - startTime) / 60000;
-            const wpm = Math.round(wordCount / elapsed);
-            document.getElementById('stat-wpm').innerText = `速度: ${wpm} 字/分`;
-        }
-
-        function clearAndSave() {
-            // 這裡可以串接 liff.sendMessages
-            alert("已儲存私人習慣至此手機：" + sentence);
-            sentence = ""; wordCount = 0; startTime = null;
-            document.getElementById('sentence-out').innerText = "";
-            renderGrid('initial');
-        }
-
-        function startVoice() { /* 語音辨識邏輯同前 */ }
-        function toggleMode() { /* 模式切換邏輯 */ }
-
-        liff.init({ liffId: LIFF_ID }).then(() => renderGrid('initial'));
-    </script>
+    // 初始化
+    liff.init({ liffId: LIFF_ID }).then(() => renderKeyboard());
+</script>
 </body>
 </html>
