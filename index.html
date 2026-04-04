@@ -3,290 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 智慧科研輸入系統</title>
+    <title>HMI 全符號一屏輸入系統</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root {
-            --bg: #000000;
-            --card: #1c1c1e;
-            --primary: #0a84ff;
-            --success: #30d158;
-            --danger: #ff453a;
-            --text: #ffffff;
-            --dim: #8e8e93;
+            --bg: #000; --card: #1c1c1e; --primary: #0a84ff;
+            --success: #30d158; --text: #fff; --dim: #8e8e93;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 10px;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-            overflow: hidden;
+            font-family: -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding: 10px; height: 100vh;
+            display: flex; flex-direction: column; box-sizing: border-box;
         }
 
-        /* 數據監測區 */
-        .metrics {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            color: var(--dim);
-            padding: 5px 0;
-            font-family: monospace;
-        }
+        /* 數據監控 */
+        .metrics { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); padding-bottom: 5px; }
 
-        /* 句子顯示區 */
-        .display-area {
-            background: var(--card);
-            padding: 15px;
-            border-radius: 12px;
-            min-height: 60px;
-            margin-bottom: 10px;
-            border: 1px solid #333;
-        }
-        #sentence-box { font-size: 26px; color: #00ffcc; min-height: 32px; word-break: break-all; }
-        #buffer-box { font-size: 16px; color: var(--dim); margin-top: 4px; height: 20px; }
+        /* 顯示區 */
+        .display { background: var(--card); padding: 12px; border-radius: 10px; border: 1px solid #333; margin-bottom: 8px; }
+        #sentence-box { font-size: 22px; color: #00ffcc; min-height: 28px; word-break: break-all; }
+        #buffer-box { font-size: 14px; color: var(--dim); margin-top: 4px; height: 18px; }
 
-        /* AI 預測列 (水平滾動) */
+        /* AI 預測列 */
         .predict-bar {
-            display: flex;
-            overflow-x: auto;
-            gap: 10px;
-            padding: 10px 0;
-            min-height: 45px;
-            scrollbar-width: none;
+            display: flex; overflow-x: auto; gap: 8px; padding: 8px 0;
+            min-height: 40px; scrollbar-width: none;
         }
         .predict-bar::-webkit-scrollbar { display: none; }
         .predict-item {
-            background: #2c2c2e;
-            padding: 8px 16px;
-            border-radius: 20px;
-            white-space: nowrap;
-            font-size: 18px;
-            border: 1px solid #444;
+            background: #2c2c2e; padding: 6px 14px; border-radius: 15px;
+            white-space: nowrap; font-size: 17px; border: 1px solid #444;
         }
         .predict-item.history { border-color: var(--success); color: var(--success); }
 
-        /* 鍵盤/九宮格區 */
-        .input-area { flex-grow: 1; display: flex; flex-direction: column; }
-        .grid-3x3 { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(3, 1fr); 
-            gap: 10px; 
-            height: 100%; 
+        /* 核心：全符號鍵盤佈局 (6欄) */
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* 這裡改為6欄位 */
+            gap: 6px;
+            flex-grow: 1;
+            align-content: start;
         }
         .key {
-            background: var(--card);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
+            background: var(--card); border: none; border-radius: 8px;
+            color: white; font-size: 18px; font-weight: bold;
+            aspect-ratio: 1 / 1; /* 保持正方形 */
+            display: flex; align-items: center; justify-content: center;
         }
         .key:active { background: var(--primary); }
-        .key.nav { color: #ffcc00; font-size: 16px; background: #2c2c2e; }
 
-        /* 功能控制列 */
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .ctrl-btn {
-            padding: 14px;
-            border-radius: 10px;
-            border: none;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-            background: #3a3a3c;
-            color: white;
-        }
-        .btn-main { background: var(--primary); }
-        .btn-danger { background: var(--danger); }
+        /* 功能控制 */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .ctrl-btn { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; color: white; }
+        .btn-voice { background: #ff453a; }
+        .btn-send { background: var(--primary); }
     </style>
 </head>
 <body>
 
     <div class="metrics">
-        <span id="metric-wpm">速度: 0 字/分</span>
-        <span id="metric-status">模式: 3x3 聲母</span>
+        <span id="wpm">速度: 0 字/分</span>
+        <span id="status">模式: 全聲母一屏</span>
     </div>
 
-    <div class="display-area">
+    <div class="display">
         <div id="sentence-box"></div>
         <div id="buffer-box"></div>
     </div>
 
-    <div class="predict-bar" id="predict-bar">
-        </div>
+    <div class="predict-bar" id="predict-bar"></div>
 
-    <div class="input-area">
-        <div class="grid-3x3" id="keyboard"></div>
-    </div>
+    <div class="keyboard" id="keyboard"></div>
 
     <div class="controls">
-        <button class="ctrl-btn" onclick="toggleLayout()">切換全鍵盤</button>
-        <button class="ctrl-btn btn-danger" onclick="startVoice()">語音輸入</button>
-        <button class="ctrl-btn btn-main" onclick="sendAndClear()">傳送/儲存</button>
+        <button class="ctrl-btn btn-voice" onclick="startVoice()">🎤 語音輸入</button>
+        <button class="ctrl-btn btn-send" onclick="sendAndClear()">✅ 傳送/學習</button>
     </div>
 
 <script>
-    // 配置
     const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
-    const aiDefault = { "ㄐㄐ": ["緊急", "救命", "解決", "姐姐"], "ㄉㄅ": ["大便", "代表", "翻身"] };
+    
+    let sentence = "", inputBuffer = "", startTime = null, wordCount = 0;
 
-    // 狀態
-    let layout = 'grid'; // 'grid' (3x3) or 'full'
-    let inputBuffer = "";
-    let sentence = "";
-    let page = 0;
-    let startTime = null;
-    let wordCount = 0;
-
-    // --- 核心：靜音學習系統 ---
-    function learnHabit(ini, word) {
+    // 私人記憶
+    function learn(ini, word) {
         if (!ini || !word) return;
-        let habits = JSON.parse(localStorage.getItem('hmi_habits') || '{}');
-        if (!habits[ini]) habits[ini] = [];
-        // 移到最前 (LRU 邏輯)
-        habits[ini] = [word, ...habits[ini].filter(w => w !== word)].slice(0, 5);
-        localStorage.setItem('hmi_habits', JSON.stringify(habits));
+        let h = JSON.parse(localStorage.getItem('hmi_v3') || '{}');
+        h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
+        localStorage.setItem('hmi_v3', JSON.stringify(h));
     }
 
-    function getHabits(ini) {
-        let habits = JSON.parse(localStorage.getItem('hmi_habits') || '{}');
-        return habits[ini] || [];
-    }
-
-    // --- 介面渲染 ---
-    function renderKeyboard() {
+    function renderKB() {
         const kb = document.getElementById('keyboard');
         kb.innerHTML = "";
-        
-        if (layout === 'grid') {
-            const start = page * 7;
-            const keys = bpmf.slice(start, start + 7);
-            keys.forEach(k => createKey(k, () => handleKey(k)));
-            createKey("⬅", () => { page = Math.max(0, page - 1); renderKeyboard(); }, "nav");
-            createKey("➡", () => { page = (page + 1) % 6; renderKeyboard(); }, "nav");
-        } else {
-            // 簡易全鍵盤 (示範用)
-            bpmf.slice(0, 9).forEach(k => createKey(k, () => handleKey(k)));
-        }
+        bpmf.forEach(char => {
+            const btn = document.createElement('button');
+            btn.className = 'key';
+            btn.innerText = char;
+            btn.onclick = () => {
+                if (!startTime) startTime = new Date();
+                inputBuffer += char;
+                document.getElementById('buffer-box').innerText = inputBuffer;
+                updatePredicts();
+            };
+            kb.appendChild(btn);
+        });
     }
 
-    function createKey(text, onclick, cls = "") {
-        const btn = document.createElement('button');
-        btn.className = `key ${cls}`;
-        btn.innerText = text;
-        btn.onclick = onclick;
-        document.getElementById('keyboard').appendChild(btn);
-    }
-
-    function handleKey(char) {
-        if (!startTime) startTime = new Date();
-        inputBuffer += char;
-        document.getElementById('buffer-box').innerText = inputBuffer;
-        updatePredictions();
-    }
-
-    function updatePredictions() {
+    function updatePredicts() {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
-        
-        const history = getHabits(inputBuffer);
-        const defaults = aiDefault[inputBuffer] || [];
-        const combined = [...new Set([...history, ...defaults, "然後", "好的"])];
+        const history = JSON.parse(localStorage.getItem('hmi_v3') || '{}')[inputBuffer] || [];
+        const defaults = ["喝水", "謝謝", "翻身", "救命"]; // 這裡可接入更複雜的 AI
+        const list = [...new Set([...history, ...defaults])];
 
-        combined.forEach(word => {
-            const div = document.createElement('div');
-            div.className = `predict-item ${history.includes(word) ? 'history' : ''}`;
-            div.innerText = word;
-            div.onclick = () => selectWord(word);
-            bar.appendChild(div);
+        list.forEach(word => {
+            const d = document.createElement('div');
+            d.className = `predict-item ${history.includes(word) ? 'history' : ''}`;
+            d.innerText = word;
+            d.onclick = () => {
+                learn(inputBuffer, word);
+                sentence += word; wordCount += word.length;
+                document.getElementById('sentence-box').innerText = sentence;
+                inputBuffer = ""; document.getElementById('buffer-box').innerText = "";
+                bar.innerHTML = "";
+                updateWPM();
+            };
+            bar.appendChild(d);
         });
     }
 
-    function selectWord(word) {
-        if (inputBuffer) learnHabit(inputBuffer, word);
-        sentence += word;
-        wordCount += word.length;
-        document.getElementById('sentence-box').innerText = sentence;
-        inputBuffer = "";
-        document.getElementById('buffer-box').innerText = "";
-        updatePredictions();
-        updateMetrics();
-        // 自動聯想下一個詞 (AI Agent 邏輯)
-        suggestNext(word);
-    }
-
-    function suggestNext(word) {
-        const bar = document.getElementById('predict-bar');
-        const nextMap = { "喝水": ["謝謝", "太燙", "還要"], "緊急": ["救命", "找醫生", "快點"] };
-        const suggestions = nextMap[word] || ["然後", "。"];
-        suggestions.forEach(w => {
-            const div = document.createElement('div');
-            div.className = 'predict-item';
-            div.innerText = w;
-            div.onclick = () => selectWord(w);
-            bar.appendChild(div);
-        });
-    }
-
-    // --- 功能邏輯 ---
-    function updateMetrics() {
+    function updateWPM() {
         if (!startTime) return;
         const mins = (new Date() - startTime) / 60000;
-        const wpm = Math.round(wordCount / mins) || 0;
-        document.getElementById('metric-wpm').innerText = `速度: ${wpm} 字/分`;
+        document.getElementById('wpm').innerText = `速度: ${Math.round(wordCount / mins) || 0} 字/分`;
     }
 
     function sendAndClear() {
-        if (sentence.trim() === "") return;
-        
-        // 傳送給 LINE (靜默執行)
-        if (liff.isInClient()) {
-            liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
-        }
-
-        // 靜默重置
+        if (sentence.trim() && liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
         sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
         document.getElementById('sentence-box').innerText = "";
         document.getElementById('buffer-box').innerText = "";
-        document.getElementById('metric-wpm').innerText = "速度: 0 字/分";
-        renderKeyboard();
-    }
-
-    function toggleLayout() {
-        layout = (layout === 'grid' ? 'full' : 'grid');
-        document.getElementById('metric-status').innerText = `模式: ${layout === 'grid' ? '3x3 聲母' : '全鍵盤'}`;
-        renderKeyboard();
+        renderKB();
     }
 
     function startVoice() {
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'zh-TW';
-        recognition.onstart = () => document.getElementById('metric-status').innerText = "🎤 聆聽中...";
-        recognition.onresult = (e) => selectWord(e.results[0][0].transcript);
-        recognition.onerror = () => alert("語音啟動失敗，請確認 HTTPS 權限");
-        recognition.onend = () => document.getElementById('metric-status').innerText = `模式: ${layout === 'grid' ? '3x3 聲母' : '全鍵盤'}`;
-        recognition.start();
+        const sr = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        sr.lang = 'zh-TW';
+        sr.onresult = (e) => { sentence += e.results[0][0].transcript; document.getElementById('sentence-box').innerText = sentence; };
+        sr.start();
     }
 
-    // 初始化
-    liff.init({ liffId: LIFF_ID }).then(() => renderKeyboard());
+    liff.init({ liffId: LIFF_ID }).then(renderKB);
 </script>
 </body>
 </html>
