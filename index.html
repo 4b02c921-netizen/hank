@@ -3,43 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 簡約版 V42</title>
+    <title>HMI 簡約無限版 V44</title>
     <style>
-        /* 改為淺色系：簡約、乾淨、空氣感 */
-        :root { 
-            --bg: #F2F2F7; 
-            --card: #FFFFFF; 
-            --text: #1C1C1E; 
-            --primary: #007AFF; 
-            --success: #34C759; 
-            --danger: #FF3B30; 
-            --dim: #8E8E93;
-        }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
         
-        /* 顯示區：白底黑字，更易閱讀 */
-        .display { background: var(--card); padding: 16px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 8px; }
-        #sentence-box { font-size: 26px; color: var(--text); min-height: 35px; word-break: break-all; }
-        #buffer-box { font-size: 18px; color: var(--primary); margin-top: 6px; font-weight: bold; }
+        /* 乾淨白潤顯示區 */
+        .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 10px; }
+        #sentence-box { font-size: 28px; color: var(--text); min-height: 35px; word-break: break-all; }
+        #buffer-box { font-size: 18px; color: var(--primary); margin-top: 8px; font-weight: bold; }
 
-        /* 預測列：橫向捲動，乾淨卡片 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 12px 0; min-height: 65px; scrollbar-width: none; }
-        .predict-item { background: var(--card); padding: 12px 22px; border-radius: 14px; white-space: nowrap; font-size: 22px; color: var(--text); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #E5E5EA; }
+        /* 預測列：白底卡片 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 14px 24px; border-radius: 16px; white-space: nowrap; font-size: 22px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
         .predict-item.local { color: var(--success); font-weight: bold; }
         .predict-item.ai { color: var(--primary); }
 
-        /* 鍵盤區：Apple 風格白色按鍵 */
-        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .key:active { background: #E5E5EA; transform: scale(0.95); }
-        .key.fn { background: #D1D1D6; color: #3A3A3C; font-size: 18px; }
+        /* 鍵盤：柔和色調 */
+        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; align-content: start; }
+        .key { background: var(--card); border: none; border-radius: 14px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .key:active { background: #E5E5EA; }
+        .key.fn { background: #D1D1D6; font-size: 18px; }
 
-        /* 控制按鈕 */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-        .btn { padding: 16px; border-radius: 14px; border: none; font-size: 20px; font-weight: bold; color: white; cursor: pointer; }
-
-        /* 歷史紀錄：半透明背景 */
-        .history-panel { background: rgba(255,255,255,0.6); padding: 12px; border-radius: 16px; margin-top: 12px; font-size: 13px; color: var(--dim); height: 70px; overflow-y: auto; }
+        .btn-main { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+        
+        /* 歷史紀錄區 */
+        .history { background: rgba(255,255,255,0.5); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 12px; color: var(--dim); max-height: 60px; overflow-y: auto; text-align: center; }
     </style>
 </head>
 <body>
@@ -47,31 +36,19 @@
         <div id="sentence-box"></div>
         <div id="buffer-box"></div>
     </div>
-    
     <div id="predict-bar" class="predict-bar"></div>
-    
     <div id="keyboard" class="keyboard"></div>
-
-    <div class="controls">
-        <button class="btn" style="background:#8E8E93;" onclick="handleClearAll()">全清</button>
-        <button class="btn" style="background:var(--primary);" onclick="sendAndClear()">✅ 傳送</button>
-    </div>
-
-    <div class="history-panel" id="history-box">尚無歷史紀錄...</div>
+    <button class="btn-main" onclick="sendAndClear()">✅ 傳送訊息</button>
+    <div class="history" id="history-box">尚無歷史紀錄</div>
 
 <script>
+    // ⚠️ 請填寫您的 ngrok 網址
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    const defaultNeeds = ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"];
-    const navigationTree = {
-        "緊急": ["我不舒服", "幫我叫醫生", "我跌倒了"],
-        "我不舒服": ["我胸口悶", "我頭很痛", "我肚子痛", "我喘不過氣"],
-        "想大便": ["肚子很痛", "快一點", "要換尿布"],
-        "想小便": ["憋不住了", "要用尿壺", "快幫我"],
-        "喝水": ["我要溫的", "還要喝", "太燙了"]
-    };
-
+    // 鎖死生理需求 (小便補回)
+    const defaults = ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"];
+    
     let sentence = "", inputBuffer = "";
 
     function renderKB() {
@@ -79,12 +56,12 @@
         kb.innerHTML = "";
         bpmf.forEach(c => {
             const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = c;
-            btn.onclick = () => { inputBuffer += c; updateUI(); callAI(); };
+            btn.onclick = () => { inputBuffer += c; updateUI(); callAI(true); };
             kb.appendChild(btn);
         });
-        addKey(" ", () => { inputBuffer += " "; updateUI(); }, "key fn");
-        addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(); }, "key fn");
-        updatePredicts(defaultNeeds, "local");
+        addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(true); }, "key fn");
+        addKey("全清", () => { handleClear(); }, "key fn");
+        updatePredicts(defaults, "local");
         loadHistory();
     }
 
@@ -96,32 +73,38 @@
     function updateUI() {
         document.getElementById('buffer-box').innerText = inputBuffer;
         document.getElementById('sentence-box').innerText = sentence;
+        // 打字時，預測列清空，不准出現綠色鍵
         if (inputBuffer !== "") document.getElementById('predict-bar').innerHTML = ""; 
     }
 
-    async function callAI() {
-        if (inputBuffer.length < 2) { if (inputBuffer === "") updatePredicts(defaultNeeds, "local"); return; }
+    async function callAI(isTyping) {
+        if (isTyping && inputBuffer.length < 2) {
+            if (inputBuffer === "") updatePredicts(defaults, "local");
+            return;
+        }
         try {
             const res = await fetch(BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initials: inputBuffer })
+                body: JSON.stringify({ initials: inputBuffer, context: sentence })
             });
             const data = await res.json();
-            if (inputBuffer !== "") updatePredicts(data.choices, "ai");
-        } catch (e) {}
+            updatePredicts(data.choices, "ai");
+        } catch (e) { }
     }
 
     function updatePredicts(list, type) {
         const bar = document.getElementById('predict-bar');
+        // 只要打字中或重新載入，就清空
         if (inputBuffer !== "" || type === "local") bar.innerHTML = "";
+        
         list.forEach(word => {
             const d = document.createElement('div');
             d.className = `predict-item ${type}`;
             d.innerText = word;
             d.onclick = () => {
                 let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
-                // 魏先生指定的報時格式
+                // 魏先生指定的日期格式
                 if (final === "報時") {
                     const now = new Date();
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
@@ -130,26 +113,30 @@
                 sentence += final;
                 inputBuffer = "";
                 updateUI();
-                updatePredicts(navigationTree[final] || defaultNeeds, "local");
+                // 點完之後，立刻觸發 AI 接龍 (無限延伸)
+                callAI(false); 
             };
             bar.appendChild(d);
         });
     }
 
-    function handleClearAll() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(defaultNeeds, "local"); }
+    function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(defaults, "local"); }
+    
     function sendAndClear() {
         if (sentence.trim()) {
-            let hist = JSON.parse(localStorage.getItem('hmi_v42_log') || '[]');
+            let hist = JSON.parse(localStorage.getItem('hmi_v44') || '[]');
             hist.unshift(`[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}`);
-            localStorage.setItem('hmi_v42_log', JSON.stringify(hist.slice(0, 10)));
+            localStorage.setItem('hmi_v44', JSON.stringify(hist.slice(0, 5)));
             loadHistory();
         }
-        handleClearAll();
+        handleClear();
     }
+
     function loadHistory() {
-        const hist = JSON.parse(localStorage.getItem('hmi_log') || '[]');
+        const hist = JSON.parse(localStorage.getItem('hmi_v44') || '[]');
         document.getElementById('history-box').innerHTML = hist.length ? hist.join(' | ') : "尚無紀錄";
     }
+
     renderKB();
 </script>
 </body>
