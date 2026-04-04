@@ -3,37 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 終極鎖死版 V60</title>
+    <title>魏先生科研 V62 - 生存鎖死版</title>
     <style>
         :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 6px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         
-        /* 1. 顯示區 */
-        .display { background: var(--card); padding: 10px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 4px; }
-        #sentence-box { font-size: 22px; min-height: 26px; word-break: break-all; }
+        .display { background: var(--card); padding: 12px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 5px; }
+        #sentence-box { font-size: 24px; min-height: 30px; word-break: break-all; font-weight: 500; }
         #buffer-box { font-size: 14px; color: var(--primary); font-weight: bold; }
 
-        /* 2. 預測列：確保 20 個詞好滑動 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 8px; min-height: 50px; scrollbar-width: none; }
-        .predict-item { background: var(--card); padding: 8px 16px; border-radius: 10px; font-size: 19px; border: 1px solid #E5E5EA; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 4px 0 10px 0; min-height: 55px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 10px 18px; border-radius: 12px; font-size: 20px; border: 1px solid #E5E5EA; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .predict-item.local { color: var(--success); font-weight: bold; border-color: var(--success); }
         .predict-item.ai { color: var(--primary); border-color: var(--primary); }
 
-        /* 3. 鍵盤區：魏先生紅圈要求的大按鍵 */
-        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 5px; }
-        .key { background: var(--card); border: none; border-radius: 10px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .key.fn { background: #D1D1D6; font-size: 15px; }
+        /* 魏先生紅圈要求：大鍵盤字體 24px */
+        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 6px; }
+        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .key.fn { background: #D1D1D6; font-size: 16px; }
 
-        /* 4. 控制列 */
-        .controls { display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-bottom: 5px; }
-        .btn-voice { background: var(--danger); color: white; border-radius: 10px; border: none; font-size: 22px; display: flex; align-items: center; justify-content: center; }
-        .btn-send { background: var(--primary); color: white; padding: 12px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; }
+        .controls { display: grid; grid-template-columns: 65px 1fr; gap: 8px; margin-bottom: 6px; }
+        .btn-voice { background: var(--danger); color: white; border-radius: 14px; border: none; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+        .btn-send { background: var(--primary); color: white; padding: 14px; border-radius: 14px; border: none; font-size: 20px; font-weight: bold; }
 
-        /* 5. 紀錄區：魏先生藍圈要求的分頁小窗 */
-        .history-panel { background: rgba(255,255,255,0.7); padding: 6px; border-radius: 12px; border: 1px solid #DDD; font-size: 12px; height: 75px; display: flex; flex-direction: column; }
+        /* 魏先生藍圈要求：小窗紀錄區與分頁 */
+        .history-panel { background: rgba(255,255,255,0.7); padding: 10px; border-radius: 16px; border: 1px solid #DDD; font-size: 13px; height: 85px; display: flex; flex-direction: column; }
         .history-content { flex-grow: 1; overflow: hidden; }
-        .history-controls { display: flex; justify-content: space-between; align-items: center; }
-        .page-btn { background: #E5E5EA; border: none; padding: 1px 8px; border-radius: 4px; font-size: 10px; }
+        .history-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+        .page-btn { background: #E5E5EA; border: none; padding: 2px 12px; border-radius: 6px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -49,9 +46,9 @@
     <div class="history-panel">
         <div class="history-content" id="history-box"></div>
         <div class="history-controls">
-            <button class="page-btn" onclick="changePage(-1)">◀ 上頁</button>
-            <span id="page-info">1 / 1</span>
-            <button class="page-btn" onclick="changePage(1)">下頁 ▶</button>
+            <button class="page-btn" onclick="changePage(-1)">◀ 上一頁</button>
+            <span id="page-info" style="color:#888">1 / 1</span>
+            <button class="page-btn" onclick="changePage(1)">下一頁 ▶</button>
         </div>
     </div>
 
@@ -61,9 +58,9 @@
     
     const instantFlow = {
         "DEFAULT": ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"],
-        "想大便": ["肚子很痛", "快一點", "換尿布"], "想小便": ["憋不住了", "要用尿壺", "快幫我"],
-        "緊急": ["叫醫生", "我不舒服", "跌倒了"], "喝水": ["要溫的", "還要喝", "太燙了", "謝謝"],
-        "早安": ["吃飽了", "睡得好", "天氣好"]
+        "想大便": ["肚子很痛", "快一點", "要換尿布"], "想小便": ["憋不住了", "要用尿壺", "快幫我"],
+        "緊急": ["叫醫生", "我不舒服", "救救我"], "喝水": ["要溫的", "還要喝", "太燙了", "謝謝"],
+        "早安": ["吃飽了嗎", "睡得好嗎", "今天天氣好"]
     };
 
     let sentence = "", inputBuffer = "", historyLogs = [], currentPage = 0;
@@ -115,10 +112,10 @@
                 let final = word.replace(/[🚨🚽💩💧🕰️☀️]/g, "");
                 if (final === "報時") {
                     const now = new Date();
-                    final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${["週日","週一","週二","週三","週四","週五","週六"][now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} `;
+                    final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${["週日","週一","週二","週三","週四","週五","週六"][now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
                 sentence += final; inputBuffer = ""; updateUI();
-                let nextL = instantFlow[final] || ["謝謝", "還要", "快點"];
+                const nextL = instantFlow[final] || ["謝謝", "還要", "快點", "幫我抓癢"];
                 updatePredicts(nextL, "local");
                 callAI();
             };
@@ -128,7 +125,7 @@
 
     function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(instantFlow.DEFAULT, "local"); }
 
-    // 語音輸入
+    // 語音功能
     let isListening = false;
     const recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
     if (recognition) {
@@ -145,18 +142,18 @@
     function sendAndClear() {
         if (sentence.trim()) {
             historyLogs.unshift(`[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}`);
-            localStorage.setItem('hmi_v60_logs', JSON.stringify(historyLogs));
+            localStorage.setItem('hmi_logs_v62', JSON.stringify(historyLogs));
             currentPage = 0; loadHistory();
         }
         handleClear();
     }
     function loadHistory() {
-        historyLogs = JSON.parse(localStorage.getItem('hmi_v60_logs') || '[]');
+        historyLogs = JSON.parse(localStorage.getItem('hmi_logs_v62') || '[]');
         const box = document.getElementById('history-box');
         const itemsPerPage = 3;
         const totalPages = Math.max(1, Math.ceil(historyLogs.length / itemsPerPage));
         const start = currentPage * itemsPerPage;
-        box.innerHTML = historyLogs.slice(start, start + itemsPerPage).map(log => `<div style='padding:2px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
+        box.innerHTML = historyLogs.slice(start, start + itemsPerPage).map(log => `<div style='padding:3px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
         document.getElementById('page-info').innerText = `${currentPage + 1} / ${totalPages}`;
     }
     function changePage(dir) {
