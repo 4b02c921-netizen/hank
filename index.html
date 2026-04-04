@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 智慧聯想系統 V19</title>
+    <title>HMI 長序猜測系統 V21</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; --text: #fff; --dim: #8e8e93; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
-        .metrics { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); padding-bottom: 5px; }
+        .metrics { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); padding-bottom: 4px; }
         .display { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
         #sentence-box { font-size: 26px; color: #00ffcc; min-height: 32px; word-break: break-all; }
-        #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; }
-
-        /* 預測列：V19 的心臟，必須夠寬、夠明顯 */
+        #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; letter-spacing: 2px; }
         .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
         .predict-item { background: #2c2c2e; padding: 14px 28px; border-radius: 18px; white-space: nowrap; font-size: 24px; border: 2px solid #444; color: #fff; }
-        .predict-item.suggest { border-color: var(--primary); color: var(--primary); font-weight: bold; }
+        .predict-item.long { border-color: var(--primary); color: var(--primary); font-weight: bold; }
         .predict-item.emergency { border-color: var(--danger); color: var(--danger); }
-
-        /* 5 欄位大鍵盤 */
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 58px; display: flex; align-items: center; justify-content: center; }
+        .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 58px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #000; }
         .key:active { background: var(--primary); transform: scale(0.92); }
-        .key.fn { background: #3a3a3c; font-size: 18px; }
-        .key.del { color: var(--danger); }
-        .key.clr { color: var(--warm); }
-
+        .key.fn { background: #3a3a3c; font-size: 18px; color: #ccc; }
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .ctrl-btn { padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 18px; color: white; }
     </style>
@@ -35,7 +28,7 @@
 <body>
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 終極聯想 V19</span>
+        <span id="status">模式: 長序猜測補全 V21</span>
     </div>
     <div class="display">
         <div id="sentence-box"></div>
@@ -44,37 +37,34 @@
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
     <div class="controls">
-        <button class="ctrl-btn" style="background:#ff453a" onclick="startVoice()">🎤 語音輸入</button>
+        <button class="ctrl-btn" style="background:#ff453a" onclick="startVoice()">🎤 語音</button>
         <button class="ctrl-btn" style="background:#0a84ff" onclick="sendAndClear()">✅ 傳送</button>
     </div>
 
 <script>
-    const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 1. 大型聯想字典 (涵蓋所有聲母的初步猜測)
-    const masterDict = [
-        {s: "ㄅㄅ", w: "爸爸"}, {s: "ㄅㄅ", w: "不不不"}, {s: "ㄅㄕ", w: "報時"}, {s: "ㄆㄆ", w: "婆婆"},
-        {s: "ㄇㄇ", w: "媽媽"}, {s: "ㄇㄇ", w: "妹妹"}, {s: "ㄈㄈ", w: "飯飯"}, {s: "ㄉㄉ", w: "對對對"},
-        {s: "ㄉㄧㄒ", w: "等一下"}, {s: "ㄉㄐ", w: "大家"}, {s: "ㄉㄅ", w: "想大便"}, {s: "ㄊㄊ", w: "痛痛"},
-        {s: "ㄋㄋ", w: "奶奶"}, {s: "ㄋㄏ", w: "你好"}, {s: "ㄋㄏㄇ", w: "你好嗎？"}, {s: "ㄌㄌ", w: "來了"},
-        {s: "ㄍㄍ", w: "哥哥"}, {s: "ㄎㄎ", w: "看看"}, {s: "ㄏㄏ", w: "好好"}, {s: "ㄏㄕ", w: "喝水"},
-        {s: "ㄐㄐ", w: "緊急"}, {s: "ㄐㄇ", w: "救命"}, {s: "ㄑㄑ", w: "去去"}, {s: "ㄒㄒ", w: "謝謝"},
-        {s: "ㄓㄓ", w: "知道"}, {s: "ㄔㄔ", w: "吃飯"}, {s: "ㄕㄕ", w: "試試看"}, {s: "ㄖㄖ", w: "肉肉"},
-        {s: "ㄗㄢ", w: "早安"}, {s: "ㄘㄘ", w: "廁所"}, {s: "ㄙㄙ", w: "休息"}, {s: "ㄨㄢ", w: "晚安"}
+    // 1. 強大長序詞庫 (支援一次打很多聲母)
+    const longDict = [
+        {s: "ㄉㄉㄉㄉ", w: "對對對對"}, {s: "ㄌㄌㄌㄌ", w: "來了來了"},
+        {s: "ㄏㄕㄧㄉ", w: "喝水一點點"}, {s: "ㄏㄕㄧㄉ", w: "還是要打"},
+        {s: "ㄋㄏㄇ", w: "你好嗎？"}, {s: "ㄨㄅㄕㄈ", w: "我不舒服"},
+        {s: "ㄉㄧㄒㄒ", w: "等一下下"}, {s: "ㄒㄒㄋ", w: "謝謝你"},
+        {s: "ㄉㄐㄗㄢ", w: "大家早安"}, {s: "ㄒㄒㄗ", w: "想洗澡"},
+        {s: "ㄐㄐ", w: "緊急🚨"}, {s: "ㄐㄇ", w: "救命"},
+        {s: "ㄏㄕ", w: "喝水"}, {s: "ㄉㄅ", w: "想大便"},
+        {s: "ㄒㄅ", w: "想小便"}, {s: "ㄅㄕ", w: "報時🕰️"},
+        {s: "ㄗㄢ", w: "早安"}
     ];
 
-    // 2. 智慧語句串接鏈 (點擊詞彙後會一直餵詞，直到拼成一句話)
-    const sentenceBuilder = {
-        "早安": ["要喝水嗎？", "心情好嗎？", "吃飽沒", "。"],
+    // 2. 語句連續聯想 (Recursive Chain)
+    const chains = {
+        "早安": ["要喝水嗎？", "心情好嗎？", "。"],
         "喝水": ["還要喝", "幫我調水溫", "太燙了", "不喝了"],
-        "還要喝": ["溫一點", "大口一點", "謝謝"],
-        "幫我調水溫": ["熱一點", "冷一點", "溫水", "剛剛好"],
-        "想大便": ["肚子痛", "快一點", "要換尿布", "不舒服"],
-        "想小便": ["很急", "快點", "要尿壺"],
-        "緊急": ["我不舒服", "救救我", "快叫人", "找醫生"],
-        "你好": ["嗎？", "最近好嗎？", "很高興見到你"],
-        "謝謝": ["不客氣", "好的", "。"]
+        "喝水一點點": ["謝謝", "太燙了", "慢慢喝"],
+        "想大便": ["肚子痛", "快一點", "要換尿布"],
+        "緊急": ["我不舒服", "救救我", "快叫人"],
+        "對對對對": ["沒錯", "就是這樣", "。"]
     };
 
     const lifeSafe = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
@@ -95,10 +85,18 @@
             };
             kb.appendChild(btn);
         });
-        // 補滿功能鍵
         createKey(" ", () => { inputBuffer += " "; updatePredicts(); }, "key fn");
-        createKey("⌫", handleDelete, "key fn del");
-        createKey("全清", handleClearAll, "key fn clr");
+        createKey("⌫", () => { 
+            inputBuffer = inputBuffer.slice(0, -1); 
+            document.getElementById('buffer-box').innerText = inputBuffer;
+            updatePredicts();
+        }, "key fn");
+        createKey("全清", () => {
+            sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
+            document.getElementById('sentence-box').innerText = "";
+            document.getElementById('buffer-box').innerText = "";
+            updatePredicts();
+        }, "key fn");
         updatePredicts();
     }
 
@@ -114,57 +112,49 @@
         let list = [];
 
         if (flowList) {
-            // 優先顯示語句串接鏈
             list = flowList;
         } else if (inputBuffer !== "") {
-            // 模糊搜尋字典中「開頭符合」的詞
-            list = masterDict.filter(item => item.s.startsWith(inputBuffer)).map(item => item.w);
-            // 補上學習紀錄
-            const hist = JSON.parse(localStorage.getItem('hmi_v19_mem') || '{}')[inputBuffer] || [];
-            list = [...new Set([...list, ...hist])];
+            // --- 核心進化：長聲母模糊匹配 ---
+            list = longDict.filter(item => item.s.startsWith(inputBuffer)).map(item => item.w);
+            // 若完全沒匹配，嘗試縮短輸入再匹配一次 (容錯)
+            if (list.length === 0 && inputBuffer.length > 2) {
+                const shorter = inputBuffer.slice(0, 2);
+                list = longDict.filter(item => item.s.startsWith(shorter)).map(item => item.w);
+            }
             if (list.length === 0) list = lifeSafe;
         } else {
-            // 初始狀態或選詞後，看句子結尾
             const last2 = sentence.slice(-2);
-            list = sentenceBuilder[last2] || lifeSafe;
+            const last4 = sentence.slice(-4);
+            list = chains[last4] || chains[last2] || lifeSafe;
         }
 
         list.slice(0, 10).forEach(word => {
             const d = document.createElement('div');
             d.className = 'predict-item';
-            if (sentenceBuilder[word.replace(/[🚨💧💩🚽🕰️☀️]/g, "")]) d.classList.add('suggest');
+            if (word.length > 3) d.classList.add('long');
             if (word.includes("緊急")) d.classList.add('emergency');
             
             d.innerText = word;
             d.onclick = () => {
                 let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
                 
-                // 智慧報時升級
+                // 智慧報時：日期+時間+星期
                 if (final === "報時") {
                     const now = new Date();
                     const days = ['日', '一', '二', '三', '四', '五', '六'];
-                    final = `${now.getMonth()+1}/${now.getDate()}(週${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
+                    final = `${now.getMonth()+1}/${now.getDate()}(${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
 
-                if (inputBuffer !== "") learn(inputBuffer, final);
                 sentence += final;
                 wordCount += final.length;
                 document.getElementById('sentence-box').innerText = sentence;
                 inputBuffer = "";
                 document.getElementById('buffer-box').innerText = "";
                 updateWPM();
-                
-                // --- 關鍵：點完之後立刻帶出下一鏈 ---
-                updatePredicts(sentenceBuilder[final]);
+                updatePredicts(chains[final]); // 點擊後立刻餵下一句
             };
             bar.appendChild(d);
         });
-    }
-
-    function learn(ini, word) {
-        let h = JSON.parse(localStorage.getItem('hmi_v19_mem') || '{}');
-        h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
-        localStorage.setItem('hmi_v19_mem', JSON.stringify(h));
     }
 
     function updateWPM() {
@@ -173,27 +163,12 @@
         document.getElementById('wpm').innerText = `速度: ${Math.round(wordCount / mins) || 0} 字/分`;
     }
 
-    function handleClearAll() {
+    function sendAndClear() {
+        if (sentence.trim() && liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
         sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
         document.getElementById('sentence-box').innerText = "";
         document.getElementById('buffer-box').innerText = "";
         updatePredicts();
-    }
-
-    function handleDelete() {
-        if (inputBuffer.length > 0) {
-            inputBuffer = inputBuffer.slice(0, -1);
-            document.getElementById('buffer-box').innerText = inputBuffer;
-        } else {
-            sentence = sentence.slice(0, -1);
-            document.getElementById('sentence-box').innerText = sentence;
-        }
-        updatePredicts();
-    }
-
-    function sendAndClear() {
-        if (sentence.trim() && liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
-        handleClearAll();
     }
 
     function startVoice() {
@@ -203,12 +178,12 @@
             const res = e.results[0][0].transcript;
             sentence += res; 
             document.getElementById('sentence-box').innerText = sentence;
-            updatePredicts(sentenceBuilder[res.slice(-2)]);
+            updatePredicts(chains[res.slice(-2)]);
         };
         sr.start();
     }
 
-    liff.init({ liffId: LIFF_ID }).then(renderKB);
+    liff.init({ liffId: "2009598618-mYOYGEoM" }).then(renderKB);
 </script>
 </body>
 </html>
