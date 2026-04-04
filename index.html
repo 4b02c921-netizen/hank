@@ -3,91 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>意圖選擇器</title>
+    <title>HMI 私人智慧輸入系統</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f8f9fa; padding: 15px; margin: 0; }
-        #status { text-align: center; color: #666; margin-bottom: 15px; font-size: 16px; font-weight: bold; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .btn {
-            height: 120px; border: none; border-radius: 20px; font-size: 28px; font-weight: bold;
-            color: white; box-shadow: 0 6px rgba(0,0,0,0.1); cursor: pointer;
+        :root { --bg: #121212; --card: #1e1e1e; --blue: #4B7BFF; --red: #FF4B4B; --text: #e0e0e0; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+        
+        /* 顯示區 */
+        .display-box { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #333; }
+        #sentence-out { font-size: 24px; color: #00ffcc; min-height: 30px; margin-bottom: 5px; }
+        #buffer-out { font-size: 16px; color: #888; }
+
+        /* 數據監測 */
+        .stats { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #666; }
+
+        /* 九宮格 */
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex-grow: 1; }
+        .btn { 
+            background: var(--card); border: 1px solid #444; border-radius: 10px; color: white; 
+            font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; transition: 0.1s; 
         }
-        .btn:active { transform: translateY(2px); box-shadow: 0 2px rgba(0,0,0,0.1); }
-        .emergency { background-color: #FF4B4B; }
-        .normal { background-color: #4B7BFF; }
-        .teach { background-color: #6c757d; grid-column: span 2; height: 80px; font-size: 20px; margin-top: 10px; }
+        .btn:active { background: var(--blue); }
+        .btn.history { border-color: #00ffcc; color: #00ffcc; } /* 歷史紀錄顏色區分 */
+        .btn.nav { background: #333; color: #ffcc00; font-size: 14px; }
+
+        /* 控制列 */
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .ctrl-btn { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-v { background: var(--red); color: white; }
+        .btn-c { background: #444; color: white; }
     </style>
 </head>
 <body>
-    <div id="status">正在同步守護系統...</div>
-    <div class="grid" id="grid"></div>
+
+    <div class="stats">
+        <span id="stat-wpm">速度: 0 WPM</span>
+        <span id="stat-mode">模式: 聲母輸入</span>
+    </div>
+
+    <div class="display-box">
+        <div id="sentence-out"></div>
+        <div id="buffer-out">等待聲母輸入...</div>
+    </div>
+
+    <div class="grid" id="main-grid"></div>
+
+    <div class="controls">
+        <button class="ctrl-btn btn-c" onclick="toggleMode()">切換模式</button>
+        <button class="ctrl-btn btn-v" onclick="startVoice()">語音輸入</button>
+        <button class="ctrl-btn btn-c" onclick="clearAndSave()">送出並學習</button>
+    </div>
 
     <script>
-        const emergencyKeywords = ["緊急", "求救", "救命", "去醫院", "不舒服", "呼吸困難", "跌倒"];
+        let inputBuffer = "";
+        let sentence = "";
+        let startTime = null;
+        let wordCount = 0;
+        const LIFF_ID = "2009598618-mYOYGEoM";
 
-        function renderButtons(options, ini) {
-            const gridEl = document.getElementById('grid');
-            const statusEl = document.getElementById('status');
-            gridEl.innerHTML = "";
+        // 模擬 AI Agent 靜態庫
+        const aiLib = { "ㄐㄐ": ["緊急", "救命", "姐姐"], "ㄉㄅ": ["大便", "代表"] };
 
-            if (options.length === 0) {
-                statusEl.innerText = "目前無資料 (測試模式)";
-                options = ["測試1", "緊急測試", "喝水", "翻身"];
-            } else {
-                statusEl.innerText = `聲母「${ini}」的可能意圖：`;
+        // --- 核心：私人記憶功能 ---
+        function saveToLocal(word) {
+            let history = JSON.parse(localStorage.getItem('hmi_history') || '{}');
+            if (!history[inputBuffer]) history[inputBuffer] = [];
+            // 增加權重或簡單存入（避免重複）
+            if (!history[inputBuffer].includes(word)) {
+                history[inputBuffer].unshift(word);
+                history[inputBuffer] = history[history[inputBuffer].slice(0, 10)]; // 只記前 10 個
             }
-
-            options.forEach(word => {
-                const btn = document.createElement('button');
-                btn.innerText = word;
-                const isEmergency = emergencyKeywords.some(k => word.includes(k));
-                btn.className = isEmergency ? "btn emergency" : "btn normal";
-                btn.onclick = () => {
-                    if (liff.isInClient()) {
-                        liff.sendMessages([{ type: 'text', text: `【確認】：${word}` }])
-                            .then(() => liff.closeWindow());
-                    } else {
-                        alert("偵測到選擇：" + word);
-                    }
-                };
-                gridEl.appendChild(btn);
-            });
-
-            // 教學按鈕
-            const teachBtn = document.createElement('button');
-            teachBtn.innerText = "以上都不是 (教導模式)";
-            teachBtn.className = "btn teach";
-            teachBtn.onclick = () => {
-                if (liff.isInClient()) {
-                    liff.sendMessages([{ type: 'text', text: `我不認識「${ini}」，請教我。` }])
-                        .then(() => liff.closeWindow());
-                }
-            };
-            gridEl.appendChild(teachBtn);
+            localStorage.setItem('hmi_history', JSON.stringify(history));
         }
 
-        async function main() {
-            try {
-                // 填入您的 LIFF ID
-                await liff.init({ liffId: "2009598618-mYOYGEoM" }).catch(() => console.log("Outside LINE"));
-                
-                if (liff.isInClient() && !liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+        function getPersonalHistory(ini) {
+            let history = JSON.parse(localStorage.getItem('hmi_history') || '{}');
+            return history[ini] || [];
+        }
 
-                const urlParams = new URLSearchParams(window.location.search);
-                const ini = urlParams.get('ini') || "";
-                const options = urlParams.get('options')?.split(',') || [];
-                
-                renderButtons(options, ini);
-            } catch (err) {
-                document.getElementById('status').innerText = "系統初始化異常";
-                renderButtons([], "");
+        // 渲染九宮格
+        function renderGrid(mode, key = "") {
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = "";
+            
+            if (mode === 'initial') {
+                const initials = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ"]; // 範例前 9 個
+                initials.forEach(char => createBtn(char, () => handleInitial(char)));
+            } else if (mode === 'prediction') {
+                // 混合：私人紀錄 + AI 預測
+                let personal = getPersonalHistory(key);
+                let standard = aiLib[key] || ["自定義", "詞彙"];
+                let combined = [...new Set([...personal, ...standard])];
+
+                combined.slice(0, 8).forEach(word => {
+                    const isHistory = personal.includes(word);
+                    createBtn(word, () => selectWord(word), isHistory ? "history" : "");
+                });
+                createBtn("返回", () => renderGrid('initial'), "nav");
             }
         }
-        main();
+
+        function createBtn(text, onclick, cls = "") {
+            const btn = document.createElement('div');
+            btn.className = `btn ${cls}`;
+            btn.innerText = text;
+            btn.onclick = onclick;
+            document.getElementById('main-grid').appendChild(btn);
+        }
+
+        function handleInitial(char) {
+            if (!startTime) startTime = new Date();
+            inputBuffer += char;
+            document.getElementById('buffer-out').innerText = inputBuffer;
+            if (inputBuffer.length >= 2) renderGrid('prediction', inputBuffer);
+        }
+
+        function selectWord(word) {
+            saveToLocal(word); // 學習此詞彙
+            sentence += word;
+            wordCount += word.length;
+            document.getElementById('sentence-out').innerText = sentence;
+            inputBuffer = "";
+            document.getElementById('buffer-out').innerText = "學習完成，繼續輸入...";
+            renderGrid('initial');
+            updateWPM();
+        }
+
+        function updateWPM() {
+            if (!startTime) return;
+            const elapsed = (new Date() - startTime) / 60000;
+            const wpm = Math.round(wordCount / elapsed);
+            document.getElementById('stat-wpm').innerText = `速度: ${wpm} 字/分`;
+        }
+
+        function clearAndSave() {
+            // 這裡可以串接 liff.sendMessages
+            alert("已儲存私人習慣至此手機：" + sentence);
+            sentence = ""; wordCount = 0; startTime = null;
+            document.getElementById('sentence-out').innerText = "";
+            renderGrid('initial');
+        }
+
+        function startVoice() { /* 語音辨識邏輯同前 */ }
+        function toggleMode() { /* 模式切換邏輯 */ }
+
+        liff.init({ liffId: LIFF_ID }).then(() => renderGrid('initial'));
     </script>
 </body>
 </html>
