@@ -3,28 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 有溫度的 AI 系統 V7</title>
+    <title>HMI 生活守護科研系統 V9</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; --text: #fff; --dim: #8e8e93; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+        :root { 
+            --bg: #000; --card: #1c1c1e; --primary: #0a84ff; 
+            --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; 
+            --text: #fff; --dim: #8e8e93; 
+        }
+        body { 
+            font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); 
+            margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; 
+            box-sizing: border-box; overflow: hidden; 
+        }
         
         .metrics { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); padding-bottom: 5px; }
-        .display { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
-        #sentence-box { font-size: 26px; color: #00ffcc; min-height: 32px; word-break: break-all; }
+
+        /* 顯示區 */
+        .display { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
+        #sentence-box { font-size: 24px; color: #00ffcc; min-height: 28px; word-break: break-all; }
         #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; }
 
-        /* 預測列：特別突顯 AI 建議 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 12px 0; min-height: 60px; scrollbar-width: none; }
+        /* 預測列：加大面積，方便點擊生理需求 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 12px 0; min-height: 55px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
-        .predict-item { background: #2c2c2e; padding: 12px 24px; border-radius: 15px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
-        .predict-item.ai-suggest { border-color: var(--warm); color: var(--warm); font-weight: bold; }
+        .predict-item { 
+            background: #2c2c2e; padding: 12px 24px; border-radius: 15px; white-space: nowrap; 
+            font-size: 22px; border: 2px solid #444; color: #fff; transition: 0.1s;
+        }
+        .predict-item.emergency { border-color: var(--danger); color: var(--danger); font-weight: bold; }
+        .predict-item.needs { border-color: var(--warm); color: var(--warm); }
         .predict-item.history { border-color: var(--success); color: var(--success); }
 
-        /* 5 欄位佈局 */
+        /* 鍵盤佈局 */
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; height: 60px; display: flex; align-items: center; justify-content: center; }
-        .key:active { background: var(--primary); transform: scale(0.95); }
+        .key { 
+            background: var(--card); border: none; border-radius: 10px; color: white; 
+            font-size: 24px; font-weight: bold; height: 60px; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .key:active { background: var(--primary); transform: translateY(2px); }
         .key.delete { background: #3a3a3c; color: var(--danger); font-size: 20px; }
 
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
@@ -37,7 +55,7 @@
 
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 肢障科研 V7 (AI 情感預測)</span>
+        <span id="status">模式: 肢障生活守護版 V9</span>
     </div>
 
     <div class="display">
@@ -58,26 +76,28 @@
     const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 1. 聲母觸發詞庫 (ㄗㄢ 現在能跑出早安了)
+    // 強化詞庫：優先滿足生理需求
     const aiLib = {
-        "ㄗㄢ": ["早安", "咱們", "讚"],
-        "ㄋㄏ": ["你好", "您好", "哪會"],
-        "ㄒㄒ": ["謝謝", "休息", "學習"],
+        "ㄐㄐ": ["緊急", "救命", "姐姐"],
         "ㄏㄕ": ["喝水", "還是", "回家"],
-        "ㄉㄅ": ["大便", "代表", "翻身"],
-        "ㄐㄐ": ["緊急", "救命", "解決"]
+        "ㄉㄅ": ["想大便", "代表", "翻身"],
+        "ㄒㄅ": ["想小便", "休息", "學習"],
+        "ㄗㄢ": ["早安", "讚"],
+        "ㄅㄕ": ["現在幾點？", "報時"],
+        "ㄋㄏ": ["你好", "您好"]
     };
 
-    // 2. AI 情感與生理意圖聯想 (這是靈魂！)
+    // 深度情感聯想 (有感預測)
     const nextWordLib = {
-        "早安": ["要不要喝水？", "想大便", "想小便", "今天心情如何？", "您好"],
+        "早安": ["要不要喝水？", "想大便", "想小便", "今天心情如何？"],
         "想大便": ["肚子痛", "要換尿布", "不舒服"],
         "想小便": ["急", "要尿壺"],
-        "心情如何？": ["很好", "普通", "不太好", "累累的"],
-        "你好": ["嗎", "最近好嗎", "謝謝"]
+        "緊急": ["我不舒服", "救救我", "快點", "找醫生"],
+        "喝水": ["謝謝", "還要", "太燙"],
+        "現在幾點？": ["(自動報時)"]
     };
 
-    let sentence = "", inputBuffer = "", startTime = null, wordCount = 0;
+    let sentence = "", inputBuffer = "", startTime = null, wordCount = 0, lastClickTime = 0;
 
     function renderKB() {
         const kb = document.getElementById('keyboard');
@@ -86,20 +106,27 @@
             const btn = document.createElement('button');
             btn.className = 'key';
             btn.innerText = char;
-            btn.onclick = () => {
-                if (!startTime) startTime = new Date();
-                inputBuffer += char;
-                document.getElementById('buffer-box').innerText = inputBuffer;
-                updatePredicts();
-            };
+            btn.onclick = () => handleKeySafe(char);
             kb.appendChild(btn);
         });
-        // 刪除鍵
         const delBtn = document.createElement('button');
         delBtn.className = 'key delete';
         delBtn.innerText = "⌫ 刪除";
         delBtn.onclick = handleDelete;
         kb.appendChild(delBtn);
+        
+        // 初始化預測列 (首頁需求)
+        updatePredicts();
+    }
+
+    function handleKeySafe(char) {
+        const now = Date.now();
+        if (now - lastClickTime < 200) return;
+        lastClickTime = now;
+        if (!startTime) startTime = new Date();
+        inputBuffer += char;
+        document.getElementById('buffer-box').innerText = inputBuffer;
+        updatePredicts();
     }
 
     function handleDelete() {
@@ -112,54 +139,70 @@
             document.getElementById('sentence-box').innerText = sentence;
             wordCount = Math.max(0, wordCount - 1);
             updateWPM();
+            updatePredicts();
         }
     }
 
     function updatePredicts() {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
-        const history = JSON.parse(localStorage.getItem('hmi_v7_mem') || '{}')[inputBuffer] || [];
-        const defaults = aiLib[inputBuffer] || ["然後", "的", "了"];
+        
+        if (inputBuffer === "") {
+            // 如果沒打字，直接顯示最核心的生活需求
+            const defaultNeeds = ["緊急", "喝水", "想大便", "想小便", "現在幾點？", "早安"];
+            defaultNeeds.forEach(word => createPredictItem(word, false));
+            return;
+        }
+
+        const history = JSON.parse(localStorage.getItem('hmi_v9_mem') || '{}')[inputBuffer] || [];
+        const defaults = aiLib[inputBuffer] || ["然後", "的"];
         const list = [...new Set([...history, ...defaults])];
-        list.forEach(word => createPredictItem(word, true));
+        list.forEach(word => createPredictItem(word, true, inputBuffer));
     }
 
-    function createPredictItem(word, isFromInitials) {
+    function createPredictItem(word, isFromInitials, currentIni) {
         const bar = document.getElementById('predict-bar');
         const d = document.createElement('div');
         d.className = 'predict-item';
         
-        // 視覺區分：AI 建議使用溫暖的橘色
-        if (nextWordLib[sentence.slice(-2)]?.includes(word) || nextWordLib[sentence.slice(-4)]?.includes(word)) {
-            d.classList.add('ai-suggest');
-        }
+        // 視覺分類：緊急與需求用鮮艷顏色
+        if (word === "緊急" || word === "救救我") d.classList.add('emergency');
+        else if (["想大便", "想小便", "喝水", "現在幾點？"].includes(word)) d.classList.add('needs');
         
-        const history = JSON.parse(localStorage.getItem('hmi_v7_mem') || '{}')[inputBuffer] || [];
+        const history = JSON.parse(localStorage.getItem('hmi_v9_mem') || '{}')[currentIni] || [];
         if (isFromInitials && history.includes(word)) d.classList.add('history');
         
         d.innerText = word;
         d.onclick = () => {
-            if (isFromInitials) learn(inputBuffer, word);
-            sentence += word;
-            wordCount += word.length;
+            let finalWord = word;
+            
+            // 特殊功能：報時
+            if (word === "現在幾點？" || word === "(自動報時)") {
+                const now = new Date();
+                finalWord = `現在是 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
+            }
+
+            if (isFromInitials) learn(currentIni, word);
+            sentence += finalWord;
+            wordCount += finalWord.length;
             document.getElementById('sentence-box').innerText = sentence;
             inputBuffer = "";
             document.getElementById('buffer-box').innerText = "";
             updateWPM();
             
-            // 點擊後，觸發下一階聯想
+            // 點擊後，觸發聯想
             bar.innerHTML = "";
             const suggestions = nextWordLib[word] || ["然後", "的", "。"];
-            suggestions.forEach(w => createPredictItem(w, false));
+            suggestions.forEach(w => createPredictItem(w, false, ""));
         };
         bar.appendChild(d);
     }
 
     function learn(ini, word) {
         if (!ini || !word) return;
-        let h = JSON.parse(localStorage.getItem('hmi_v7_mem') || '{}');
+        let h = JSON.parse(localStorage.getItem('hmi_v9_mem') || '{}');
         h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
-        localStorage.setItem('hmi_v7_mem', JSON.stringify(h));
+        localStorage.setItem('hmi_v9_mem', JSON.stringify(h));
     }
 
     function updateWPM() {
@@ -175,7 +218,6 @@
         sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
         document.getElementById('sentence-box').innerText = "";
         document.getElementById('buffer-box').innerText = "";
-        document.getElementById('predict-bar').innerHTML = "";
         renderKB();
     }
 
