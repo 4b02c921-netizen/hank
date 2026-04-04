@@ -3,33 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 終極搜尋導航系統 V25</title>
+    <title>HMI 肢障友善系統 V28</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; --text: #fff; --dim: #8e8e93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; box-sizing: border-box; }
         .metrics { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); padding-bottom: 4px; }
         .display { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
         #sentence-box { font-size: 24px; color: #00ffcc; min-height: 32px; word-break: break-all; }
-        #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; letter-spacing: 2px; }
+        #buffer-box { font-size: 20px; color: #ffcc00; margin-top: 4px; height: 24px; font-weight: bold; letter-spacing: 2px; }
 
-        /* 預測列：V25 搜尋結果與導航共用 */
         .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
         .predict-item { background: #2c2c2e; padding: 14px 28px; border-radius: 18px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
-        .predict-item.search-hit { border-color: var(--primary); color: var(--primary); font-weight: bold; }
+        .predict-item.hit { border-color: var(--primary); color: var(--primary); font-weight: bold; }
         .predict-item.emergency { border-color: var(--danger); color: var(--danger); }
 
-        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
+        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; align-content: start; }
         .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 55px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #000; }
         .key:active { background: var(--primary); transform: scale(0.92); }
         .key.fn { background: #3a3a3c; font-size: 18px; color: #ccc; }
+        
+        .record-panel { background: #111; border-top: 2px solid #333; margin-top: 20px; padding: 15px; border-radius: 15px; }
+        .record-content { font-size: 13px; color: #aaa; max-height: 120px; overflow-y: auto; background: #000; padding: 10px; border-radius: 8px; margin-top: 5px; }
     </style>
 </head>
 <body>
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 全語意聲母搜尋 V25</span>
+        <span id="status">模式: 使用者核心 V28</span>
     </div>
     <div class="display">
         <div id="sentence-box"></div>
@@ -37,39 +39,43 @@
     </div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <div class="controls" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
-        <button onclick="handleClearAll()" style="background:#3a3a3c; padding:12px; border-radius:12px; border:none; color:white; font-size:18px;">🧹 全清</button>
-        <button onclick="sendAndClear()" style="background:#0a84ff; padding:12px; border-radius:12px; border:none; color:white; font-size:18px;">✅ 傳送</button>
+    <div class="controls" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+        <button onclick="handleClearAll()" style="background:#3a3a3c; padding:15px; border-radius:12px; border:none; color:white; font-size:18px;">🧹 全清</button>
+        <button onclick="sendAndClear()" style="background:#0a84ff; padding:15px; border-radius:12px; border:none; color:white; font-size:18px;">✅ 傳送</button>
+    </div>
+
+    <div class="record-panel">
+        <div style="color:var(--success); font-weight:bold;">📊 發送紀錄</div>
+        <div class="record-content" id="log-display">等待數據中...</div>
     </div>
 
 <script>
     const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 1. V25 全球字庫 (將所有語句打散做為搜尋標的)
-    const masterBank = [
+    // 1. 全局搜尋庫
+    const masterDict = [
         {s: "ㄉㄉㄉㄉ", w: "對對對對"}, {s: "ㄋㄏㄇ", w: "你好嗎？"}, {s: "ㄒㄒ", w: "謝謝"},
         {s: "ㄨㄅㄕㄈ", w: "我不舒服"}, {s: "ㄐㄐ", w: "緊急"}, {s: "ㄏㄕ", w: "喝水"},
-        {s: "ㄏㄕㄨㄉ", w: "喝水溫的"}, {s: "ㄏㄕㄧㄉㄉ", w: "喝水一點點"},
         {s: "ㄉㄅ", w: "想大便"}, {s: "ㄒㄅ", w: "想小便"}, {s: "ㄅㄕ", w: "報時🕰️"},
-        {s: "ㄗㄢ", w: "早安☀️"}, {s: "ㄌㄌㄌㄌ", w: "來了來了"}, {s: "ㄇㄍㄒ", w: "沒關係"},
-        {s: "ㄉㄐㄗㄢ", w: "大家早安"}, {s: "ㄒㄒㄗ", w: "想洗澡"}, {s: "ㄅㄊㄅㄊ", w: "拜託拜託"}
+        {s: "ㄗㄢ", w: "早安☀️"}, {s: "ㄌㄌㄌㄌ", w: "來了來了"}, {s: "ㄉㄐㄗㄢ", w: "大家早安"}
     ];
 
-    // 2. 語句連鎖鏈
-    const navTree = {
-        "早安": ["心情好嗎？", "要喝水嗎？", "幫我翻身"],
-        "喝水": ["還要", "調水溫", "溫的", "。"],
-        "還要": ["一點點", "大口一點", "還要喝水"],
-        "調水溫": ["太燙了", "太冰了", "溫一點"],
-        "想大便": ["肚子痛", "快一點", "要換尿布"],
-        "緊急": ["我不舒服", "救救我", "快找醫生"],
-        "我不舒服": ["哪裡不舒服？", "頭痛", "肚子痛", "胸口悶"],
-        "對對對對": ["就是這樣", "沒錯", "我也覺得"],
-        "謝謝": ["不客氣", "愛你", "。"]
+    // 2. 深度主觀導航鏈 (修正：不再問使用者問題，而是幫他說話)
+    const subjectiveFlow = {
+        "緊急": ["我不舒服", "救救我", "幫我叫醫生", "快點過來"],
+        "我不舒服": ["我頭很痛", "我肚子痛", "我喘不過氣", "我想吐"],
+        "我頭很痛": ["快給我藥", "我想睡覺", "幫我關燈", "。"],
+        "我肚子痛": ["想大便", "想嘔吐", "快救我", "。"],
+        "喝水": ["還要喝", "幫我調水溫", "水太燙了", "水太冰了"],
+        "幫 me 調水溫": ["熱一點", "冷一點", "溫一點", "謝謝"],
+        "水太燙了": ["幫我吹吹", "加點冷水", "等下再喝"],
+        "想大便": ["肚子很痛", "快一點", "要換尿布"],
+        "早安": ["你吃飽沒？", "幫我翻身", "我想喝水", "心情很好"],
+        "報時": ["謝謝", "知道了", "現在幾點？"]
     };
 
-    const defaultNeeds = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
+    const defaults = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
 
     let sentence = "", inputBuffer = "", startTime = null, wordCount = 0;
 
@@ -83,13 +89,14 @@
                 if (!startTime) startTime = new Date();
                 inputBuffer += c;
                 document.getElementById('buffer-box').innerText = inputBuffer;
-                updatePredicts(); // 核心：每按一鍵就強制全大腦掃描
+                updatePredicts();
             };
             kb.appendChild(btn);
         });
         createKey(" ", () => { inputBuffer += " "; updatePredicts(); }, "key fn");
         createKey("⌫", () => { inputBuffer = inputBuffer.slice(0, -1); document.getElementById('buffer-box').innerText = inputBuffer; updatePredicts(); }, "key fn");
         updatePredicts();
+        refreshLogs();
     }
 
     function createKey(txt, onclick, cls) {
@@ -98,40 +105,29 @@
         document.getElementById('keyboard').appendChild(btn);
     }
 
-    // V25 智慧搜尋引擎
-    function updatePredicts(flowList = null) {
+    function updatePredicts(chainList = null) {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
-        let list = flowList || [];
+        let list = chainList || [];
 
-        if (!flowList) {
+        if (!chainList) {
             if (inputBuffer !== "") {
-                // --- 核心進化：聲母全局搜尋 ---
-                // 找出所有聲母開頭匹配的詞，且按長度排序 (長句子優先)
-                list = masterBank
-                    .filter(item => item.s.startsWith(inputBuffer))
-                    .sort((a, b) => b.w.length - a.w.length)
-                    .map(item => item.w);
-                
-                // 如果長度大於1且查無結果，嘗試忽略最後一個字再找一次 (容錯)
-                if (list.length === 0 && inputBuffer.length > 1) {
-                    let sub = inputBuffer.slice(0, -1);
-                    list = masterBank.filter(item => item.s.startsWith(sub)).map(item => item.w);
-                }
-                
-                if (list.length === 0) list = defaultNeeds;
+                list = masterDict.filter(i => i.s.startsWith(inputBuffer)).sort((a,b) => b.w.length - a.w.length).map(i => i.w);
+                const hist = JSON.parse(localStorage.getItem('hmi_v28_mem') || '{}')[inputBuffer] || [];
+                list = [...new Set([...list, ...hist])];
+                if (list.length === 0) list = defaults;
             } else {
-                // 根據句子最後的詞觸發連鎖，否則給預設
                 const last2 = sentence.slice(-2);
-                list = navTree[last2] || defaultNeeds;
+                const last3 = sentence.slice(-3);
+                const last4 = sentence.slice(-4);
+                list = subjectiveFlow[last4] || subjectiveFlow[last3] || subjectiveFlow[last2] || defaults;
             }
         }
 
         list.slice(0, 10).forEach(word => {
             const d = document.createElement('div');
             d.className = 'predict-item';
-            // 如果是搜尋命中的詞，標記藍色
-            if (inputBuffer !== "") d.classList.add('search-hit');
+            if (inputBuffer !== "") d.classList.add('hit');
             if (word.includes("緊急")) d.classList.add('emergency');
             
             d.innerText = word;
@@ -144,24 +140,46 @@
                     final = `${now.getMonth()+1}/${now.getDate()}(${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
 
+                if (inputBuffer !== "") learn(inputBuffer, final);
                 sentence += final;
                 wordCount += final.length;
                 document.getElementById('sentence-box').innerText = sentence;
                 inputBuffer = "";
                 document.getElementById('buffer-box').innerText = "";
                 updateWPM();
-                
-                // --- 搜尋完立刻進入「導航模式」，拼成句子 ---
-                updatePredicts(navTree[final]);
+                updatePredicts(subjectiveFlow[final]);
             };
             bar.appendChild(d);
         });
     }
 
-    function updateWPM() {
-        if (!startTime) return;
-        const mins = (new Date() - startTime) / 60000;
-        document.getElementById('wpm').innerText = `速度: ${Math.round(wordCount / mins) || 0} 字/分`;
+    function learn(ini, word) {
+        let h = JSON.parse(localStorage.getItem('hmi_v28_mem') || '{}');
+        h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
+        localStorage.setItem('hmi_v28_mem', JSON.stringify(h));
+    }
+
+    function sendAndClear() {
+        if (sentence.trim()) {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const msgLogs = JSON.parse(localStorage.getItem('hmi_v28_msgs') || '[]');
+            msgLogs.push({ time: timeStr, text: sentence });
+            localStorage.setItem('hmi_v28_msgs', JSON.stringify(msgLogs.slice(-10)));
+            
+            if (liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
+        }
+        handleClearAll();
+        refreshLogs();
+    }
+
+    function refreshLogs() {
+        const msgLogs = JSON.parse(localStorage.getItem('hmi_v28_msgs') || '[]');
+        const logBox = document.getElementById('log-display');
+        logBox.innerHTML = msgLogs.length ? "" : "尚未有發送數據...";
+        msgLogs.reverse().forEach(log => {
+            logBox.innerHTML += `<div>[${log.time}] ${log.text}</div>`;
+        });
     }
 
     function handleClearAll() {
@@ -171,12 +189,13 @@
         updatePredicts();
     }
 
-    function sendAndClear() {
-        if (sentence.trim() && liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
-        handleClearAll();
+    function updateWPM() {
+        if (!startTime) return;
+        const mins = (new Date() - startTime) / 60000;
+        document.getElementById('wpm').innerText = `速度: ${Math.round(wordCount / mins) || 0} 字/分`;
     }
 
-    liff.init({ liffId: "2009598618-mYOYGEoM" }).then(renderKB);
+    liff.init({ liffId: LIFF_ID }).then(renderKB);
 </script>
 </body>
 </html>
