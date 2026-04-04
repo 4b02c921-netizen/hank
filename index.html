@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 數據格式化版 V52</title>
+    <title>HMI 繁體終極版 V55</title>
     <style>
         :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         
-        .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 8px; }
-        #sentence-box { font-size: 26px; color: var(--text); min-height: 35px; word-break: break-all; font-weight: 500; }
-        #buffer-box { font-size: 16px; color: var(--primary); margin-top: 6px; font-weight: bold; }
+        /* 1. 顯示區 */
+        .display { background: var(--card); padding: 15px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 5px; }
+        #sentence-box { font-size: 24px; color: var(--text); min-height: 32px; word-break: break-all; font-weight: 500; }
+        #buffer-box { font-size: 16px; color: var(--primary); margin-top: 4px; font-weight: bold; }
 
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 65px; scrollbar-width: none; }
-        .predict-item { background: var(--card); padding: 12px 20px; border-radius: 14px; white-space: nowrap; font-size: 21px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        /* 2. 預測列 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 4px 0 10px 0; min-height: 60px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 12px 20px; border-radius: 12px; white-space: nowrap; font-size: 20px; border: 1px solid #E5E5EA; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
         .predict-item.local { color: var(--success); font-weight: bold; }
         .predict-item.ai { color: var(--primary); }
 
-        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 22px; font-weight: bold; height: 48px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .key.fn { background: #D1D1D6; font-size: 16px; }
+        /* 3. 鍵盤區 (結構回歸) */
+        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; flex-grow: 1; align-content: start; }
+        .key { background: var(--card); border: none; border-radius: 10px; color: var(--text); font-size: 20px; font-weight: bold; height: 45px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .key.fn { background: #D1D1D6; font-size: 15px; }
 
-        .btn-send { background: var(--primary); color: white; padding: 16px; border-radius: 16px; border: none; font-size: 20px; font-weight: bold; margin-top: 8px; box-shadow: 0 4px 12px rgba(0,122,255,0.2); }
-        
-        /* 歷史紀錄：魏先生要求的分行樣式 */
-        .history-panel { background: rgba(255,255,255,0.7); padding: 12px; border-radius: 16px; margin-top: 10px; height: 100px; overflow-y: auto; border: 1px solid #DDD; }
-        .log-item { font-size: 14px; color: #555; padding: 4px 0; border-bottom: 1px solid #EEE; line-height: 1.5; }
-        .log-item:last-child { border-bottom: none; }
+        /* 4. 控制與紀錄 (分行邏輯) */
+        .btn-send { background: var(--primary); color: white; padding: 14px; border-radius: 14px; border: none; font-size: 20px; font-weight: bold; margin-top: 5px; }
+        .history-panel { background: rgba(255,255,255,0.7); padding: 10px; border-radius: 14px; margin-top: 8px; height: 90px; overflow-y: auto; border: 1px solid #DDD; }
+        .log-item { font-size: 13px; color: #555; padding: 4px 0; border-bottom: 1px solid #EEE; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -36,20 +37,21 @@
     </div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <button class="btn-send" onclick="sendAndClear()">✅ 傳送並紀錄數據</button>
-    
-    <div class="history-panel" id="history-box">尚無科研紀錄...</div>
+    <button class="btn-send" onclick="sendAndClear()">✅ 傳送並紀錄</button>
+    <div class="history-panel" id="history-box">等待科研紀錄...</div>
 
 <script>
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
+    
+    // 生存導航詞庫 (已修正：還要)
     const instantFlow = {
         "DEFAULT": ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"],
-        "想大便": ["肚子痛", "快一點", "要換尿布"],
+        "想大便": ["肚子痛", "快一點", "換尿布"],
         "想小便": ["憋不住了", "拿尿壺", "快幫我"],
-        "緊急": ["我不舒服", "叫醫生", "快點過來"],
-        "喝水": ["我要溫的", "還要喝", "太燙了", "謝謝"],
-        "早安": ["吃飽了嗎", "昨晚睡得好嗎", "今天天氣好"]
+        "緊急": ["叫醫生", "不舒服", "快過來"],
+        "喝水": ["要溫的", "還要喝", "太燙了", "謝謝"],
+        "早安": ["吃飽了嗎", "睡得好嗎", "今天天氣好"]
     };
 
     let sentence = "", inputBuffer = "";
@@ -90,7 +92,6 @@
                 body: JSON.stringify({ initials: inputBuffer, context: sentence })
             });
             const data = await res.json();
-            // 過濾廢話
             const filtered = data.choices.filter(c => c.length >= 2 && !sentence.endsWith(c));
             if (inputBuffer !== "" || sentence !== "") updatePredicts(filtered, "ai", true);
         } catch (e) { }
@@ -110,14 +111,11 @@
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
                     final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
-                sentence += final;
-                inputBuffer = "";
-                updateUI();
-                
-                // 本地預載 + AI 追擊
+                sentence += final; inputBuffer = ""; updateUI();
                 let nextL = [];
                 for (let key in instantFlow) { if (final.includes(key)) { nextL = instantFlow[key]; break; } }
-                updatePredicts(nextL.length > 0 ? nextL : ["謝謝", "快一點", "还要"], "local");
+                // 魏先生，這裡修正了備用選項的簡體字
+                updatePredicts(nextL.length > 0 ? nextL : ["謝謝", "快一點", "還要"], "local");
                 callAI(false);
             };
             bar.appendChild(d);
@@ -126,32 +124,25 @@
 
     function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(instantFlow.DEFAULT, "local"); }
     
-    // 修正：分行紀錄邏輯
     function sendAndClear() {
         if (sentence.trim()) {
             const now = new Date();
             const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
             const logEntry = `[${timeStr}] ${sentence}`;
-            
-            let logs = JSON.parse(localStorage.getItem('hmi_logs_final') || '[]');
-            logs.unshift(logEntry); // 最新放上面
-            localStorage.setItem('hmi_logs_final', JSON.stringify(logs.slice(0, 20))); // 存20筆
+            let logs = JSON.parse(localStorage.getItem('hmi_logs_v55') || '[]');
+            logs.unshift(logEntry);
+            localStorage.setItem('hmi_logs_v55', JSON.stringify(logs.slice(0, 20)));
             loadHistory();
         }
         handleClear();
     }
 
     function loadHistory() {
-        const logs = JSON.parse(localStorage.getItem('hmi_logs_final') || '[]');
+        const logs = JSON.parse(localStorage.getItem('hmi_logs_v55') || '[]');
         const box = document.getElementById('history-box');
-        if (logs.length === 0) {
-            box.innerHTML = "尚未有發送紀錄...";
-            return;
-        }
-        // 重點：用 div 包起來實現分行
+        if (logs.length === 0) { box.innerHTML = "尚無紀錄"; return; }
         box.innerHTML = logs.map(item => `<div class="log-item">${item}</div>`).join('');
     }
-
     renderKB();
 </script>
 </body>
