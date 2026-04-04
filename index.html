@@ -150,7 +150,7 @@
     function loadHistory() {
         historyLogs = JSON.parse(localStorage.getItem('hmi_logs_v62') || '[]');
         const box = document.getElementById('history-box');
-        const itemsPerPage = 3;
+        const itemsPerPage = 6;
         const totalPages = Math.max(1, Math.ceil(historyLogs.length / itemsPerPage));
         const start = currentPage * itemsPerPage;
         box.innerHTML = historyLogs.slice(start, start + itemsPerPage).map(log => `<div style='padding:3px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
