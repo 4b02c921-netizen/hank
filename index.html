@@ -3,28 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 無限連鎖預測系統 V13</title>
+    <title>HMI 肢障友善科研系統 V14</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; --text: #fff; --dim: #8e8e93; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+        
         .metrics { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); padding-bottom: 5px; }
         .display { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
         #sentence-box { font-size: 24px; color: #00ffcc; min-height: 28px; word-break: break-all; }
         #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; }
 
-        /* 預測列：這是 V13 的靈魂，寬度加大 */
+        /* 預測列：V14 重點加強 */
         .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; min-height: 65px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
         .predict-item { background: #2c2c2e; padding: 14px 26px; border-radius: 18px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
-        .predict-item.ai-active { border-color: var(--warm); box-shadow: 0 0 10px rgba(255, 159, 10, 0.3); }
-        .predict-item.emergency { border-color: var(--danger); color: var(--danger); }
+        .predict-item.emergency { border-color: var(--danger); color: var(--danger); font-weight: bold; }
+        .predict-item.needs { border-color: var(--warm); color: var(--warm); }
 
+        /* 5 欄位鍵盤：37個注音 + 功能鍵 */
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
         .key { background: var(--card); border: none; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; height: 60px; display: flex; align-items: center; justify-content: center; }
-        .key:active { background: var(--primary); transform: scale(0.95); }
-        .key.delete { background: #3a3a3c; color: var(--danger); font-size: 18px; }
-        .key.clear { background: #3a3a3c; color: var(--warm); font-size: 18px; }
+        .key:active { background: var(--primary); transform: scale(0.92); }
+        .key.del { background: #3a3a3c; color: var(--danger); font-size: 18px; }
+        .key.clr { background: #3a3a3c; color: var(--warm); font-size: 18px; }
 
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .ctrl-btn { padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 18px; color: white; }
@@ -35,7 +37,7 @@
 <body>
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 無限聯想鏈 V13</span>
+        <span id="status">模式: 肢障友善 V14 (聲母+聯想)</span>
     </div>
     <div class="display">
         <div id="sentence-box"></div>
@@ -49,116 +51,102 @@
     </div>
 
 <script>
-    const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 1. 基礎聲母對應
+    // 聲母庫
     const aiLib = {
-        "ㄗㄢ": ["早安", "讚"], "ㄏㄕ": ["喝水", "還是"], "ㄉㄅ": ["想大便", "代表"], 
-        "ㄒㄅ": ["想小便", "休息"], "ㄐㄐ": ["緊急", "救命"], "ㄅㄕ": ["報時"]
+        "ㄗㄢ": ["早安", "咱們", "讚"], "ㄋㄏ": ["你好", "您好"], 
+        "ㄏㄕ": ["喝水", "還是"], "ㄉㄅ": ["想大便", "代表"], 
+        "ㄒㄅ": ["想小便", "休息"], "ㄐㄐ": ["緊急🚨", "救命"], "ㄅㄕ": ["報時🕰️"]
     };
 
-    // 2. 無限聯想鏈：每一層都會觸發下一層，直到句子結束
+    // 無限聯想鏈 (Recursive)
     const chainLib = {
-        "早安": ["要喝水嗎？", "心情好嗎？", "吃飽沒", "。"],
+        "早安": ["要喝水嗎？", "想大便", "想小便", "心情如何？"],
         "喝水": ["還要", "調水溫", "不喝了", "謝謝"],
-        "還要": ["太燙了", "太冰了", "溫一點", "大口一點", "吹一吹"],
+        "還要": ["太燙了", "太冰了", "溫一點", "大口一點", "快一點"],
         "調水溫": ["熱一點", "冷一點", "溫水", "剛剛好"],
-        "太燙了": ["吹一吹", "加冷水", "等一下"],
-        "想大便": ["肚子痛", "要換尿布", "快一點", "不舒服"],
+        "想大便": ["肚子痛", "要換尿布", "不舒服", "快一點"],
         "想小便": ["很急", "要尿壺", "快點"],
-        "緊急": ["我不舒服", "救救我", "快叫人", "找醫生"],
-        "心情好嗎？": ["很好", "累累的", "不太好", "想睡覺"]
+        "緊急": ["我不舒服", "救救我", "快叫人", "找醫生"]
     };
 
-    // 3. 通用填補詞 (當鏈條斷掉時，顯示核心生活語)
-    const lifeSafe = ["緊急🚨", "喝水💧", "想大便💩", "想小便🚽", "報時🕰️", "早安☀️"];
+    const lifeSafe = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
 
-    let sentence = "", inputBuffer = "", startTime = null, wordCount = 0, lastClickTime = 0;
+    let sentence = "", inputBuffer = "", startTime = null, wordCount = 0, lastTime = 0;
 
     function renderKB() {
         const kb = document.getElementById('keyboard');
         kb.innerHTML = "";
-        bpmf.forEach(char => {
+        // 渲染 37 聲母
+        bpmf.forEach(c => {
             const btn = document.createElement('button');
-            btn.className = 'key'; btn.innerText = char;
-            btn.onclick = () => handleKeySafe(char);
+            btn.className = 'key'; btn.innerText = c;
+            btn.onclick = () => {
+                if (!startTime) startTime = new Date();
+                inputBuffer += c;
+                document.getElementById('buffer-box').innerText = inputBuffer;
+                updatePredicts();
+            };
             kb.appendChild(btn);
         });
-        createSpecialKey(" ", () => handleKeySafe(" "), "key");
-        createSpecialKey("⌫ 刪除", handleDelete, "key delete");
-        createSpecialKey("🧹 全清", handleClearAll, "key clear");
+        // 功能鍵補滿 40 格
+        createKey(" ", () => { inputBuffer += " "; document.getElementById('buffer-box').innerText = inputBuffer; }, "key");
+        createKey("⌫ 刪除", handleDelete, "key del");
+        createKey("🧹 全清", handleClearAll, "key clr");
         updatePredicts();
     }
 
-    function createSpecialKey(text, onclick, cls) {
+    function createKey(txt, onclick, cls) {
         const btn = document.createElement('button');
-        btn.className = cls; btn.innerText = text; btn.onclick = onclick;
+        btn.className = cls; btn.innerText = txt; btn.onclick = onclick;
         document.getElementById('keyboard').appendChild(btn);
     }
 
-    function handleKeySafe(char) {
-        const now = Date.now();
-        if (now - lastClickTime < 150) return;
-        lastClickTime = now;
-        if (!startTime) startTime = new Date();
-        inputBuffer += char;
-        document.getElementById('buffer-box').innerText = inputBuffer;
-        updatePredicts();
-    }
-
-    function updatePredicts(customList = null) {
+    function updatePredicts() {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
-        
         let list = [];
-        if (customList) {
-            list = customList;
-        } else if (inputBuffer === "") {
-            // 如果沒打字，看句子最後一個詞有沒有連鎖
-            const lastWord = sentence.slice(-2); // 抓最後兩字做比對
-            const lastWordLong = sentence.slice(-4); 
-            list = chainLib[lastWordLong] || chainLib[lastWord] || lifeSafe;
+
+        if (inputBuffer !== "") {
+            const hist = JSON.parse(localStorage.getItem('hmi_v14_mem') || '{}')[inputBuffer] || [];
+            list = [...new Set([...hist, ...(aiLib[inputBuffer] || [])])];
+            if (list.length === 0) list = lifeSafe;
         } else {
-            const history = JSON.parse(localStorage.getItem('hmi_v13_mem') || '{}')[inputBuffer] || [];
-            list = [...new Set([...history, ...(aiLib[inputBuffer] || [])])];
-            if (list.length === 0) list = lifeSafe; // 找不到就給生活守護
+            const last2 = sentence.slice(-2);
+            list = chainLib[last2] || lifeSafe;
         }
 
         list.forEach(word => {
             const d = document.createElement('div');
             d.className = 'predict-item';
             if (word.includes("緊急") || word.includes("救")) d.classList.add('emergency');
-            if (chainLib[word.replace(/[🚨💧💩🚽🕰️☀️]/g, "")]) d.classList.add('ai-active');
+            if (["喝水", "大便", "小便", "報時", "調水溫"].some(k => word.includes(k))) d.classList.add('needs');
             
             d.innerText = word;
             d.onclick = () => {
-                let finalWord = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
-                if (finalWord === "報時") {
+                let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
+                if (final === "報時") {
                     const now = new Date();
-                    finalWord = `現在是 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
+                    final = `現在是 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
-                
-                if (inputBuffer !== "") learn(inputBuffer, finalWord);
-                sentence += finalWord;
-                wordCount += finalWord.length;
+                if (inputBuffer !== "") learn(inputBuffer, final);
+                sentence += final;
+                wordCount += final.length;
                 document.getElementById('sentence-box').innerText = sentence;
                 inputBuffer = "";
                 document.getElementById('buffer-box').innerText = "";
                 updateWPM();
-                
-                // --- 關鍵：點擊後立即觸發下一鏈，不讓預測列空掉 ---
-                const nextChain = chainLib[finalWord];
-                updatePredicts(nextChain); 
+                updatePredicts(); // 點擊後立即觸發聯想
             };
             bar.appendChild(d);
         });
     }
 
     function learn(ini, word) {
-        let h = JSON.parse(localStorage.getItem('hmi_v13_mem') || '{}');
+        let h = JSON.parse(localStorage.getItem('hmi_v14_mem') || '{}');
         h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
-        localStorage.setItem('hmi_v13_mem', JSON.stringify(h));
+        localStorage.setItem('hmi_v14_mem', JSON.stringify(h));
     }
 
     function updateWPM() {
@@ -171,6 +159,7 @@
         sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
         document.getElementById('sentence-box').innerText = "";
         document.getElementById('buffer-box').innerText = "";
+        document.getElementById('wpm').innerText = "速度: 0 字/分";
         updatePredicts();
     }
 
@@ -197,7 +186,7 @@
         sr.start();
     }
 
-    liff.init({ liffId: LIFF_ID }).then(renderKeyboard);
+    liff.init({ liffId: "2009598618-mYOYGEoM" }).then(renderKB);
 </script>
 </body>
 </html>
