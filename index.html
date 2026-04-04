@@ -3,53 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 終極科研整合 V50</title>
+    <title>HMI 終極導航 V50</title>
     <style>
         :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
-        
-        /* 1. 顯示區 */
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 8px; }
         #sentence-box { font-size: 26px; color: var(--text); min-height: 35px; word-break: break-all; font-weight: 500; }
-        #buffer-box { font-size: 18px; color: var(--primary); margin-top: 8px; font-weight: bold; letter-spacing: 2px; }
-
-        /* 2. 預測列 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
-        .predict-item { background: var(--card); padding: 14px 24px; border-radius: 16px; white-space: nowrap; font-size: 22px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        #buffer-box { font-size: 16px; color: var(--primary); margin-top: 6px; font-weight: bold; }
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 65px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 12px 20px; border-radius: 14px; white-space: nowrap; font-size: 21px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
         .predict-item.local { color: var(--success); font-weight: bold; }
-        .predict-item.ai { color: var(--primary); animation: fadeIn 0.3s; }
-
-        /* 3. 鍵盤 */
+        .predict-item.ai { color: var(--primary); }
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 14px; font-size: 24px; font-weight: bold; height: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .key.fn { background: #D1D1D6; font-size: 18px; }
-
-        /* 4. 發送與紀錄 */
-        .btn-send { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,122,255,0.25); }
-        .history-panel { background: rgba(255,255,255,0.6); padding: 12px; border-radius: 16px; margin-top: 10px; height: 80px; overflow-y: auto; font-size: 13px; color: var(--dim); border: 1px dashed #CCC; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 22px; font-weight: bold; height: 48px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .key.fn { background: #D1D1D6; font-size: 16px; }
+        .btn-send { background: var(--primary); color: white; padding: 16px; border-radius: 16px; border: none; font-size: 20px; font-weight: bold; margin-top: 8px; }
+        .history { background: rgba(255,255,255,0.6); padding: 8px; border-radius: 12px; margin-top: 8px; height: 50px; overflow-y: auto; font-size: 12px; color: var(--dim); border: 1px dashed #CCC; }
     </style>
 </head>
 <body>
     <div class="display"><div id="sentence-box"></div><div id="buffer-box"></div></div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <button class="btn-send" onclick="sendAndClear()">✅ 傳送訊息並紀錄</button>
-    <div class="history-panel" id="history-box">等待發送紀錄...</div>
+    <button class="btn-send" onclick="sendAndClear()">✅ 傳送訊息</button>
+    <div class="history" id="history-box">等待發送紀錄...</div>
 
 <script>
-    // ⚠️ 請換成您目前的 ngrok 網址
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 生存導航詞庫 (0延遲)
+    // 本地優先清單：避免 AI 出現「我繼續」這種廢話
     const instantFlow = {
         "DEFAULT": ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"],
-        "想大便": ["肚子痛", "快一點", "換尿布", "我便秘了"],
+        "想大便": ["肚子痛", "快一點", "換尿布"],
         "想小便": ["憋不住了", "拿尿壺", "快幫我"],
-        "緊急": ["不舒服", "叫醫生", "我跌倒了"],
-        "喝水": ["我要溫的", "還要喝", "太燙了"],
-        "早安": ["吃飽了嗎", "睡得好嗎", "今天天氣好"]
+        "緊急": ["叫醫生", "不舒服", "快過來"],
+        "喝水": ["要溫的", "還要喝", "太燙了", "謝謝"],
+        "報時": ["謝謝", "幫我記錄"],
+        "早安": ["吃飽了嗎", "昨晚睡得好嗎", "今天天氣好"]
     };
 
     let sentence = "", inputBuffer = "";
@@ -90,7 +81,9 @@
                 body: JSON.stringify({ initials: inputBuffer, context: sentence })
             });
             const data = await res.json();
-            if (inputBuffer !== "" || sentence !== "") updatePredicts(data.choices, "ai", true);
+            // 魏先生，這裡加了過濾邏輯：AI 選項如果不滿 2 個字，或是重複目前句子的最後一個字，就不顯示
+            const filtered = data.choices.filter(c => c.length >= 2 && !sentence.endsWith(c));
+            if (inputBuffer !== "" || sentence !== "") updatePredicts(filtered, "ai", true);
         } catch (e) { }
     }
 
@@ -102,7 +95,7 @@
             d.className = `predict-item ${type}`;
             d.innerText = word;
             d.onclick = () => {
-                let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
+                let final = word.replace(/[🚨🚽💩💧🕰️☀️]/g, "");
                 if (final === "報時") {
                     const now = new Date();
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
@@ -111,8 +104,16 @@
                 sentence += final;
                 inputBuffer = "";
                 updateUI();
-                const nextL = instantFlow[final] || [];
-                updatePredicts(nextL, "local");
+                
+                // --- 修正：點擊後，先看本地有沒有「保底詞」，再叫 AI 追擊 ---
+                const lastAction = final.trim();
+                let nextL = [];
+                // 檢查最後一個動作是否在本地字典裡
+                for (let key in instantFlow) {
+                    if (lastAction.includes(key)) { nextL = instantFlow[key]; break; }
+                }
+                
+                updatePredicts(nextL.length > 0 ? nextL : ["謝謝", "還要", "太燙了", "快點"], "local");
                 callAI(false);
             };
             bar.appendChild(d);
@@ -120,25 +121,18 @@
     }
 
     function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(instantFlow.DEFAULT, "local"); }
-    
-    // 修正：發送紀錄回歸
     function sendAndClear() {
         if (sentence.trim()) {
-            const now = new Date();
-            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const newLog = `[${timeStr}] ${sentence}`;
-            
-            let logs = JSON.parse(localStorage.getItem('hmi_logs_v50') || '[]');
-            logs.unshift(newLog);
-            localStorage.setItem('hmi_logs_v50', JSON.stringify(logs.slice(0, 10)));
+            let logs = JSON.parse(localStorage.getItem('hmi_logs_v51') || '[]');
+            logs.unshift(`[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}`);
+            localStorage.setItem('hmi_logs_v51', JSON.stringify(logs.slice(0, 5)));
             loadHistory();
         }
         handleClear();
     }
-
     function loadHistory() {
-        const logs = JSON.parse(localStorage.getItem('hmi_logs_v50') || '[]');
-        document.getElementById('history-box').innerHTML = logs.length ? logs.join('<br>') : "尚無發送紀錄";
+        const logs = JSON.parse(localStorage.getItem('hmi_logs_v51') || '[]');
+        document.getElementById('history-box').innerHTML = logs.length ? logs.join(' | ') : "尚未有發送紀錄";
     }
     renderKB();
 </script>
