@@ -3,49 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 語意連動導航 V47</title>
+    <title>HMI 終極科研整合 V50</title>
     <style>
-        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
+        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --dim: #8E8E93; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         
-        /* 白潤簡約顯示區 */
+        /* 1. 顯示區 */
         .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 8px; }
         #sentence-box { font-size: 26px; color: var(--text); min-height: 35px; word-break: break-all; font-weight: 500; }
         #buffer-box { font-size: 18px; color: var(--primary); margin-top: 8px; font-weight: bold; letter-spacing: 2px; }
 
-        /* 預測列：Apple 卡片風格 */
-        .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
-        .predict-item { background: var(--card); padding: 14px 26px; border-radius: 18px; white-space: nowrap; font-size: 22px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; align-items: center; }
+        /* 2. 預測列 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
+        .predict-item { background: var(--card); padding: 14px 24px; border-radius: 16px; white-space: nowrap; font-size: 22px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
         .predict-item.local { color: var(--success); font-weight: bold; }
-        .predict-item.ai { color: var(--primary); }
+        .predict-item.ai { color: var(--primary); animation: fadeIn 0.3s; }
 
-        /* 鍵盤：柔和圓角按鍵 */
+        /* 3. 鍵盤 */
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 14px; color: var(--text); font-size: 24px; font-weight: bold; height: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .key:active { background: #E5E5EA; }
-        .key.fn { background: #D1D1D6; color: #3A3A3C; font-size: 18px; }
+        .key { background: var(--card); border: none; border-radius: 14px; font-size: 24px; font-weight: bold; height: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .key.fn { background: #D1D1D6; font-size: 18px; }
 
-        /* 傳送按鈕：醒目但不突兀 */
-        .btn-send { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 12px; box-shadow: 0 4px 12px rgba(0,122,255,0.25); }
+        /* 4. 發送與紀錄 */
+        .btn-send { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,122,255,0.25); }
+        .history-panel { background: rgba(255,255,255,0.6); padding: 12px; border-radius: 16px; margin-top: 10px; height: 80px; overflow-y: auto; font-size: 13px; color: var(--dim); border: 1px dashed #CCC; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="display">
-        <div id="sentence-box"></div>
-        <div id="buffer-box"></div>
-    </div>
+    <div class="display"><div id="sentence-box"></div><div id="buffer-box"></div></div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <button class="btn-send" onclick="sendAndClear()">✅ 傳送訊息</button>
+    <button class="btn-send" onclick="sendAndClear()">✅ 傳送訊息並紀錄</button>
+    <div class="history-panel" id="history-box">等待發送紀錄...</div>
 
 <script>
-    // ⚠️ 請填寫您目前的 ngrok 網址
+    // ⚠️ 請換成您目前的 ngrok 網址
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 生理需求鎖死 (包含小便)
-    const defaults = ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"];
-    
+    // 生存導航詞庫 (0延遲)
+    const instantFlow = {
+        "DEFAULT": ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"],
+        "想大便": ["肚子痛", "快一點", "換尿布", "我便秘了"],
+        "想小便": ["憋不住了", "拿尿壺", "快幫我"],
+        "緊急": ["不舒服", "叫醫生", "我跌倒了"],
+        "喝水": ["我要溫的", "還要喝", "太燙了"],
+        "早安": ["吃飽了嗎", "睡得好嗎", "今天天氣好"]
+    };
+
     let sentence = "", inputBuffer = "";
 
     function renderKB() {
@@ -57,7 +63,8 @@
         });
         addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(true); }, "key fn");
         addKey("全清", () => { handleClear(); }, "key fn");
-        updatePredicts(defaults, "local");
+        updatePredicts(instantFlow.DEFAULT, "local");
+        loadHistory();
     }
 
     function addKey(txt, fn, cls) {
@@ -68,14 +75,12 @@
     function updateUI() {
         document.getElementById('buffer-box').innerText = inputBuffer;
         document.getElementById('sentence-box').innerText = sentence;
-        // 打字時，預測列淨空，不准出現綠色鍵，以免遮擋
         if (inputBuffer !== "") document.getElementById('predict-bar').innerHTML = ""; 
     }
 
-    // 核心預測邏輯：isTyping=true(打字猜詞), false(點擊接龍)
     async function callAI(isTyping) {
         if (isTyping && inputBuffer.length < 2) {
-            if (inputBuffer === "") updatePredicts(defaults, "local");
+            if (inputBuffer === "") updatePredicts(instantFlow.DEFAULT, "local");
             return;
         }
         try {
@@ -85,50 +90,55 @@
                 body: JSON.stringify({ initials: inputBuffer, context: sentence })
             });
             const data = await res.json();
-            // 只要不是全清空狀態，就顯示 AI 預測
-            if (inputBuffer !== "" || sentence !== "") {
-                updatePredicts(data.choices, "ai");
-            }
-        } catch (e) { 
-            console.log("AI Offline"); 
-            updatePredicts(defaults, "local");
-        }
+            if (inputBuffer !== "" || sentence !== "") updatePredicts(data.choices, "ai", true);
+        } catch (e) { }
     }
 
-    function updatePredicts(list, type) {
+    function updatePredicts(list, type, append = false) {
         const bar = document.getElementById('predict-bar');
-        // 點選後立刻清空舊的，準備放「連動」的下一句
-        if (inputBuffer !== "" || type === "local" || sentence !== "") bar.innerHTML = "";
-        
+        if (!append) bar.innerHTML = "";
         list.forEach(word => {
             const d = document.createElement('div');
             d.className = `predict-item ${type}`;
             d.innerText = word;
             d.onclick = () => {
                 let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
-                
-                // 魏先生指定的：報時日期格式
                 if (final === "報時") {
                     const now = new Date();
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
                     final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
-
                 sentence += final;
                 inputBuffer = "";
                 updateUI();
-                
-                // --- 核心：只要沒按傳送，就持續「語意連動」 ---
-                callAI(false); 
+                const nextL = instantFlow[final] || [];
+                updatePredicts(nextL, "local");
+                callAI(false);
             };
             bar.appendChild(d);
         });
     }
 
-    function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(defaults, "local"); }
+    function handleClear() { sentence = ""; inputBuffer = ""; updateUI(); updatePredicts(instantFlow.DEFAULT, "local"); }
+    
+    // 修正：發送紀錄回歸
     function sendAndClear() {
-        if (sentence.trim()) alert("【發送訊息】: " + sentence);
-        handleClear(); // 只有按傳送才結束連動
+        if (sentence.trim()) {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const newLog = `[${timeStr}] ${sentence}`;
+            
+            let logs = JSON.parse(localStorage.getItem('hmi_logs_v50') || '[]');
+            logs.unshift(newLog);
+            localStorage.setItem('hmi_logs_v50', JSON.stringify(logs.slice(0, 10)));
+            loadHistory();
+        }
+        handleClear();
+    }
+
+    function loadHistory() {
+        const logs = JSON.parse(localStorage.getItem('hmi_logs_v50') || '[]');
+        document.getElementById('history-box').innerHTML = logs.length ? logs.join('<br>') : "尚無發送紀錄";
     }
     renderKB();
 </script>
