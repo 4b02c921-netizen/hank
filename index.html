@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 簡約無限版 V44</title>
+    <title>HMI 收官版 V46</title>
     <style>
-        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --dim: #8E8E93; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
         
-        /* 乾淨白潤顯示區 */
-        .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 10px; }
-        #sentence-box { font-size: 28px; color: var(--text); min-height: 35px; word-break: break-all; }
-        #buffer-box { font-size: 18px; color: var(--primary); margin-top: 8px; font-weight: bold; }
+        /* 白潤簡約顯示區 */
+        .display { background: var(--card); padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 8px; }
+        #sentence-box { font-size: 26px; color: var(--text); min-height: 35px; word-break: break-all; }
+        #buffer-box { font-size: 18px; color: var(--primary); margin-top: 6px; font-weight: bold; }
 
-        /* 預測列：白底卡片 */
+        /* 預測列：打字時自動切換 */
         .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
         .predict-item { background: var(--card); padding: 14px 24px; border-radius: 16px; white-space: nowrap; font-size: 22px; border: 1px solid #E5E5EA; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
         .predict-item.local { color: var(--success); font-weight: bold; }
         .predict-item.ai { color: var(--primary); }
 
-        /* 鍵盤：柔和色調 */
-        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 14px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .key:active { background: #E5E5EA; }
+        /* 鍵盤 */
+        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
+        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 24px; font-weight: bold; height: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         .key.fn { background: #D1D1D6; font-size: 18px; }
 
-        .btn-main { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+        .btn-main { background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none; font-size: 22px; font-weight: bold; margin-top: 10px; }
         
-        /* 歷史紀錄區 */
-        .history { background: rgba(255,255,255,0.5); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 12px; color: var(--dim); max-height: 60px; overflow-y: auto; text-align: center; }
+        /* 歷史紀錄：方便科研數據收集 */
+        .log-panel { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 12px; margin-top: 8px; font-size: 13px; color: var(--dim); height: 60px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -39,21 +38,19 @@
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
     <button class="btn-main" onclick="sendAndClear()">✅ 傳送訊息</button>
-    <div class="history" id="history-box">尚無歷史紀錄</div>
+    <div class="log-panel" id="log-box">尚未發送訊息...</div>
 
 <script>
-    // ⚠️ 請填寫您的 ngrok 網址
     const BACKEND_URL = "https://frida-bowllike-retrogradingly.ngrok-free.dev/api/predict";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 鎖死生理需求 (小便補回)
+    // 生存導航保底 (魏先生鎖死的所有功能)
     const defaults = ["緊急🚨", "想小便🚽", "想大便💩", "喝水💧", "報時🕰️", "早安☀️"];
     
     let sentence = "", inputBuffer = "";
 
     function renderKB() {
-        const kb = document.getElementById('keyboard');
-        kb.innerHTML = "";
+        const kb = document.getElementById('keyboard'); kb.innerHTML = "";
         bpmf.forEach(c => {
             const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = c;
             btn.onclick = () => { inputBuffer += c; updateUI(); callAI(true); };
@@ -62,7 +59,6 @@
         addKey("⌫", () => { inputBuffer = inputBuffer.slice(0,-1); updateUI(); callAI(true); }, "key fn");
         addKey("全清", () => { handleClear(); }, "key fn");
         updatePredicts(defaults, "local");
-        loadHistory();
     }
 
     function addKey(txt, fn, cls) {
@@ -73,7 +69,7 @@
     function updateUI() {
         document.getElementById('buffer-box').innerText = inputBuffer;
         document.getElementById('sentence-box').innerText = sentence;
-        // 打字時，預測列清空，不准出現綠色鍵
+        // 打字時，隱藏綠色功能鍵，騰出空間給 AI
         if (inputBuffer !== "") document.getElementById('predict-bar').innerHTML = ""; 
     }
 
@@ -95,8 +91,8 @@
 
     function updatePredicts(list, type) {
         const bar = document.getElementById('predict-bar');
-        // 只要打字中或重新載入，就清空
-        if (inputBuffer !== "" || type === "local") bar.innerHTML = "";
+        // 只要打字中或清空，就重刷預測列
+        if (inputBuffer !== "" || type === "local" || sentence !== "") bar.innerHTML = "";
         
         list.forEach(word => {
             const d = document.createElement('div');
@@ -104,16 +100,19 @@
             d.innerText = word;
             d.onclick = () => {
                 let final = word.replace(/[🚨💧💩🚽🕰️☀️]/g, "");
-                // 魏先生指定的日期格式
+                
+                // 魏先生指定的：完整報時格式 (2026/04/04 (週六) 17:08)
                 if (final === "報時") {
                     const now = new Date();
                     const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
                     final = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} (${days[now.getDay()]}) ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} `;
                 }
+
                 sentence += final;
                 inputBuffer = "";
                 updateUI();
-                // 點完之後，立刻觸發 AI 接龍 (無限延伸)
+                
+                // --- 無限延伸核心：選完任何詞，立刻觸發接龍 ---
                 callAI(false); 
             };
             bar.appendChild(d);
@@ -124,19 +123,12 @@
     
     function sendAndClear() {
         if (sentence.trim()) {
-            let hist = JSON.parse(localStorage.getItem('hmi_v44') || '[]');
-            hist.unshift(`[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}`);
-            localStorage.setItem('hmi_v44', JSON.stringify(hist.slice(0, 5)));
-            loadHistory();
+            const logBox = document.getElementById('log-box');
+            if (logBox.innerText.includes("尚未")) logBox.innerHTML = "";
+            logBox.innerHTML = `<div>[${new Date().getHours()}:${new Date().getMinutes()}] ${sentence}</div>` + logBox.innerHTML;
         }
         handleClear();
     }
-
-    function loadHistory() {
-        const hist = JSON.parse(localStorage.getItem('hmi_v44') || '[]');
-        document.getElementById('history-box').innerHTML = hist.length ? hist.join(' | ') : "尚無紀錄";
-    }
-
     renderKB();
 </script>
 </body>
