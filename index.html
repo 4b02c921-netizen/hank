@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 智慧導航系統 V23</title>
+    <title>HMI 終極搜尋導航系統 V25</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --warm: #ff9f0a; --text: #fff; --dim: #8e8e93; }
@@ -13,16 +13,15 @@
         #sentence-box { font-size: 24px; color: #00ffcc; min-height: 32px; word-break: break-all; }
         #buffer-box { font-size: 18px; color: #ffcc00; margin-top: 4px; height: 20px; font-weight: bold; letter-spacing: 2px; }
 
-        /* 預測列：加寬按鈕，方便連續點擊 */
+        /* 預測列：V25 搜尋結果與導航共用 */
         .predict-bar { display: flex; overflow-x: auto; gap: 12px; padding: 5px 0 15px 0; min-height: 70px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
         .predict-item { background: #2c2c2e; padding: 14px 28px; border-radius: 18px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
-        .predict-item.nav { border-color: var(--primary); color: var(--primary); font-weight: bold; }
+        .predict-item.search-hit { border-color: var(--primary); color: var(--primary); font-weight: bold; }
         .predict-item.emergency { border-color: var(--danger); color: var(--danger); }
 
-        /* 5 欄位黃金鍵盤 */
         .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 58px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #000; }
+        .key { background: var(--card); border: none; border-radius: 12px; color: white; font-size: 24px; font-weight: bold; height: 55px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #000; }
         .key:active { background: var(--primary); transform: scale(0.92); }
         .key.fn { background: #3a3a3c; font-size: 18px; color: #ccc; }
     </style>
@@ -30,7 +29,7 @@
 <body>
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 意圖導航 V23</span>
+        <span id="status">模式: 全語意聲母搜尋 V25</span>
     </div>
     <div class="display">
         <div id="sentence-box"></div>
@@ -38,38 +37,39 @@
     </div>
     <div id="predict-bar" class="predict-bar"></div>
     <div id="keyboard" class="keyboard"></div>
-    <div class="controls" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-        <button onclick="startVoice()" style="background:#ff453a; padding:15px; border-radius:12px; border:none; color:white; font-size:18px;">🎤 語音</button>
-        <button onclick="sendAndClear()" style="background:#0a84ff; padding:15px; border-radius:12px; border:none; color:white; font-size:18px;">✅ 傳送</button>
+    <div class="controls" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
+        <button onclick="handleClearAll()" style="background:#3a3a3c; padding:12px; border-radius:12px; border:none; color:white; font-size:18px;">🧹 全清</button>
+        <button onclick="sendAndClear()" style="background:#0a84ff; padding:12px; border-radius:12px; border:none; color:white; font-size:18px;">✅ 傳送</button>
     </div>
 
 <script>
+    const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 1. 聲母長縮寫庫 (對標 Google)
-    const longDict = [
-        {s: "ㄉㄉㄉㄉ", w: "對對對對"}, {s: "ㄋㄏㄇ", w: "你好嗎？"}, {s: "ㄨㄅㄕㄈ", w: "我不舒服"},
-        {s: "ㄐㄐ", w: "緊急"}, {s: "ㄏㄕ", w: "喝水"}, {s: "ㄉㄅ", w: "想大便"}, {s: "ㄒㄅ", w: "想小便"},
-        {s: "ㄅㄕ", w: "報時🕰️"}, {s: "ㄗㄢ", w: "早安☀️"}
+    // 1. V25 全球字庫 (將所有語句打散做為搜尋標的)
+    const masterBank = [
+        {s: "ㄉㄉㄉㄉ", w: "對對對對"}, {s: "ㄋㄏㄇ", w: "你好嗎？"}, {s: "ㄒㄒ", w: "謝謝"},
+        {s: "ㄨㄅㄕㄈ", w: "我不舒服"}, {s: "ㄐㄐ", w: "緊急"}, {s: "ㄏㄕ", w: "喝水"},
+        {s: "ㄏㄕㄨㄉ", w: "喝水溫的"}, {s: "ㄏㄕㄧㄉㄉ", w: "喝水一點點"},
+        {s: "ㄉㄅ", w: "想大便"}, {s: "ㄒㄅ", w: "想小便"}, {s: "ㄅㄕ", w: "報時🕰️"},
+        {s: "ㄗㄢ", w: "早安☀️"}, {s: "ㄌㄌㄌㄌ", w: "來了來了"}, {s: "ㄇㄍㄒ", w: "沒關係"},
+        {s: "ㄉㄐㄗㄢ", w: "大家早安"}, {s: "ㄒㄒㄗ", w: "想洗澡"}, {s: "ㄅㄊㄅㄊ", w: "拜託拜託"}
     ];
 
-    // 2. 無限導航鏈 (這是魏先生要的關鍵：串成句子)
-    const navigationChain = {
-        "緊急": ["我不舒服", "救救我", "快點來", "幫我找醫生"],
-        "我不舒服": ["哪裡不舒服？", "頭痛", "肚子痛", "喘不過氣"],
-        "哪裡不舒服？": ["頭部", "胸口", "肚子", "背部", "腳"],
-        "頭痛": ["很痛", "暈暈的", "要吃藥", "想休息"],
-        "胸口": ["悶悶的", "刺痛", "喘不過氣"],
-        "喝水": ["還要", "調水溫", "不喝了", "謝謝"],
-        "還要": ["一點點", "大口一點", "還要喝水"],
-        "調水溫": ["太燙了", "太冰了", "溫一點", "熱一點"],
-        "太燙了": ["幫我吹吹", "加點冷水", "等一下喝"],
-        "想大便": ["肚子痛", "快一點", "要換尿布", "便秘"],
+    // 2. 語句連鎖鏈
+    const navTree = {
         "早安": ["心情好嗎？", "要喝水嗎？", "幫我翻身"],
-        "心情好嗎？": ["很好", "普通", "悶悶的", "想聊天"]
+        "喝水": ["還要", "調水溫", "溫的", "。"],
+        "還要": ["一點點", "大口一點", "還要喝水"],
+        "調水溫": ["太燙了", "太冰了", "溫一點"],
+        "想大便": ["肚子痛", "快一點", "要換尿布"],
+        "緊急": ["我不舒服", "救救我", "快找醫生"],
+        "我不舒服": ["哪裡不舒服？", "頭痛", "肚子痛", "胸口悶"],
+        "對對對對": ["就是這樣", "沒錯", "我也覺得"],
+        "謝謝": ["不客氣", "愛你", "。"]
     };
 
-    const lifeDefault = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
+    const defaultNeeds = ["緊急🚨", "喝水💧", "大便💩", "小便🚽", "報時🕰️", "早安☀️"];
 
     let sentence = "", inputBuffer = "", startTime = null, wordCount = 0;
 
@@ -83,13 +83,12 @@
                 if (!startTime) startTime = new Date();
                 inputBuffer += c;
                 document.getElementById('buffer-box').innerText = inputBuffer;
-                updatePredicts();
+                updatePredicts(); // 核心：每按一鍵就強制全大腦掃描
             };
             kb.appendChild(btn);
         });
         createKey(" ", () => { inputBuffer += " "; updatePredicts(); }, "key fn");
         createKey("⌫", () => { inputBuffer = inputBuffer.slice(0, -1); document.getElementById('buffer-box').innerText = inputBuffer; updatePredicts(); }, "key fn");
-        createKey("全清", handleClearAll, "key fn");
         updatePredicts();
     }
 
@@ -99,7 +98,7 @@
         document.getElementById('keyboard').appendChild(btn);
     }
 
-    // 核心導航引擎
+    // V25 智慧搜尋引擎
     function updatePredicts(flowList = null) {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
@@ -107,21 +106,32 @@
 
         if (!flowList) {
             if (inputBuffer !== "") {
-                list = longDict.filter(i => i.s.startsWith(inputBuffer)).map(i => i.w);
-                if (list.length === 0) list = lifeDefault;
+                // --- 核心進化：聲母全局搜尋 ---
+                // 找出所有聲母開頭匹配的詞，且按長度排序 (長句子優先)
+                list = masterBank
+                    .filter(item => item.s.startsWith(inputBuffer))
+                    .sort((a, b) => b.w.length - a.w.length)
+                    .map(item => item.w);
+                
+                // 如果長度大於1且查無結果，嘗試忽略最後一個字再找一次 (容錯)
+                if (list.length === 0 && inputBuffer.length > 1) {
+                    let sub = inputBuffer.slice(0, -1);
+                    list = masterBank.filter(item => item.s.startsWith(sub)).map(item => item.w);
+                }
+                
+                if (list.length === 0) list = defaultNeeds;
             } else {
-                // 根據句子最後一個關鍵詞抓導航鏈
+                // 根據句子最後的詞觸發連鎖，否則給預設
                 const last2 = sentence.slice(-2);
-                const last3 = sentence.slice(-3);
-                const last4 = sentence.slice(-4);
-                list = navigationChain[last4] || navigationChain[last3] || navigationChain[last2] || lifeDefault;
+                list = navTree[last2] || defaultNeeds;
             }
         }
 
         list.slice(0, 10).forEach(word => {
             const d = document.createElement('div');
             d.className = 'predict-item';
-            if (navigationChain[word.replace(/[🚨💧💩🚽🕰️☀️]/g, "")]) d.classList.add('nav');
+            // 如果是搜尋命中的詞，標記藍色
+            if (inputBuffer !== "") d.classList.add('search-hit');
             if (word.includes("緊急")) d.classList.add('emergency');
             
             d.innerText = word;
@@ -141,8 +151,8 @@
                 document.getElementById('buffer-box').innerText = "";
                 updateWPM();
                 
-                // --- 關鍵：無限導航啟動 ---
-                updatePredicts(navigationChain[final]);
+                // --- 搜尋完立刻進入「導航模式」，拼成句子 ---
+                updatePredicts(navTree[final]);
             };
             bar.appendChild(d);
         });
@@ -164,13 +174,6 @@
     function sendAndClear() {
         if (sentence.trim() && liff.isInClient()) liff.sendMessages([{ type: 'text', text: `【HMI】: ${sentence}` }]);
         handleClearAll();
-    }
-
-    function startVoice() {
-        const sr = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        sr.lang = 'zh-TW';
-        sr.onresult = (e) => { sentence += e.results[0][0].transcript; updatePredicts(); };
-        sr.start();
     }
 
     liff.init({ liffId: "2009598618-mYOYGEoM" }).then(renderKB);
