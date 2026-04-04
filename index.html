@@ -3,59 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HMI 肢障友善輸入系統</title>
+    <title>HMI 肢障友善科研系統 V5</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root {
-            --bg: #000; --card: #1c1c1e; --primary: #0a84ff;
-            --success: #30d158; --text: #fff; --dim: #8e8e93;
-        }
-
-        body {
-            font-family: sans-serif; background: var(--bg); color: var(--text);
-            margin: 0; padding: 8px; height: 100vh;
-            display: flex; flex-direction: column; box-sizing: border-box;
-        }
-
-        /* 頂部數據監測：科研對照用 */
-        .metrics { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 5px; }
-
-        /* 句子顯示區：字體加大方便閱讀 */
+        :root { --bg: #000; --card: #1c1c1e; --primary: #0a84ff; --success: #30d158; --text: #fff; --dim: #8e8e93; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+        
+        .metrics { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); padding-bottom: 5px; }
         .display { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
         #sentence-box { font-size: 26px; color: #00ffcc; min-height: 32px; word-break: break-all; }
         #buffer-box { font-size: 16px; color: var(--dim); margin-top: 4px; height: 20px; font-weight: bold; }
 
-        /* AI 預測區：加大按鈕高度，方便肢障使用者點選 */
-        .predict-bar {
-            display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 12px 0;
-            min-height: 50px; scrollbar-width: none;
-        }
+        /* 預測列：加大面積 */
+        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 12px 0; min-height: 55px; scrollbar-width: none; }
         .predict-bar::-webkit-scrollbar { display: none; }
-        .predict-item {
-            background: #2c2c2e; padding: 10px 20px; border-radius: 15px;
-            white-space: nowrap; font-size: 20px; border: 2px solid #444; color: #fff;
-        }
-        .predict-item.history { border-color: var(--success); color: var(--success); font-weight: bold; }
+        .predict-item { background: #2c2c2e; padding: 12px 24px; border-radius: 15px; white-space: nowrap; font-size: 22px; border: 2px solid #444; color: #fff; }
+        .predict-item.history { border-color: var(--success); color: var(--success); }
 
-        /* 核心：5 欄位佈局 (兼顧一屏化與大面積點擊) */
-        .keyboard {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr); 
-            gap: 8px;
-            flex-grow: 1;
-            align-content: start;
-        }
-        .key {
-            background: var(--card); border: none; border-radius: 10px;
-            color: white; font-size: 24px; font-weight: bold;
-            height: 70px; /* 固定高度，確保點擊面積充足 */
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 3px 0 #000;
-        }
-        .key:active { background: var(--primary); transform: translateY(2px); box-shadow: none; }
+        /* 5 欄位佈局：適合輕度肢障操作 */
+        .keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-grow: 1; align-content: start; }
+        .key { background: var(--card); border: none; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; height: 65px; display: flex; align-items: center; justify-content: center; }
+        .key:active { background: var(--primary); transform: scale(0.95); }
 
-        /* 控制按鈕 */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; padding-bottom: 5px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .ctrl-btn { padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 18px; cursor: pointer; color: white; }
         .btn-v { background: #ff453a; }
         .btn-s { background: var(--primary); }
@@ -65,7 +35,7 @@
 
     <div class="metrics">
         <span id="wpm">速度: 0 字/分</span>
-        <span id="status">模式: 5x8 友善佈局</span>
+        <span id="status">模式: 肢障科研 V5</span>
     </div>
 
     <div class="display">
@@ -73,38 +43,46 @@
         <div id="buffer-box"></div>
     </div>
 
-    <div class="predict-bar" id="predict-bar">
-        </div>
+    <div id="predict-bar" class="predict-bar"></div>
 
-    <div class="keyboard" id="keyboard"></div>
+    <div id="keyboard" class="keyboard"></div>
 
     <div class="controls">
         <button class="ctrl-btn btn-v" onclick="startVoice()">🎤 語音輸入</button>
-        <button class="ctrl-btn btn-s" onclick="sendAndClear()">✅ 學習並傳送</button>
+        <button class="ctrl-btn btn-s" onclick="sendAndClear()">✅ 傳送</button>
     </div>
 
 <script>
     const LIFF_ID = "2009598618-mYOYGEoM";
     const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
     
-    // 擴充詞庫：確保「ㄋㄏ」能跑出「你好」
+    // 補強詞庫
     const aiLib = {
-        "ㄋㄏ": ["你好", "您好", "哪會", "內湖"],
-        "ㄐㄐ": ["緊急", "救命", "姐姐", "解決"],
-        "ㄉㄅ": ["大便", "翻身", "代表", "對吧"],
-        "ㄒㄒ": ["謝謝", "休息", "學習", "學校"],
-        "ㄏㄕ": ["喝水", "好事", "還是", "回家"],
-        "ㄋㄋ": ["牛奶", "奶奶", "內內"]
+        "ㄗㄢ": ["早安", "咱們", "讚", "暫"],
+        "ㄨㄢ": ["晚安", "玩", "完"],
+        "ㄋㄏ": ["你好", "您好", "哪會"],
+        "ㄒㄒ": ["謝謝", "休息", "學習"],
+        "ㄏㄕ": ["喝水", "還是", "回家"],
+        "ㄉㄅ": ["大便", "代表", "翻身"],
+        "ㄐㄐ": ["緊急", "救命", "姐姐"]
+    };
+
+    // AI Agent 下一詞聯想
+    const nextWordLib = {
+        "早安": ["您好", "吃飽沒", "。"],
+        "晚安": ["祝好夢", "。"],
+        "你好": ["嗎", "最近好嗎", "謝謝"],
+        "謝謝": ["不客氣", "好的"],
+        "喝水": ["嗎", "謝謝", "還要"]
     };
 
     let sentence = "", inputBuffer = "", startTime = null, wordCount = 0;
 
-    // 靜音學習邏輯
     function learn(ini, word) {
         if (!ini || !word) return;
-        let h = JSON.parse(localStorage.getItem('hmi_v4') || '{}');
+        let h = JSON.parse(localStorage.getItem('hmi_v5_mem') || '{}');
         h[ini] = [word, ...((h[ini] || []).filter(w => w !== word))].slice(0, 5);
-        localStorage.setItem('hmi_v4', JSON.stringify(h));
+        localStorage.setItem('hmi_v5_mem', JSON.stringify(h));
     }
 
     function renderKB() {
@@ -127,24 +105,34 @@
     function updatePredicts() {
         const bar = document.getElementById('predict-bar');
         bar.innerHTML = "";
-        const history = JSON.parse(localStorage.getItem('hmi_v4') || '{}')[inputBuffer] || [];
-        const defaults = aiLib[inputBuffer] || ["然後", "好的", "想你"];
+        const history = JSON.parse(localStorage.getItem('hmi_v5_mem') || '{}')[inputBuffer] || [];
+        const defaults = aiLib[inputBuffer] || ["然後", "的", "了"];
         const list = [...new Set([...history, ...defaults])];
+        list.forEach(word => createPredictItem(word, true));
+    }
 
-        list.forEach(word => {
-            const d = document.createElement('div');
-            d.className = `predict-item ${history.includes(word) ? 'history' : ''}`;
-            d.innerText = word;
-            d.onclick = () => {
-                learn(inputBuffer, word);
-                sentence += word; wordCount += word.length;
-                document.getElementById('sentence-box').innerText = sentence;
-                inputBuffer = ""; document.getElementById('buffer-box').innerText = "";
-                bar.innerHTML = "";
-                updateWPM();
-            };
-            bar.appendChild(d);
-        });
+    function createPredictItem(word, isFromInitials) {
+        const bar = document.getElementById('predict-bar');
+        const d = document.createElement('div');
+        d.className = 'predict-item';
+        const history = JSON.parse(localStorage.getItem('hmi_v5_mem') || '{}')[inputBuffer] || [];
+        if (isFromInitials && history.includes(word)) d.classList.add('history');
+        
+        d.innerText = word;
+        d.onclick = () => {
+            if (isFromInitials) learn(inputBuffer, word);
+            sentence += word;
+            wordCount += word.length;
+            document.getElementById('sentence-box').innerText = sentence;
+            inputBuffer = "";
+            document.getElementById('buffer-box').innerText = "";
+            updateWPM();
+            // 切換為下一個詞聯想
+            bar.innerHTML = "";
+            const suggestions = nextWordLib[word] || ["然後", "的", "。"];
+            suggestions.forEach(w => createPredictItem(w, false));
+        };
+        bar.appendChild(d);
     }
 
     function updateWPM() {
@@ -160,6 +148,7 @@
         sentence = ""; inputBuffer = ""; wordCount = 0; startTime = null;
         document.getElementById('sentence-box').innerText = "";
         document.getElementById('buffer-box').innerText = "";
+        document.getElementById('predict-bar').innerHTML = "";
         renderKB();
     }
 
@@ -169,7 +158,7 @@
         sr.onresult = (e) => { 
             const res = e.results[0][0].transcript;
             sentence += res; 
-            document.getElementById('sentence-box').innerText = sentence; 
+            document.getElementById('sentence-box').innerText = sentence;
         };
         sr.start();
     }
