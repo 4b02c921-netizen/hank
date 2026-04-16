@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AAC 智慧輔助溝通系統 - 終極大詞庫版</title>
+    <title>AAC 智慧輔助溝通系統 - 修復版</title>
     <style>
         :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
@@ -67,29 +67,31 @@
 <script>
     let isNumMode = false;
     
-    // ================= 1. 深度擴充映射表 (涵蓋 99% 常用字) =================
+    // ================= 1. 基礎零件映射表 =================
     const bopomofoMap = {
-        "ㄅ":"ㄅ","ㄆ":"ㄆ","ㄇ":"ㄇ","ㄈ":"ㄈ","ㄉ":"ㄉ","ㄊ":"ㄊ","ㄋ":"ㄋ","ㄌ":"ㄌ","ㄍ":"ㄍ","ㄎ":"ㄎ","ㄏ":"ㄏ","ㄐ":"ㄐ","ㄑ":"ㄑ","ㄒ":"ㄒ","ㄓ":"ㄓ","ㄔ":"ㄔ","ㄕ":"ㄕ","ㄖ":"ㄖ","ㄗ":"ㄗ","ㄘ":"ㄘ","ㄙ":"ㄙ","ㄧ":"ㄧ","ㄨ":"ㄨ","ㄩ":"ㄩ","ㄚ":"ㄚ","ㄛ":"ㄛ","ㄜ":"ㄜ","ㄝ":"ㄝ","ㄞ":"ㄞ","ㄟ":"ㄟ","ㄠ":"ㄠ","ㄡ":"ㄡ","ㄢ":"ㄢ","ㄣ":"ㄣ","ㄤ":"ㄤ","ㄥ":"ㄥ","ㄦ":"ㄦ",
-        "我":"ㄨㄛ","你":"ㄋㄧ","他":"ㄊㄚ","要":"ㄧㄠ","想":"ㄒㄧㄤ","不":"ㄅㄨ","喝":"ㄏㄜ","水":"ㄕㄨㄟ","吃":"ㄔ","飯":"ㄈㄢ","痛":"ㄊㄨㄥ","頭":"ㄊㄡ","肚":"ㄉㄨ","子":"ㄗ","舒":"ㄕㄨ","服":"ㄈㄨ","救":"ㄐㄧㄡ","命":"ㄇㄧㄥ","幫":"ㄅㄤ","謝":"ㄒㄧㄝ","上":"ㄕㄤ","廁":"ㄘㄜ","所":"ㄙㄨㄛ","快":"ㄎㄨㄞ","一":"ㄧ","點":"ㄉㄧㄢ","好":"ㄏㄠ","早":"ㄗㄠ","安":"ㄢ","渴":"ㄎㄜ","餓":"ㄜ","冷":"ㄌㄥ","熱":"ㄖㄜ","癢":"ㄧㄤ","酸":"ㄙㄨㄢ","累":"ㄌㄟ","睡":"ㄕㄨㄟ","覺":"ㄐㄧㄠ","洗":"ㄒㄧ","臉":"ㄌㄧㄢ","澡":"ㄗㄠ","刷":"ㄕㄨㄚ","牙":"ㄧㄚ","翻":"ㄈㄢ","身":"ㄕㄣ","抓":"ㄓㄨㄚ","藥":"ㄧㄠ","醫":"ㄧ","生":"ㄕㄥ","護":"ㄏㄨ","士":"ㄕ","電":"ㄉㄧㄢ","視":"ㄕ","氣":"ㄑㄧ","開":"ㄎㄞ","關":"ㄍㄨㄢ","大":"ㄉㄚ","小":"ㄒㄧㄠ","便":"ㄅㄧㄢ","尿":"ㄋㄧㄠ","布":"ㄅㄨ","等":"ㄉㄥ","下":"ㄒㄧㄚ","對":"ㄉㄨㄟ","起":"ㄑㄧ","沒":"ㄇㄟ","係":"ㄒㄧ","再":"ㄗㄞ","見":"ㄐㄧㄢ","轉":"ㄓㄨㄢ","台":"ㄊㄞ","到":"ㄉㄠ","這":"ㄓㄜ","那":"ㄋㄚ","誰":"ㄕㄨㄟ","幾":"ㄐㄧ","多":"ㄉㄨㄛ","少":"ㄕㄠ","去":"ㄑㄩ","來":"ㄌㄞ","看":"ㄎㄢ","聽":"ㄊㄧㄥ","說":"ㄕㄨㄛ","話":"ㄏㄨㄚ","走":"ㄗㄡ","坐":"ㄗㄨㄛ","站":"ㄓㄢ","拿":"ㄋㄚ","放":"ㄈㄤ","給":"ㄍㄟ","把":"ㄅㄚ","叫":"ㄐㄧ","讓":"ㄖㄤ","為":"ㄨㄟ","可":"ㄎㄜ","以":"ㄧ","做":"ㄗㄨㄛ","用":"ㄩㄥ","朋":"ㄆㄥ","友":"ㄧㄡ","漂":"ㄆㄧ","亮":"ㄌㄧ","怕":"ㄆㄚ","跑":"ㄆㄠ","胖":"ㄆㄤ","等":"ㄉㄥ","但":"ㄉㄢ","都":"ㄉㄨ","掉":"ㄉㄧ","懂":"ㄉㄨ","帶":"ㄉㄞ","高":"ㄍㄠ","剛":"ㄍㄤ","跟":"ㄍㄣ","各":"ㄍㄜ","共":"ㄍㄨ","過":"ㄍㄨ","兒":"ㄦ","二":"ㄦ","而":"ㄦ"
+        "我":"ㄨㄛ","你":"ㄋㄧ","他":"ㄊㄚ","想":"ㄒㄧㄤ","要":"ㄧㄠ","喝":"ㄏㄜ","水":"ㄕㄨㄟ","吃":"ㄔ","飯":"ㄈㄢ","謝":"ㄒㄧㄝ","好":"ㄏㄠ","不":"ㄅㄨ","舒":"ㄕㄨ","服":"ㄈㄨ","幫":"ㄅㄤ","請":"ㄑㄧ","轉":"ㄓㄨㄢ","台":"ㄊㄞ","電":"ㄉㄧㄢ","視":"ㄕ","看":"ㄎㄢ","聽":"ㄊㄧㄥ","說":"ㄕㄛ","開":"ㄎㄞ","關":"ㄍㄨㄢ","拿":"ㄋㄚ","給":"ㄍㄟ","叫":"ㄐㄧ","醫":"ㄧ","生":"ㄕㄥ","護":"ㄏㄨ","士":"ㄕ","尿":"ㄋㄧㄠ","布":"ㄅㄨ","痛":"ㄊㄨㄥ","癢":"ㄧㄤ","餓":"ㄜ","渴":"ㄎㄜ","冷":"ㄌㄥ","熱":"ㄖㄜ","累":"ㄌㄟ","走":"ㄗㄡ","去":"ㄑㄩ","來":"ㄌㄞ","坐":"ㄗㄨㄛ","站":"ㄓㄢ","翻":"ㄈㄢ","身":"ㄕㄣ","抓":"ㄓㄨㄚ","洗":"ㄒㄧ","澡":"ㄗㄠ","這":"ㄓㄜ","那":"ㄋㄚ","誰":"ㄕㄨㄟ","幾":"ㄐㄧ","多":"ㄉㄨㄛ","少":"ㄕㄠ","等":"ㄉㄥ","對":"ㄉㄨㄟ","起":"ㄑㄧ","沒":"ㄇㄟ","係":"ㄒㄧ","再":"ㄗㄞ","見":"ㄐㄧㄢ","兒":"ㄦ"
     };
 
-    // ================= 2. 聲母全覆蓋詞庫 (確保每個聲母都有東西) =================
+    // ================= 2. 核心詞庫 (零件化) =================
     const rawWords = [
-        "幫我","不要","不好","爸爸","飽了","對不起","對","等一下","電視","電燈","肚子痛","掉","多","都","懂","帶","朋友","漂亮","怕","跑","胖了","配合","沒關係","名字","明天","慢一點","麻煩你","方便","翻身","非常","非常謝謝","我好痛","我想看電視","轉台到","哪裡","那邊","拿給我","尿布","尿尿","牛奶","老師","來一下","臉部","路邊","冷風","哥哥","給我","關燈","高興","剛才","各個","共用","過來","看書","可以","快一點","開門","口味","教我","叫醫生","今天","去哪","請幫我","謝謝","休息","現在","洗澡","小聲","真的","這裡","中間","吃飯","舒服","什麼","熱水","左邊","走開","髒了","酸痛","兒子","而且"
+        "我","你","想","要","喝水","吃飯","謝謝","謝謝你","你好","轉台","到","55台","舒服","不舒服",
+        "我好痛","我想喝水","我想吃飯","我要喝水","我要吃飯","我要翻身","請幫我","幫我抓癢","救命",
+        "爸爸","媽媽","哥哥","姐姐","老師","護理師","醫生","電視","電燈","開關","拿給我","等一下",
+        "不要","很好","對不起","沒關係","早安","晚安","辛苦了","再見","而且","兒子"
     ];
 
     const contextFlow = {
-        "我要": ["喝水", "吃飯", "上廁所", "睡覺", "洗澡", "抓癢", "看電視", "轉台", "吃藥", "翻身"],
-        "轉台": ["到", "下一台", "55台", "新聞台", "體育台"],
-        "到": ["55台", "51台", "56台", "10台"],
-        "請幫我": ["翻身", "抓癢", "換尿布", "倒尿壺", "轉台", "拿水給我"],
-        "緊急": ["我不舒服", "叫醫生", "救救我", "快一點", "我好痛"],
-        "謝謝": ["辛苦了", "你真好", "不用客氣"],
+        "我": ["想", "要", "不", "好"],
+        "我想": ["喝水", "吃飯", "睡覺", "看電視", "休息"],
+        "我要": ["喝水", "吃飯", "上廁所", "睡覺", "洗澡", "翻身", "轉台", "吃藥"],
+        "請幫我": ["翻身", "抓癢", "換尿布", "倒尿壺", "拿水給我", "開冷氣"],
+        "喝水": ["謝謝", "還要", "太燙了", "好了"],
+        "謝謝": ["你", "辛苦了", "不用客氣"],
         "DEFAULT_FOLLOW": ["了", "嗎", "謝謝", "可以嗎", "辛苦了", "好了"]
     };
 
-    // ================= 3. 核心搜尋引擎 =================
-    class TrieNode { constructor() { this.children = {}; this.words = []; } }
+    // ================= 3. 搜尋引擎 (重寫組合邏輯) =================
+    class TrieNode { constructor() { this.children = {}; this.words = []; this.wordInitials = {}; } }
     class Trie {
         constructor() { this.root = new TrieNode(); }
         insert(initials, word) {
@@ -97,7 +99,10 @@
             for (let ch of initials) {
                 if (!node.children[ch]) node.children[ch] = new TrieNode();
                 node = node.children[ch];
-                if (!node.words.includes(word)) node.words.push(word);
+                if (!node.words.includes(word)) {
+                    node.words.push(word);
+                    node.wordInitials[word] = initials; // 存入該詞對應的聲母
+                }
             }
         }
         search(prefix) {
@@ -108,34 +113,30 @@
     }
 
     const trie = new Trie();
-    function getInitials(word) { 
-        let res = ""; 
-        for (let ch of word) { 
-            let b = bopomofoMap[ch]; 
-            if (b) res += b[0]; 
-        } 
-        return res; 
-    }
-    rawWords.forEach(w => {
-        let init = getInitials(w);
-        if (init) trie.insert(init, w);
-    });
+    function getInitials(word) { let res = ""; for (let ch of word) { let b = bopomofoMap[ch]; if (b) res += b[0]; } return res; }
+    rawWords.forEach(w => { let init = getInitials(w); if (init) trie.insert(init, w); });
 
     let sentence = "", inputBuffer = "", historyLogs = [], currentPage = 0;
-    let userFreq = JSON.parse(localStorage.getItem("aac_freq_v9") || "{}");
+    let userFreq = JSON.parse(localStorage.getItem("aac_freq_vFinal") || "{}");
 
-    function boost(word) { userFreq[word] = (userFreq[word] || 0) + 1; localStorage.setItem("aac_freq_v9", JSON.stringify(userFreq)); }
+    function boost(word) { userFreq[word] = (userFreq[word] || 0) + 1; localStorage.setItem("aac_freq_vFinal", JSON.stringify(userFreq)); }
 
+    // 修復後的智慧組合演算法
     function composeWords(buffer) {
         let results = [];
         function dfs(rem, path) {
             if (rem.length === 0) { results.push(path.join("")); return; }
+            // 嘗試從 buffer 開頭找匹配的詞
             for (let i = 1; i <= rem.length; i++) {
                 let part = rem.slice(0, i);
                 let found = trie.search(part);
-                if (found.length > 0) {
-                    found.slice(0, 3).forEach(w => dfs(rem.slice(i), [...path, w]));
-                }
+                // 這裡的關鍵是：只有當找到的詞，其聲母「完全等於」part 時才繼續
+                found.forEach(w => {
+                    let wInit = getInitials(w);
+                    if (wInit === part) {
+                        dfs(rem.slice(i), [...path, w]);
+                    }
+                });
             }
         }
         dfs(buffer, []);
@@ -144,19 +145,22 @@
 
     function predict() {
         if (inputBuffer !== "") {
+            // 1. 直接搜尋 (例如打 ㄒㄒㄋ 直接出 謝謝你)
             let direct = trie.search(inputBuffer);
+            // 2. 組合搜尋 (例如打 ㄨㄒㄏㄕ 拼湊 我+想+喝水)
             let composed = (inputBuffer.length > 1) ? composeWords(inputBuffer) : [];
-            let results = [...new Set([...direct, ...composed])];
             
-            // 排序邏輯：常用度 > 詞長度
+            let results = [...new Set([...direct, ...composed])];
             results.sort((a, b) => (userFreq[b] || 0) - (userFreq[a] || 0) || a.length - b.length);
+            
+            // 如果還是沒東西，保底顯示清空
+            if (results.length === 0) results = ["清空注音"];
             renderPredicts(results.slice(0, 20), false);
         } else {
-            let last3 = sentence.slice(-3);
-            let last2 = sentence.slice(-2);
-            let last1 = sentence.slice(-1);
-            let nextOptions = contextFlow[last3] || contextFlow[last2] || contextFlow[last1] || contextFlow["DEFAULT_FOLLOW"];
-            if (sentence === "" || sentence === "尚未輸入內容") nextOptions = ["我要", "請幫我", "我好", "謝謝", "緊急🚨", "報時🕰️"];
+            let lastTwo = sentence.slice(-2);
+            let lastOne = sentence.slice(-1);
+            let nextOptions = contextFlow[lastTwo] || contextFlow[lastOne] || contextFlow["DEFAULT_FOLLOW"];
+            if (sentence === "" || sentence === "尚未輸入內容") nextOptions = ["我要", "我想", "請幫我", "謝謝", "緊急🚨", "報時🕰️"];
             renderPredicts(nextOptions, true);
         }
     }
@@ -169,12 +173,13 @@
             d.className = `predict-item ${isContext ? 'next-step' : ''}`;
             d.innerText = word;
             d.onclick = () => {
+                if (word === "清空注音") { inputBuffer = ""; updateUI(); predict(); return; }
                 let final = word.replace(/[🚨🕰️]/g, "");
                 if (final === "報時") {
                     const now = new Date();
                     final = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
                 }
-                sentence = (sentence === "尚未輸入內容") ? final : sentence + final;
+                if (sentence === "尚未輸入內容") sentence = final; else sentence += final;
                 inputBuffer = ""; boost(final); updateUI(); predict();
             };
             bar.appendChild(d);
@@ -192,10 +197,7 @@
             const nums = ["1","2","3","4","5","6","7","8","9","0","台","頻道"];
             nums.forEach(n => {
                 const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = n;
-                btn.onclick = () => { 
-                    if (sentence === "尚未輸入內容") sentence = n; else sentence += n; 
-                    updateUI(); predict(); 
-                };
+                btn.onclick = () => { if (sentence === "尚未輸入內容") sentence = n; else sentence += n; updateUI(); predict(); };
                 kb.appendChild(btn);
             });
         } else {
@@ -224,16 +226,16 @@
         if (sentence.trim() && sentence !== "尚未輸入內容") {
             const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             historyLogs.unshift(`[${time}] ${sentence}`);
-            localStorage.setItem('aac_logs_final_v9', JSON.stringify(historyLogs));
+            localStorage.setItem('aac_logs_final', JSON.stringify(historyLogs));
             currentPage = 0; loadHistory();
         }
         sentence = ""; inputBuffer = ""; updateUI(); predict();
     }
 
-    function clearAllHistory() { if (confirm("確定要刪除所有溝通紀錄嗎？")) { historyLogs = []; localStorage.removeItem('aac_logs_final_v9'); currentPage = 0; loadHistory(); } }
+    function clearAllHistory() { if (confirm("確定刪除所有紀錄嗎？")) { historyLogs = []; localStorage.removeItem('aac_logs_final'); currentPage = 0; loadHistory(); } }
 
     function loadHistory() {
-        historyLogs = JSON.parse(localStorage.getItem('aac_logs_final_v9') || '[]');
+        historyLogs = JSON.parse(localStorage.getItem('aac_logs_final') || '[]');
         const box = document.getElementById('history-box');
         const start = currentPage * 5;
         box.innerHTML = historyLogs.slice(start, start + 5).map(log => `<div style='padding:8px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
@@ -244,11 +246,11 @@
 
     function toggleVoice() {
         const recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
-        if (!recognition) return alert("語音功能不支援此設備");
+        if (!recognition) return alert("不支援語音");
         recognition.lang = "zh-TW"; recognition.start();
         recognition.onresult = (e) => { 
-            let text = e.results[0][0].transcript;
-            if (sentence === "尚未輸入內容") sentence = text; else sentence += text; 
+            let t = e.results[0][0].transcript;
+            if (sentence === "尚未輸入內容") sentence = t; else sentence += t; 
             updateUI(); predict(); 
         };
     }
