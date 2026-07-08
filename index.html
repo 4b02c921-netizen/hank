@@ -1,261 +1,923 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AAC 智慧輔助溝通系統 - 修復版</title>
-    <style>
-        :root { --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --dim: #8E8E93; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 8px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
-        
-        .display { background: var(--card); padding: 15px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 8px; border: 1px solid #E5E5EA; }
-        #sentence-box { font-size: 26px; min-height: 35px; word-break: break-all; font-weight: 600; color: #000; line-height: 1.4; }
-        #buffer-box { font-size: 18px; color: var(--primary); font-weight: bold; height: 22px; margin-top: 5px; letter-spacing: 3px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AAC 聲母溝通系統 </title>
+<style>
+:root {
+  --bg: #F5F4F0;
+  --surface: #FFFFFF;
+  --surface2: #EEEDE9;
+  --border: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+  --text: #1A1917;
+  --text2: #5C5B57;
+  --accent: #185FA5;
+  --accent-bg: #E6F1FB;
+  --accent-text: #0C447C;
+  --danger: #A32D2D;
+  --danger-bg: #FCEBEB;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --ai-a: #1755C4;
+  --ai-b: #5B3DC8;
+  --ai-bg: #EEF2FF;
+}
 
-        .predict-bar { display: flex; overflow-x: auto; gap: 10px; padding: 5px 0 15px 0; min-height: 60px; scrollbar-width: none; }
-        .predict-bar::-webkit-scrollbar { display: none; }
-        .predict-item { 
-            background: var(--card); padding: 12px 22px; border-radius: 14px; font-size: 22px; 
-            border: 2px solid #E5E5EA; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            cursor: pointer; color: var(--primary); transition: all 0.1s;
-        }
-        .predict-item:active { background: #F2F2F7; transform: scale(0.95); }
-        .predict-item.next-step { border-color: var(--primary); }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-        .keyboard { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 8px; }
-        .key { background: var(--card); border: none; border-radius: 12px; color: var(--text); font-size: 24px; font-weight: bold; height: 55px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; }
-        .key:active { background: #D1D1D6; }
-        .key.fn { background: #D1D1D6; font-size: 18px; }
-        .key.mode-switch { background: #AEB3BE; color: white; font-size: 18px; }
+body {
+  font-family: 'PingFang TC', -apple-system, 'Noto Sans TC', sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100dvh; display: flex; flex-direction: column;
+  overflow: hidden; padding: 8px; gap: 6px;
+}
 
-        .controls { display: grid; grid-template-columns: 70px 1fr; gap: 10px; margin-bottom: 8px; }
-        .btn-voice { background: var(--danger); color: white; border-radius: 16px; border: none; font-size: 28px; cursor: pointer; }
-        .btn-send { background: var(--primary); color: white; padding: 15px; border-radius: 16px; border: none; font-size: 20px; font-weight: bold; cursor: pointer; }
+/* ── 頂部提示 ── */
+.hint-banner {
+  background: #FFF3CD; color: #856404; font-size: 13px;
+  font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm);
+  text-align: center; border: 1px solid #FFEEBA; flex-shrink: 0;
+}
 
-        .history-panel { background: rgba(255,255,255,0.8); padding: 12px; border-radius: 18px; border: 1px solid #DDD; font-size: 14px; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .history-content { flex-grow: 1; overflow-y: auto; }
-        .history-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid #EEE; padding-top: 8px; }
-        .page-btn { background: #E5E5EA; border: none; padding: 6px 15px; border-radius: 8px; }
-        .clear-btn { background: #FF3B30; color: white; border: none; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
-    </style>
+/* ── 顯示區 ── */
+.display-area {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 8px 12px 6px;
+  flex-shrink: 0;
+}
+.label {
+  font-size: 11px; font-weight: 500; color: var(--text2);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px;
+}
+#sentence-box {
+  font-size: 23px; font-weight: 600; color: var(--text);
+  line-height: 1.35; min-height: 34px; word-break: break-all;
+}
+#sentence-box.placeholder { color: var(--text2); font-weight: 400; }
+.buffer-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-height: 22px; }
+#buffer-box { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 4px; font-family: 'Courier New', monospace; }
+#buffer-box:empty::after { content: '等待輸入…'; color: var(--border-strong); font-weight: 400; letter-spacing: 0; font-family: inherit; font-size: 12px; }
+
+/* ── 候選列 ── */
+.predict-section {
+  flex-shrink: 0;
+}
+/* 候選詞滿版模式 */
+.predict-section.fullscreen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.predict-section.fullscreen .predict-bar {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(64px, 1fr);
+  gap: 10px;
+  overflow: hidden;
+  padding: 8px 4px;
+  max-height: none;
+}
+.predict-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  overflow: hidden;
+  padding: 2px 2px 4px;
+  min-height: 42px;
+  max-height: 92px;
+}
+.predict-bar::-webkit-scrollbar { display: none; }
+.predict-item {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 5px 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, transform 0.1s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  line-height: 1.1;
+}
+.predict-item:active { background: var(--accent-bg); transform: scale(0.96); }
+.predict-item.context { background: var(--accent-bg); border-color: rgba(24,95,165,0.25); }
+.predict-item.ai { background: linear-gradient(135deg, var(--ai-a) 0%, var(--ai-b) 100%); border-color: transparent; color: #fff; font-weight: 600; box-shadow: 0 2px 8px rgba(23,85,196,0.25); }
+.predict-item.ai:active { opacity: 0.82; transform: scale(0.96); }
+.predict-sep { flex-shrink: 0; width: 1px; height: 26px; background: var(--border-strong); margin: 0 2px; opacity: 0.4; }
+.predict-loader { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; color: var(--ai-a); white-space: nowrap; flex-shrink: 0; }
+.dot-pulse { display: flex; gap: 3px; align-items: center; }
+.dot-pulse span { width: 5px; height: 5px; border-radius: 50%; background: var(--ai-a); animation: dp 1.3s ease-in-out infinite; }
+.dot-pulse span:nth-child(2) { animation-delay: .18s; }
+.dot-pulse span:nth-child(3) { animation-delay: .36s; }
+@keyframes dp { 0%,80%,100% { transform: scale(.5); opacity: .3; } 40% { transform: scale(1); opacity: 1; } }
+.predict-empty { font-size: 13px; color: var(--text2); padding: 8px 4px; }
+
+/* ── 輸入模式切換 ── */
+.mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, 160px);
+  gap: 8px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.mode-tab {
+  height: 34px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ── 鍵盤 ── */
+.keyboard-wrap { flex-shrink: 0; }
+.keyboard { display: grid; grid-template-columns: repeat(6,1fr); gap: 5px; }
+.key {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: clamp(17px, 2.4vh, 20px);
+  font-weight: 600;
+  color: var(--text);
+  height: clamp(34px, 5.2vh, 44px);
+  cursor: pointer;
+  user-select: none;
+  transition: background .08s, transform .08s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.key:active { background: var(--surface2); transform: scale(.94); }
+.key.fn { background: var(--surface2); font-size: 13px; font-weight: 500; color: var(--text2); }
+.key.mode { background: #3C3489; color: #EEEDFE; font-size: 13px; font-weight: 600; }
+.key.del { background: var(--danger-bg); color: var(--danger); font-size: 17px; }
+
+/* ── 操作列 ── */
+.action-row {
+  display: grid;
+  grid-template-columns: 48px 48px 150px 180px;
+  gap: 8px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+.btn {
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  font-weight: 600;
+  transition: opacity .1s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+}
+.btn:active { opacity: .8; transform: scale(.97); }
+.btn-mic  { background: var(--surface2); color: var(--text2); font-size: 22px; }
+.btn-cfg  { background: var(--ai-bg); color: var(--ai-a); font-size: 17px; border: 0.5px solid rgba(23,85,196,0.2); }
+.btn-clear{ background: var(--surface2); color: var(--danger); font-size: 13px; border: 0.5px solid rgba(163,45,45,0.2); }
+.btn-send { background: var(--accent); color: #fff; font-size: 13px; }
+
+/* ── 歷史 ── */
+.history-wrap {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 40px;
+}
+.history-scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; }
+.history-item { padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 14px; color: var(--text2); display: flex; gap: 8px; }
+.history-item:last-child { border-bottom: none; }
+.history-time { font-size: 11px; color: var(--border-strong); white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+.history-text { color: var(--text); font-size: 14px; }
+.history-empty { font-size: 13px; color: var(--border-strong); text-align: center; padding: 8px 0; }
+
+@media (max-width: 700px) {
+  .mode-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .action-row {
+    grid-template-columns: 42px 42px 1fr 1fr;
+  }
+
+  .btn {
+    height: 40px;
+  }
+}
+
+</style>
 </head>
 <body>
-    <div class="display">
-        <div id="sentence-box">尚未輸入內容</div>
-        <div id="buffer-box"></div>
-    </div>
-    <div id="predict-bar" class="predict-bar"></div>
-    <div id="keyboard" class="keyboard"></div>
-    
-    <div class="controls">
-        <button class="btn-voice" id="voice-btn" onclick="toggleVoice()">🎤</button>
-        <button class="btn-send" onclick="sendAndClear()">✅ 傳送數據並清空</button>
-    </div>
 
-    <div class="history-panel">
-        <div class="history-content" id="history-box"></div>
-        <div class="history-controls">
-            <div>
-                <button class="page-btn" onclick="changePage(-1)">◀</button>
-                <span id="page-info" style="margin: 0 8px; font-weight: bold;">1 / 1</span>
-                <button class="page-btn" onclick="changePage(1)">▶</button>
-            </div>
-            <button class="clear-btn" onclick="clearAllHistory()">🗑️ 清除紀錄</button>
-        </div>
-    </div>
+<div class="hint-banner">💡 操作提示：請輸入每字的「最前面注音」（例如：早安 👉 點選 ㄗ 和 ㄢ）</div>
+
+<div class="display-area">
+  <div class="label">目前句子</div>
+  <div id="sentence-box" class="placeholder">請開始輸入</div>
+  <div class="buffer-row">
+    <div class="label" style="margin:0">聲母緩衝</div>
+    <div id="buffer-box"></div>
+  </div>
+</div>
+
+<div id="predict-section" class="predict-section">
+  <div id="predict-bar" class="predict-bar"></div>
+</div>
+
+<div class="mode-row">
+  <button class="mode-tab active" id="mode-keyboard" onclick="setInputMode('keyboard')">注音鍵盤</button>
+  <button class="mode-tab" id="mode-voice" onclick="setInputMode('voice')">語音輸入</button>
+  <button class="mode-tab" id="mode-ninegrid" onclick="setInputMode('nineGrid')">九宮格</button>
+</div>
+
+<div class="keyboard-wrap">
+  <div id="keyboard" class="keyboard"></div>
+</div>
+
+<div class="action-row">
+  <button id="mic-btn" class="btn btn-mic" onclick="toggleVoice()" title="語音輸入">🎙</button>
+  <button class="btn btn-cfg" onclick="alert('AI 輔助設定：大眾版已內建高頻詞庫支援。若需串接 Anthropic API，請參考實驗室版設定。')" title="AI 設定">✦</button>
+  <button class="btn btn-clear" onclick="clearAll()">🗑 全部清除</button>
+  <button class="btn btn-send" onclick="sendAndClear()">✓ 傳送並清空</button>
+</div>
+
+<div class="history-wrap">
+  <div class="label" style="margin-bottom:6px">傳送紀錄</div>
+  <div class="history-scroll" id="history-box"></div>
+</div>
 
 <script>
-    let isNumMode = false;
-    
-    // ================= 1. 基礎零件映射表 =================
-    const bopomofoMap = {
-        "我":"ㄨㄛ","你":"ㄋㄧ","他":"ㄊㄚ","想":"ㄒㄧㄤ","要":"ㄧㄠ","喝":"ㄏㄜ","水":"ㄕㄨㄟ","吃":"ㄔ","飯":"ㄈㄢ","謝":"ㄒㄧㄝ","好":"ㄏㄠ","不":"ㄅㄨ","舒":"ㄕㄨ","服":"ㄈㄨ","幫":"ㄅㄤ","請":"ㄑㄧ","轉":"ㄓㄨㄢ","台":"ㄊㄞ","電":"ㄉㄧㄢ","視":"ㄕ","看":"ㄎㄢ","聽":"ㄊㄧㄥ","說":"ㄕㄛ","開":"ㄎㄞ","關":"ㄍㄨㄢ","拿":"ㄋㄚ","給":"ㄍㄟ","叫":"ㄐㄧ","醫":"ㄧ","生":"ㄕㄥ","護":"ㄏㄨ","士":"ㄕ","尿":"ㄋㄧㄠ","布":"ㄅㄨ","痛":"ㄊㄨㄥ","癢":"ㄧㄤ","餓":"ㄜ","渴":"ㄎㄜ","冷":"ㄌㄥ","熱":"ㄖㄜ","累":"ㄌㄟ","走":"ㄗㄡ","去":"ㄑㄩ","來":"ㄌㄞ","坐":"ㄗㄨㄛ","站":"ㄓㄢ","翻":"ㄈㄢ","身":"ㄕㄣ","抓":"ㄓㄨㄚ","洗":"ㄒㄧ","澡":"ㄗㄠ","這":"ㄓㄜ","那":"ㄋㄚ","誰":"ㄕㄨㄟ","幾":"ㄐㄧ","多":"ㄉㄨㄛ","少":"ㄕㄠ","等":"ㄉㄥ","對":"ㄉㄨㄟ","起":"ㄑㄧ","沒":"ㄇㄟ","係":"ㄒㄧ","再":"ㄗㄞ","見":"ㄐㄧㄢ","兒":"ㄦ"
+let isNumMode = false;
+let inputMode = "keyboard";
+let sentence = "";
+let inputBuffer = "";
+let lastSelectedWord = "";
+
+// ════════════════════════════════════════
+// 🌟 專業級 AAC 詞庫架構 (格式: "詞彙|聲母")
+// ════════════════════════════════════════
+const rawDictionary = [
+  // 社交與問候
+  "早安|ㄗㄢ", "資安|ㄗㄢ", "早上好|ㄗㄕㄏ", "午安|ㄨㄢ", "晚安|ㄨㄢ", 
+  "你好|ㄋㄏ", "謝謝|ㄒㄒ", "對不起|ㄉㄅㄑ", "沒關係|ㄇㄍㄒ", "拜拜|ㄅㄅ",
+  "讚|ㄗ", "很棒|ㄏㄅ", "辛苦了|ㄒㄎㄌ", "麻煩你|ㄇㄈㄋ",
+  
+  // 核心代名詞與需求
+  "我|ㄨ", "你|ㄋ", "他|ㄊ", "我們|ㄨㄇ", "你們|ㄋㄇ", "他們|ㄊㄇ",
+  "想|ㄒ", "要|ㄧ", "不要|ㄅㄧ", "可以|ㄎㄧ", "不可以|ㄅㄎㄧ",
+  "有|ㄧ", "沒有|ㄇㄧ", "好|ㄏ", "不好|ㄅㄏ", "是|ㄕ", "不是|ㄅㄕ",
+  "這個|ㄓㄍ", "那個|ㄋㄍ", "這裡|ㄓㄌ", "那裡|ㄋㄌ",
+  
+  // 日常生活動作
+  "吃飯|ㄔㄈ", "吃早餐|ㄔㄗㄘ", "喝水|ㄏㄕ", "睡覺|ㄕㄐ", "上廁所|ㄕㄘㄙ",
+  "洗澡|ㄒㄗ", "刷牙|ㄕㄧ", "洗臉|ㄒㄌ", "換衣服|ㄏㄧㄈ", "起床|ㄑㄔ",
+  "坐下|ㄗㄒ", "躺下|ㄊㄒ", "翻身|ㄈㄕ", "起來|ㄑㄌ", "出去走走|ㄔㄑㄗㄗ",
+  
+  // 醫療與生理狀態
+  "痛|ㄊ", "很痛|ㄏㄊ", "不舒服|ㄅㄕㄈ", "舒服|ㄕㄈ", "癢|ㄧ", "累|ㄌ",
+  "餓|ㄜ", "渴|ㄎ", "冷|ㄌ", "熱|ㄖ", "頭暈|ㄊㄩ", "發燒|ㄈㄕ", "噁心|ㄜㄒ",
+  "叫醫生|ㄐㄧㄕ", "叫護士|ㄐㄏㄕ", "找家人|ㄓㄐㄖ", "吃藥|ㄔㄧ", "量血壓|ㄌㄒㄧ",
+  "換尿布|ㄏㄋㄅ", "抽痰|ㄔㄊ", "拍背|ㄆㄅ",
+  
+  // 物品與環境控制
+  "冷氣|ㄌㄑ", "電風扇|ㄉㄈㄕ", "電燈|ㄉㄉ", "電視|ㄉㄕ", "手機|ㄕㄐ",
+  "開|ㄎ", "關|ㄍ", "轉台|ㄓㄊ", "大聲|ㄉㄕ", "小聲|ㄒㄕ",
+  
+  // 疑問與溝通控制
+  "什麼|ㄕㄇ", "怎麼辦|ㄗㄇㄅ", "為什麼|ㄨㄕㄇ", "知道|ㄓㄉ", "不知道|ㄅㄓㄉ",
+  "懂了|ㄉㄌ", "不懂|ㄅㄉ", "等一下|ㄉㄧㄒ", "快一點|ㄎㄧㄉ", "再說一次|ㄗㄕㄧㄘ",
+  
+  // 緊急狀況
+  "緊急|ㄐㄐ", "救命|ㄐㄇ", "現在幾點|ㄒㄗㄐㄉ"
+];
+
+// ════════════════════════════════════════
+// 🌱 擴充 AAC 常用詞庫
+// 目的：降低「無候選詞」出現機率
+// ════════════════════════════════════════
+const extraDictionary = [
+  // ㄅ
+  "不要|ㄅㄧ", "不要了|ㄅㄧㄌ", "不行|ㄅㄒ", "不可以|ㄅㄎㄧ", "不是|ㄅㄕ",
+  "不舒服|ㄅㄕㄈ", "不知道|ㄅㄓㄉ", "不懂|ㄅㄉ", "不想|ㄅㄒ", "不好|ㄅㄏ",
+  "幫我|ㄅㄨ", "幫忙|ㄅㄇ", "幫我拿|ㄅㄨㄋ", "幫我開|ㄅㄨㄎ", "幫我關|ㄅㄨㄍ",
+  "抱歉|ㄅㄑ", "被子|ㄅㄗ", "背痛|ㄅㄊ", "鼻子|ㄅㄗ", "比較好|ㄅㄐㄏ",
+
+  // ㄆ
+  "陪我|ㄆㄨ", "陪我一下|ㄆㄨㄧㄒ", "拍背|ㄆㄅ", "平躺|ㄆㄊ", "旁邊|ㄆㄅ",
+  "朋友|ㄆㄧ", "碰到|ㄆㄉ", "皮膚癢|ㄆㄈㄧ", "蘋果|ㄆㄍ", "泡澡|ㄆㄗ",
+
+  // ㄇ
+  "媽媽|ㄇㄇ", "沒事|ㄇㄕ", "沒有|ㄇㄧ", "沒關係|ㄇㄍㄒ", "慢一點|ㄇㄧㄉ",
+  "麻煩你|ㄇㄈㄋ", "門|ㄇ", "門關起來|ㄇㄍㄑㄌ", "面紙|ㄇㄓ", "馬上|ㄇㄕ",
+  "明天|ㄇㄊ", "目前|ㄇㄑ", "名字|ㄇㄗ", "摸一下|ㄇㄧㄒ", "悶悶的|ㄇㄇㄉ",
+
+  // ㄈ
+  "翻身|ㄈㄕ", "放下|ㄈㄒ", "放鬆|ㄈㄙ", "房間|ㄈㄐ", "風扇|ㄈㄕ",
+  "發燒|ㄈㄕ", "發冷|ㄈㄌ", "發熱|ㄈㄖ", "飯|ㄈ", "方便|ㄈㄅ",
+  "服務員|ㄈㄨㄩ", "扶我|ㄈㄨ", "扶起來|ㄈㄑㄌ", "附近|ㄈㄐ", "分享|ㄈㄒ",
+
+  // ㄉ
+  "等一下|ㄉㄧㄒ", "等等|ㄉㄉ", "對|ㄉ", "對不起|ㄉㄅㄑ", "電話|ㄉㄏ",
+  "電視|ㄉㄕ", "電燈|ㄉㄉ", "電風扇|ㄉㄈㄕ", "打開|ㄉㄎ", "大聲|ㄉㄕ",
+  "低一點|ㄉㄧㄉ", "多一點|ㄉㄧㄉ", "肚子痛|ㄉㄗㄊ", "到了|ㄉㄌ", "倒水|ㄉㄕ",
+
+  // ㄊ
+  "痛|ㄊ", "很痛|ㄏㄊ", "頭痛|ㄊㄊ", "頭暈|ㄊㄩ", "躺下|ㄊㄒ",
+  "太冷|ㄊㄌ", "太熱|ㄊㄖ", "太大聲|ㄊㄉㄕ", "聽不懂|ㄊㄅㄉ", "聽得到|ㄊㄉㄉ",
+  "停一下|ㄊㄧㄒ", "推我|ㄊㄨ", "退後|ㄊㄏ", "提醒我|ㄊㄒㄨ", "糖果|ㄊㄍ",
+
+  // ㄋ
+  "你|ㄋ", "你好|ㄋㄏ", "你在哪裡|ㄋㄗㄋㄌ", "你可以嗎|ㄋㄎㄧㄇ", "拿給我|ㄋㄍㄨ",
+  "拿水|ㄋㄕ", "尿布|ㄋㄅ", "哪裡|ㄋㄌ", "那邊|ㄋㄅ", "那個|ㄋㄍ",
+  "難過|ㄋㄍ", "難受|ㄋㄕ", "弄好|ㄋㄏ", "弄乾|ㄋㄍ", "暖一點|ㄋㄧㄉ",
+
+  // ㄌ
+  "累|ㄌ", "很累|ㄏㄌ", "冷|ㄌ", "很冷|ㄏㄌ", "來|ㄌ",
+  "來一下|ㄌㄧㄒ", "離開|ㄌㄎ", "留下來|ㄌㄒㄌ", "聯絡家人|ㄌㄌㄐㄖ", "輪椅|ㄌㄧ",
+  "量體溫|ㄌㄊㄨ", "量血壓|ㄌㄒㄧ", "流鼻水|ㄌㄅㄕ", "拉高|ㄌㄍ", "拉低|ㄌㄉ",
+
+  // ㄍ
+  "給我|ㄍㄨ", "給你|ㄍㄋ", "關燈|ㄍㄉ", "關門|ㄍㄇ", "關冷氣|ㄍㄌㄑ",
+  "關電視|ㄍㄉㄕ", "感謝|ㄍㄒ", "剛剛|ㄍㄍ", "高一點|ㄍㄧㄉ", "更痛|ㄍㄊ",
+  "哥哥|ㄍㄍ", "趕快|ㄍㄎ", "乾淨|ㄍㄐ", "告訴我|ㄍㄙㄨ", "改一下|ㄍㄧㄒ",
+
+  // ㄎ
+  "可以|ㄎㄧ", "可以嗎|ㄎㄧㄇ", "渴|ㄎ", "很渴|ㄏㄎ", "開燈|ㄎㄉ",
+  "開門|ㄎㄇ", "開冷氣|ㄎㄌㄑ", "開電視|ㄎㄉㄕ", "開風扇|ㄎㄈㄕ", "看醫生|ㄎㄧㄕ",
+  "看不清楚|ㄎㄅㄑㄔ", "快一點|ㄎㄧㄉ", "空氣|ㄎㄑ", "哭|ㄎ", "困難|ㄎㄋ",
+
+  // ㄏ
+  "好|ㄏ", "好的|ㄏㄉ", "很好|ㄏㄏ", "喝水|ㄏㄕ", "喝一點|ㄏㄧㄉ",
+  "很痛|ㄏㄊ", "很冷|ㄏㄌ", "很熱|ㄏㄖ", "很累|ㄏㄌ", "很癢|ㄏㄧ",
+  "呼吸|ㄏㄒ", "呼吸困難|ㄏㄒㄎㄋ", "護士|ㄏㄕ", "回家|ㄏㄐ", "換尿布|ㄏㄋㄅ",
+  "換衣服|ㄏㄧㄈ", "換姿勢|ㄏㄗㄕ", "壞掉|ㄏㄉ", "還要|ㄏㄧ", "還好|ㄏㄏ",
+
+  // ㄐ
+  "救命|ㄐㄇ", "緊急|ㄐㄐ", "叫醫生|ㄐㄧㄕ", "叫護士|ㄐㄏㄕ", "叫家人|ㄐㄐㄖ",
+  "今天|ㄐㄊ", "幾點|ㄐㄉ", "現在幾點|ㄒㄗㄐㄉ", "繼續|ㄐㄒ", "進來|ㄐㄌ",
+  "結束|ㄐㄕ", "腳痛|ㄐㄊ", "肩膀痛|ㄐㄅㄊ", "檢查|ㄐㄔ", "記得|ㄐㄉ",
+
+  // ㄑ
+  "請|ㄑ", "請幫我|ㄑㄅㄨ", "請等一下|ㄑㄉㄧㄒ", "起床|ㄑㄔ", "起來|ㄑㄌ",
+  "去廁所|ㄑㄘㄙ", "去睡覺|ㄑㄕㄐ", "去外面|ㄑㄨㄇ", "前面|ㄑㄇ", "輕一點|ㄑㄧㄉ",
+  "清潔|ㄑㄐ", "切小塊|ㄑㄒㄎ", "牽我|ㄑㄨ", "球|ㄑ", "全部|ㄑㄅ",
+
+  // ㄒ
+  "謝謝|ㄒㄒ", "想|ㄒ", "想喝水|ㄒㄏㄕ", "想吃飯|ㄒㄔㄈ", "想休息|ㄒㄒㄒ",
+  "想睡覺|ㄒㄕㄐ", "想上廁所|ㄒㄕㄘㄙ", "需要|ㄒㄧ", "需要幫忙|ㄒㄧㄅㄇ", "小聲|ㄒㄕ",
+  "心情不好|ㄒㄑㄅㄏ", "現在|ㄒㄗ", "現在不要|ㄒㄗㄅㄧ", "洗臉|ㄒㄌ", "洗手|ㄒㄕ",
+  "洗澡|ㄒㄗ", "下面|ㄒㄇ", "小心|ㄒㄒ", "醒了|ㄒㄌ", "休息|ㄒㄒ",
+
+  // ㄓ
+  "這裡|ㄓㄌ", "這個|ㄓㄍ", "這邊|ㄓㄅ", "知道|ㄓㄉ", "真的|ㄓㄉ",
+  "找家人|ㄓㄐㄖ", "找老師|ㄓㄌㄕ", "轉台|ㄓㄊ", "中午|ㄓㄨ", "站起來|ㄓㄑㄌ",
+  "睜開眼睛|ㄓㄎㄧㄐ", "枕頭|ㄓㄊ", "只要|ㄓㄧ", "這樣|ㄓㄧ", "怎麼辦|ㄗㄇㄅ",
+
+  // ㄔ
+  "吃飯|ㄔㄈ", "吃藥|ㄔㄧ", "吃早餐|ㄔㄗㄘ", "吃午餐|ㄔㄨㄘ", "吃晚餐|ㄔㄨㄘ",
+  "抽痰|ㄔㄊ", "穿衣服|ㄔㄧㄈ", "出去|ㄔㄑ", "出去走走|ㄔㄑㄗㄗ", "擦嘴巴|ㄔㄗㄅ",
+  "擦一下|ㄔㄧㄒ", "充電|ㄔㄉ", "吹風|ㄔㄈ", "床|ㄔ", "窗戶|ㄔㄏ",
+
+  // ㄕ
+  "是|ㄕ", "不是|ㄅㄕ", "上廁所|ㄕㄘㄙ", "睡覺|ㄕㄐ", "身體|ㄕㄊ",
+  "手痛|ㄕㄊ", "手機|ㄕㄐ", "水|ㄕ", "說話|ㄕㄏ", "聲音|ㄕㄧ",
+  "濕了|ㄕㄌ", "舒服|ㄕㄈ", "不舒服|ㄅㄕㄈ", "稍等|ㄕㄉ", "時間|ㄕㄐ",
+  "什麼|ㄕㄇ", "什麼時候|ㄕㄇㄕㄏ", "生氣|ㄕㄑ", "受傷|ㄕㄕ", "收起來|ㄕㄑㄌ",
+
+  // ㄖ
+  "熱|ㄖ", "很熱|ㄏㄖ", "熱水|ㄖㄕ", "讓我|ㄖㄨ", "讓我休息|ㄖㄨㄒㄒ",
+  "讓我想一下|ㄖㄨㄒㄧㄒ", "人|ㄖ", "如果|ㄖㄍ", "容易|ㄖㄧ", "忍一下|ㄖㄧㄒ",
+
+  // ㄗ
+  "早安|ㄗㄢ", "早上好|ㄗㄕㄏ", "再說一次|ㄗㄕㄧㄘ", "怎麼辦|ㄗㄇㄅ", "坐下|ㄗㄒ",
+  "走開|ㄗㄎ", "走慢一點|ㄗㄇㄧㄉ", "自己|ㄗㄐ", "左邊|ㄗㄅ", "昨天|ㄗㄊ",
+  "最痛|ㄗㄊ", "再見|ㄗㄐ", "這樣|ㄓㄧ", "嘴巴|ㄗㄅ", "早餐|ㄗㄘ",
+
+  // ㄘ
+  "廁所|ㄘㄙ", "去廁所|ㄑㄘㄙ", "擦一下|ㄘㄧㄒ", "擦嘴巴|ㄘㄗㄅ", "錯了|ㄘㄌ",
+  "從這裡|ㄘㄓㄌ", "菜|ㄘ", "餐具|ㄘㄐ", "測量|ㄘㄌ", "刺痛|ㄘㄊ",
+
+  // ㄙ
+  "三點|ㄙㄉ", "四點|ㄙㄉ", "酸|ㄙ", "酸痛|ㄙㄊ", "送我|ㄙㄨ",
+  "事情|ㄙㄑ", "速度慢一點|ㄙㄉㄇㄧㄉ", "掃地|ㄙㄉ", "鬆一點|ㄙㄧㄉ", "算了|ㄙㄌ",
+
+  // ㄧ
+  "要|ㄧ", "有|ㄧ", "也可以|ㄧㄎㄧ", "一點|ㄧㄉ", "一點點|ㄧㄉㄉ",
+  "一下|ㄧㄒ", "衣服|ㄧㄈ", "醫生|ㄧㄕ", "醫院|ㄧㄩ", "眼睛|ㄧㄐ",
+  "藥|ㄧ", "藥水|ㄧㄕ", "椅子|ㄧㄗ", "右邊|ㄧㄅ", "已經好了|ㄧㄐㄏㄌ",
+
+  // ㄨ
+  "我|ㄨ", "我想|ㄨㄒ", "我要|ㄨㄧ", "我不要|ㄨㄅㄧ", "我可以|ㄨㄎㄧ",
+  "我不舒服|ㄨㄅㄕㄈ", "我不知道|ㄨㄅㄓㄉ", "我想休息|ㄨㄒㄒㄒ", "我想喝水|ㄨㄒㄏㄕ", "我想睡覺|ㄨㄒㄕㄐ",
+  "午安|ㄨㄢ", "晚安|ㄨㄢ", "外面|ㄨㄇ", "為什麼|ㄨㄕㄇ", "無聊|ㄨㄌ",
+
+  // ㄩ
+  "暈|ㄩ", "頭暈|ㄊㄩ", "浴室|ㄩㄕ", "原本|ㄩㄅ", "越來越痛|ㄩㄌㄩㄊ",
+  "願意|ㄩㄧ", "雨傘|ㄩㄙ", "運動|ㄩㄉ", "用這個|ㄩㄓㄍ", "用那個|ㄩㄋㄍ",
+
+  // ㄚ / ㄛ / ㄜ / ㄝ / ㄞ / ㄟ / ㄠ / ㄡ / ㄢ / ㄣ / ㄦ
+  "啊|ㄚ", "阿姨|ㄚㄧ", "安全|ㄢㄑ", "安靜|ㄢㄐ", "按一下|ㄢㄧㄒ",
+  "按摩|ㄢㄇ", "喔|ㄛ", "餓|ㄜ", "很餓|ㄏㄜ", "噁心|ㄜㄒ",
+  "耳朵|ㄦㄉ", "二點|ㄦㄉ", "欸|ㄟ", "愛你|ㄞㄋ", "哎呀|ㄞㄧ",
+  "懊惱|ㄠㄋ", "嘔吐|ㄡㄊ", "偶爾|ㄡㄦ", "嗯|ㄣ", "恩|ㄣ",
+
+  // 常用完整句
+  "我想喝水|ㄨㄒㄏㄕ", "我想吃飯|ㄨㄒㄔㄈ", "我想休息|ㄨㄒㄒㄒ", "我想睡覺|ㄨㄒㄕㄐ",
+  "我想上廁所|ㄨㄒㄕㄘㄙ", "我要叫醫生|ㄨㄧㄐㄧㄕ", "我很痛|ㄨㄏㄊ", "我很累|ㄨㄏㄌ",
+  "我很冷|ㄨㄏㄌ", "我很熱|ㄨㄏㄖ", "我不想說話|ㄨㄅㄒㄕㄏ", "我需要幫忙|ㄨㄒㄧㄅㄇ",
+  "請幫我翻身|ㄑㄅㄨㄈㄕ", "請幫我拍背|ㄑㄅㄨㄆㄅ", "請幫我拿水|ㄑㄅㄨㄋㄕ",
+  "請幫我開冷氣|ㄑㄅㄨㄎㄌㄑ", "請幫我關燈|ㄑㄅㄨㄍㄉ", "請再說一次|ㄑㄗㄕㄧㄘ",
+  "我聽不懂|ㄨㄊㄅㄉ", "我知道了|ㄨㄓㄉㄌ", "我不知道|ㄨㄅㄓㄉ", "我想回家|ㄨㄒㄏㄐ"
+];
+
+// 初始化高速檢索字典
+const parsedDict = [...rawDictionary, ...extraDictionary]
+  .map(entry => {
+    const [word, init] = entry.split('|');
+    return { word, init };
+  })
+  .filter(item => item.word && item.init);
+
+const nineGridGroups = [
+  {
+    title: "我想要",
+    words: ["喝水", "吃飯", "休息", "上廁所"]
+  },
+  {
+    title: "身體",
+    words: ["很痛", "不舒服", "頭暈", "很累"]
+  },
+  {
+    title: "情緒",
+    words: ["開心", "害怕", "生氣", "難過"]
+  },
+  {
+    title: "幫助",
+    words: ["翻身", "拍背", "叫家人", "叫醫生"]
+  },
+  {
+    title: "環境",
+    words: ["開冷氣", "關燈", "開電視", "小聲一點"]
+  },
+  {
+    title: "社交",
+    words: ["謝謝", "你好", "拜拜", "對不起"]
+  },
+  {
+    title: "詢問",
+    words: ["為什麼", "什麼時候", "可以嗎", "再說一次"]
+  },
+  {
+    title: "緊急",
+    words: ["救命", "緊急", "很痛", "叫醫生"]
+  },
+  {
+    title: "常用",
+    words: ["我不知道", "我懂了", "不要", "好的"]
+  }
+];
+
+// ════════════════════════════════════════
+// 高速比對引擎 (取代舊版 DFS)
+// ════════════════════════════════════════
+function getPrefixMatches(buf) {
+  if (!buf) return [];
+
+  const results = new Set();
+
+  // 1. 精準前綴搜尋
+  parsedDict.forEach(item => {
+    if (item.init.startsWith(buf)) {
+      results.add(item.word);
+    }
+  });
+
+  // 2. 寬容搜尋：如果完全找不到，就退回「第一個注音」
+  // 例如輸入 ㄅㄚ 找不到，就改找所有 ㄅ 開頭的詞
+  if (results.size === 0 && buf.length >= 2) {
+    const firstSymbol = buf.slice(0, 1);
+    parsedDict.forEach(item => {
+      if (item.init.startsWith(firstSymbol)) {
+        results.add(item.word);
+      }
+    });
+  }
+
+  // 3. 還是找不到時，給常用保底詞，不再顯示空白
+  if (results.size === 0) {
+    ["謝謝", "好的", "不要", "我想喝水", "我想休息", "上廁所", "緊急", "叫醫生"].forEach(word => {
+      results.add(word);
+    });
+  }
+
+  return Array.from(results).slice(0, 12);
+}
+
+// ════════════════════════════════════════
+// 智慧語境接龍 (無須輸入注音自動推薦)
+// ════════════════════════════════════════
+const wordFlow = {
+  // 開頭常用
+  "我": ["我想", "我要", "我需要幫忙", "我不舒服", "我不知道", "謝謝"],
+  "我想": ["喝水", "吃飯", "休息", "睡覺", "上廁所", "回家"],
+  "我要": ["喝水", "吃飯", "休息", "翻身", "換尿布", "叫醫生"],
+  "我需要幫忙": ["翻身", "拿水", "拍背", "開冷氣", "關燈", "叫家人"],
+
+  // 喝水之後
+  "喝水": ["常溫", "一點", "多一點", "不要冰", "謝謝", "還要"],
+  "拿水": ["給我", "常溫", "不要冰", "謝謝", "還要"],
+  "常溫": ["謝謝", "可以了", "還要", "不用了"],
+  "不要冰": ["謝謝", "可以了", "還要"],
+  "一點": ["謝謝", "還要", "可以了"],
+  "多一點": ["謝謝", "可以了", "還要"],
+
+  // 吃飯之後
+  "吃飯": ["一點", "多一點", "不要太燙", "慢一點", "謝謝", "不要了"],
+  "吃早餐": ["謝謝", "還要", "不要了", "喝水"],
+  "吃午餐": ["謝謝", "還要", "不要了", "喝水"],
+  "吃晚餐": ["謝謝", "還要", "不要了", "喝水"],
+  "不要太燙": ["謝謝", "可以了", "慢一點"],
+
+  // 休息 / 睡覺之後
+  "休息": ["一下", "不要吵我", "關燈", "陪我", "謝謝"],
+  "睡覺": ["關燈", "蓋被子", "不要吵我", "謝謝"],
+  "一下": ["謝謝", "可以了", "等一下"],
+  "不要吵我": ["謝謝", "我想休息", "可以了"],
+
+  // 上廁所之後
+  "上廁所": ["請幫我", "現在", "等一下", "謝謝"],
+  "去廁所": ["請幫我", "現在", "等一下", "謝謝"],
+
+  // 身體
+  "痛": ["這裡", "很痛", "一點點", "叫醫生", "不要碰"],
+  "很痛": ["叫醫生", "找家人", "這裡", "現在", "不要碰"],
+  "不舒服": ["想休息", "想喝水", "叫醫生", "頭暈", "想吐"],
+  "頭暈": ["想躺下", "想休息", "叫醫生", "喝水"],
+  "很累": ["想休息", "想睡覺", "不要說話", "等一下"],
+  "想吐": ["叫醫生", "拿垃圾桶", "想休息", "喝水"],
+  "這裡": ["很痛", "一點點", "不要碰", "叫醫生"],
+
+  // 幫助
+  "幫我": ["翻身", "拿水", "拍背", "開冷氣", "關燈"],
+  "請幫我": ["翻身", "拿水", "拍背", "開冷氣", "關燈"],
+  "翻身": ["左邊", "右邊", "慢一點", "謝謝"],
+  "拍背": ["輕一點", "再一下", "好了", "謝謝"],
+  "換尿布": ["謝謝", "可以了", "等一下"],
+  "叫醫生": ["緊急", "很痛", "不舒服", "快一點", "謝謝"],
+  "叫家人": ["我不舒服", "我想回家", "我很痛", "謝謝"],
+
+  // 環境
+  "開": ["冷氣", "電視", "電燈", "風扇", "門"],
+  "關": ["冷氣", "電視", "電燈", "風扇", "門"],
+  "冷氣": ["開冷氣", "關冷氣", "太冷", "太熱"],
+  "電視": ["開電視", "關電視", "轉台", "小聲一點"],
+  "開冷氣": ["謝謝", "太冷", "可以了"],
+  "關冷氣": ["謝謝", "太熱", "可以了"],
+  "關燈": ["謝謝", "我要休息", "可以了"],
+  "開燈": ["謝謝", "可以了"],
+
+  // 情緒
+  "害怕": ["陪我", "不要離開", "叫家人", "我想休息"],
+  "生氣": ["不要", "等一下", "我想自己冷靜", "不要碰我"],
+  "難過": ["陪我", "我想休息", "我想回家", "不要說話"],
+  "開心": ["謝謝", "我喜歡", "很好", "再一次"],
+
+  // 社交
+  "謝謝": ["你", "辛苦了", "沒關係", "幫忙", "我好多了"],
+  "你好": ["請問", "我想", "可以", "謝謝"],
+  "拜拜": ["明天見", "謝謝", "再見", "辛苦了"],
+  "對不起": ["我不是故意的", "請原諒我", "謝謝你"],
+  "你": ["辛苦了", "謝謝", "可以幫我嗎"],
+  "辛苦了": ["謝謝", "你真好", "沒關係"],
+  "沒關係": ["謝謝", "好的", "我知道了"],
+
+  // 補強：好的
+  "好的": ["謝謝", "我知道了", "可以了", "再說一次", "我想", "我要"],
+
+  // 補強：不要
+  "不要": ["謝謝", "等一下", "我不想要", "不要碰我", "再說一次"],
+  "不要碰": ["謝謝", "我很痛", "等一下", "叫醫生"],
+  "不要碰我": ["謝謝", "我想休息", "等一下"],
+
+  // 補強：緊急
+  "緊急": ["叫醫生", "叫家人", "救命", "很痛", "不舒服", "快一點"],
+
+  // 補強：現在幾點
+  "現在幾點": ["謝謝", "好的", "等一下", "我知道了", "我想休息", "我要喝水"],
+
+  // 其他常用
+  "可以": ["幫我嗎", "開冷氣", "關燈", "再說一次", "謝謝"],
+  "再說一次": ["謝謝", "我知道了", "我還是不懂"],
+  "等一下": ["謝謝", "我想一下", "可以了", "不要"],
+  "可以了": ["謝謝", "好的", "不用了"],
+  "不用了": ["謝謝", "好的"],
+  "還要": ["一點", "多一點", "謝謝", "可以了"],
+
+  // 預設
+  DEFAULT: ["我要", "謝謝", "好的", "不要", "緊急", "現在幾點"]
+};
+
+function getContextSuggestions() {
+  if (!sentence) return wordFlow.DEFAULT;
+
+  // 優先依照上一個點選的詞推薦
+  if (lastSelectedWord && wordFlow[lastSelectedWord]) {
+    return wordFlow[lastSelectedWord];
+  }
+
+  // 如果沒有上一個詞，就用句子最後幾個字判斷
+  return wordFlow[sentence.slice(-4)] ||
+         wordFlow[sentence.slice(-3)] ||
+         wordFlow[sentence.slice(-2)] ||
+         wordFlow[sentence.slice(-1)] ||
+         wordFlow.DEFAULT;
+}
+
+// ════════════════════════════════════════
+// 畫面渲染與操作邏輯
+// ════════════════════════════════════════
+function setInputMode(mode) {
+  inputMode = mode;
+
+  document.getElementById('mode-keyboard').classList.toggle('active', mode === 'keyboard');
+  document.getElementById('mode-voice').classList.toggle('active', mode === 'voice');
+  document.getElementById('mode-ninegrid').classList.toggle('active', mode === 'nineGrid');
+
+  inputBuffer = "";
+
+  if (mode === 'voice') {
+    renderVoicePanel();
+  } else if (mode === 'nineGrid') {
+    renderNineGrid();
+  } else {
+    renderKeyboard();
+  }
+
+  updateUI();
+}
+
+function renderVoicePanel() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = "";
+
+  const btn = document.createElement('button');
+  btn.className = 'key';
+  btn.style.gridColumn = 'span 6';
+  btn.style.height = '70px';
+  btn.style.fontSize = '22px';
+  btn.textContent = '🎙 點我開始語音輸入';
+  btn.onclick = toggleVoice;
+
+  kb.appendChild(btn);
+
+  const tip = document.createElement('div');
+  tip.style.gridColumn = 'span 6';
+  tip.style.fontSize = '13px';
+  tip.style.color = 'var(--text2)';
+  tip.style.textAlign = 'center';
+  tip.style.padding = '4px';
+  tip.textContent = '請使用 Chrome，並允許麥克風權限';
+
+  kb.appendChild(tip);
+}
+
+function renderNineGrid() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = "";
+
+  nineGridGroups.forEach(group => {
+    const btn = document.createElement('button');
+    btn.className = 'key';
+    btn.style.height = '58px';
+    btn.style.fontSize = '15px';
+    btn.style.flexDirection = 'column';
+    btn.innerHTML = `<strong>${group.title}</strong><span style="font-size:11px;color:var(--text2);margin-top:2px;">${group.words[0]}</span>`;
+
+    btn.onclick = () => {
+      showNineGridWords(group);
     };
 
-    // ================= 2. 核心詞庫 (零件化) =================
-    const rawWords = [
-        "我","你","想","要","喝水","吃飯","謝謝","謝謝你","你好","轉台","到","55台","舒服","不舒服",
-        "我好痛","我想喝水","我想吃飯","我要喝水","我要吃飯","我要翻身","請幫我","幫我抓癢","救命",
-        "爸爸","媽媽","哥哥","姐姐","老師","護理師","醫生","電視","電燈","開關","拿給我","等一下",
-        "不要","很好","對不起","沒關係","早安","晚安","辛苦了","再見","而且","兒子"
-    ];
+    kb.appendChild(btn);
+  });
+}
 
-    const contextFlow = {
-        "我": ["想", "要", "不", "好"],
-        "我想": ["喝水", "吃飯", "睡覺", "看電視", "休息"],
-        "我要": ["喝水", "吃飯", "上廁所", "睡覺", "洗澡", "翻身", "轉台", "吃藥"],
-        "請幫我": ["翻身", "抓癢", "換尿布", "倒尿壺", "拿水給我", "開冷氣"],
-        "喝水": ["謝謝", "還要", "太燙了", "好了"],
-        "謝謝": ["你", "辛苦了", "不用客氣"],
-        "DEFAULT_FOLLOW": ["了", "嗎", "謝謝", "可以嗎", "辛苦了", "好了"]
-    };
+function showNineGridWords(group) {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = "";
 
-    // ================= 3. 搜尋引擎 (重寫組合邏輯) =================
-    class TrieNode { constructor() { this.children = {}; this.words = []; this.wordInitials = {}; } }
-    class Trie {
-        constructor() { this.root = new TrieNode(); }
-        insert(initials, word) {
-            let node = this.root;
-            for (let ch of initials) {
-                if (!node.children[ch]) node.children[ch] = new TrieNode();
-                node = node.children[ch];
-                if (!node.words.includes(word)) {
-                    node.words.push(word);
-                    node.wordInitials[word] = initials; // 存入該詞對應的聲母
-                }
-            }
-        }
-        search(prefix) {
-            let node = this.root;
-            for (let ch of prefix) { if (!node.children[ch]) return []; node = node.children[ch]; }
-            return node.words;
-        }
-    }
+  group.words.forEach(word => {
+    const btn = document.createElement('button');
+    btn.className = 'key';
+    btn.style.height = '58px';
+    btn.style.fontSize = '17px';
+    btn.textContent = word;
+    btn.onclick = () => selectWord(word);
+    kb.appendChild(btn);
+  });
 
-    const trie = new Trie();
-    function getInitials(word) { let res = ""; for (let ch of word) { let b = bopomofoMap[ch]; if (b) res += b[0]; } return res; }
-    rawWords.forEach(w => { let init = getInitials(w); if (init) trie.insert(init, w); });
+  const backBtn = document.createElement('button');
+  backBtn.className = 'key fn';
+  backBtn.style.gridColumn = 'span 6';
+  backBtn.textContent = '← 回九宮格分類';
+  backBtn.onclick = renderNineGrid;
+  kb.appendChild(backBtn);
+}
 
-    let sentence = "", inputBuffer = "", historyLogs = [], currentPage = 0;
-    let userFreq = JSON.parse(localStorage.getItem("aac_freq_vFinal") || "{}");
+function renderPredictBar() {
+  const bar = document.getElementById('predict-bar');
+  bar.innerHTML = '';
+  
+  let items = [];
+  let isContext = false;
+  
+  if (inputBuffer) {
+    items = getPrefixMatches(inputBuffer);
+  } else {
+    items = getContextSuggestions();
+    isContext = true;
+  }
 
-    function boost(word) { userFreq[word] = (userFreq[word] || 0) + 1; localStorage.setItem("aac_freq_vFinal", JSON.stringify(userFreq)); }
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'predict-empty';
+    empty.textContent = inputBuffer.length > 2 ? '找不到詞彙，請確認是否只輸入聲母' : '無候選詞';
+    bar.appendChild(empty);
+    return;
+  }
 
-    // 修復後的智慧組合演算法
-    function composeWords(buffer) {
-        let results = [];
-        function dfs(rem, path) {
-            if (rem.length === 0) { results.push(path.join("")); return; }
-            // 嘗試從 buffer 開頭找匹配的詞
-            for (let i = 1; i <= rem.length; i++) {
-                let part = rem.slice(0, i);
-                let found = trie.search(part);
-                // 這裡的關鍵是：只有當找到的詞，其聲母「完全等於」part 時才繼續
-                found.forEach(w => {
-                    let wInit = getInitials(w);
-                    if (wInit === part) {
-                        dfs(rem.slice(i), [...path, w]);
-                    }
-                });
-            }
-        }
-        dfs(buffer, []);
-        return results;
-    }
+  items.forEach(word => {
+    const el = document.createElement('div');
+    el.className = 'predict-item' + (isContext ? ' context' : '');
+    el.textContent = word;
+    el.onclick = () => selectWord(word);
+    bar.appendChild(el);
+  });
+}
 
-    function predict() {
-        if (inputBuffer !== "") {
-            // 1. 直接搜尋 (例如打 ㄒㄒㄋ 直接出 謝謝你)
-            let direct = trie.search(inputBuffer);
-            // 2. 組合搜尋 (例如打 ㄨㄒㄏㄕ 拼湊 我+想+喝水)
-            let composed = (inputBuffer.length > 1) ? composeWords(inputBuffer) : [];
-            
-            let results = [...new Set([...direct, ...composed])];
-            results.sort((a, b) => (userFreq[b] || 0) - (userFreq[a] || 0) || a.length - b.length);
-            
-            // 如果還是沒東西，保底顯示清空
-            if (results.length === 0) results = ["清空注音"];
-            renderPredicts(results.slice(0, 20), false);
-        } else {
-            let lastTwo = sentence.slice(-2);
-            let lastOne = sentence.slice(-1);
-            let nextOptions = contextFlow[lastTwo] || contextFlow[lastOne] || contextFlow["DEFAULT_FOLLOW"];
-            if (sentence === "" || sentence === "尚未輸入內容") nextOptions = ["我要", "我想", "請幫我", "謝謝", "緊急🚨", "報時🕰️"];
-            renderPredicts(nextOptions, true);
-        }
-    }
+function selectWord(word) {
+  let final = word;
 
-    function renderPredicts(list, isContext) {
-        const bar = document.getElementById('predict-bar');
-        bar.innerHTML = "";
-        list.forEach(word => {
-            const d = document.createElement('div');
-            d.className = `predict-item ${isContext ? 'next-step' : ''}`;
-            d.innerText = word;
-            d.onclick = () => {
-                if (word === "清空注音") { inputBuffer = ""; updateUI(); predict(); return; }
-                let final = word.replace(/[🚨🕰️]/g, "");
-                if (final === "報時") {
-                    const now = new Date();
-                    final = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-                }
-                if (sentence === "尚未輸入內容") sentence = final; else sentence += final;
-                inputBuffer = ""; boost(final); updateUI(); predict();
-            };
-            bar.appendChild(d);
-        });
-    }
+  if (word === "現在幾點") { 
+    const n = new Date(); 
+    final = `現在${n.getHours()}點${String(n.getMinutes()).padStart(2,'0')}分`; 
+  } else if (word === "緊急") {
+    final = "緊急！";
+  }
 
-    function updateUI() {
-        document.getElementById('buffer-box').innerText = inputBuffer;
-        document.getElementById('sentence-box').innerText = sentence || "尚未輸入內容";
-    }
+  sentence += final;
+  lastSelectedWord = word;
+  inputBuffer = "";
+  updateUI();
+}
 
-    function renderKB() {
-        const kb = document.getElementById('keyboard'); kb.innerHTML = "";
-        if (isNumMode) {
-            const nums = ["1","2","3","4","5","6","7","8","9","0","台","頻道"];
-            nums.forEach(n => {
-                const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = n;
-                btn.onclick = () => { if (sentence === "尚未輸入內容") sentence = n; else sentence += n; updateUI(); predict(); };
-                kb.appendChild(btn);
-            });
-        } else {
-            const bpmf = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
-            bpmf.forEach(c => {
-                const btn = document.createElement('button'); btn.className = 'key'; btn.innerText = c;
-                btn.onclick = () => { inputBuffer += c; updateUI(); predict(); };
-                kb.appendChild(btn);
-            });
-        }
-        addKey(isNumMode ? "ㄅㄆㄇ" : "123", () => { isNumMode = !isNumMode; renderKB(); }, "key mode-switch");
-        addKey("⌫", () => { 
-            if (inputBuffer.length > 0) inputBuffer = inputBuffer.slice(0,-1);
-            else if (sentence.length > 0 && sentence !== "尚未輸入內容") sentence = sentence.slice(0,-1);
-            updateUI(); predict(); 
-        }, "key fn");
-        addKey("全清", () => { sentence = ""; inputBuffer = ""; updateUI(); predict(); }, "key fn");
-    }
+function updateUI() {
+  const sb = document.getElementById('sentence-box');
+  const predictSection = document.getElementById('predict-section');
+  const keyboardWrap = document.querySelector('.keyboard-wrap');
+  const historyWrap = document.querySelector('.history-wrap');
 
-    function addKey(txt, fn, cls) {
-        const btn = document.createElement('button'); btn.className = cls; btn.innerText = txt; btn.onclick = fn;
-        document.getElementById('keyboard').appendChild(btn);
-    }
+  sb.textContent = sentence || "請開始輸入";
+  sb.className = sentence ? '' : 'placeholder';
+  document.getElementById('buffer-box').textContent = inputBuffer;
 
-    function sendAndClear() {
-        if (sentence.trim() && sentence !== "尚未輸入內容") {
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            historyLogs.unshift(`[${time}] ${sentence}`);
-            localStorage.setItem('aac_logs_final', JSON.stringify(historyLogs));
-            currentPage = 0; loadHistory();
-        }
-        sentence = ""; inputBuffer = ""; updateUI(); predict();
-    }
+  if (inputBuffer) {
+    predictSection.classList.add('fullscreen');
+    if (keyboardWrap) keyboardWrap.style.display = 'none';
+    if (historyWrap) historyWrap.style.display = 'none';
+  } else {
+    predictSection.classList.remove('fullscreen');
+    if (keyboardWrap) keyboardWrap.style.display = '';
+    if (historyWrap) historyWrap.style.display = '';
+  }
 
-    function clearAllHistory() { if (confirm("確定刪除所有紀錄嗎？")) { historyLogs = []; localStorage.removeItem('aac_logs_final'); currentPage = 0; loadHistory(); } }
+  renderPredictBar();
+}
 
-    function loadHistory() {
-        historyLogs = JSON.parse(localStorage.getItem('aac_logs_final') || '[]');
-        const box = document.getElementById('history-box');
-        const start = currentPage * 5;
-        box.innerHTML = historyLogs.slice(start, start + 5).map(log => `<div style='padding:8px 0; border-bottom:1px solid #EEE;'>${log}</div>`).join('');
-        document.getElementById('page-info').innerText = `${currentPage + 1} / ${Math.max(1, Math.ceil(historyLogs.length / 5))}`;
-    }
+function renderKeyboard() {
+  const kb = document.getElementById('keyboard'); 
+  kb.innerHTML = "";
+  
+  const bpmfKeys = ["ㄅ","ㄆ","ㄇ","ㄈ","ㄉ","ㄊ","ㄋ","ㄌ","ㄍ","ㄎ","ㄏ","ㄐ","ㄑ","ㄒ","ㄓ","ㄔ","ㄕ","ㄖ","ㄗ","ㄘ","ㄙ","ㄧ","ㄨ","ㄩ","ㄚ","ㄛ","ㄜ","ㄝ","ㄞ","ㄟ","ㄠ","ㄡ","ㄢ","ㄣ","ㄤ","ㄥ","ㄦ"];
+  const numKeys = ["1","2","3","4","5","6","7","8","9","0",".","，"];
+  
+  (isNumMode ? numKeys : bpmfKeys).forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'key'; b.textContent = k;
+    b.onclick = () => { isNumMode ? sentence += k : inputBuffer += k; updateUI(); };
+    kb.appendChild(b);
+  });
 
-    function changePage(dir) { currentPage = Math.min(Math.max(0, currentPage + dir), Math.max(0, Math.ceil(historyLogs.length / 5) - 1)); loadHistory(); }
+  const btnMode = document.createElement('button');
+  btnMode.className = 'key mode'; btnMode.textContent = isNumMode ? "注音" : "數字";
+  btnMode.onclick = () => { isNumMode = !isNumMode; renderKeyboard(); };
+  kb.appendChild(btnMode);
 
-    function toggleVoice() {
-        const recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
-        if (!recognition) return alert("不支援語音");
-        recognition.lang = "zh-TW"; recognition.start();
-        recognition.onresult = (e) => { 
-            let t = e.results[0][0].transcript;
-            if (sentence === "尚未輸入內容") sentence = t; else sentence += t; 
-            updateUI(); predict(); 
-        };
-    }
+  const btnDel = document.createElement('button');
+  btnDel.className = 'key del'; btnDel.textContent = "⌫";
+  btnDel.onclick = () => { 
+    if (inputBuffer) inputBuffer = inputBuffer.slice(0, -1); 
+    else if (sentence) sentence = sentence.slice(0, -1); 
+    updateUI(); 
+  };
+  kb.appendChild(btnDel);
 
-    renderKB(); loadHistory(); predict();
+  const btnSpace = document.createElement('button');
+  btnSpace.className = 'key fn'; btnSpace.textContent = "空格";
+  btnSpace.onclick = () => { if (!isNumMode) sentence += " "; updateUI(); };
+  kb.appendChild(btnSpace);
+}
+
+function sendAndClear() {
+  if (!sentence) return;
+  try {
+    const hist = JSON.parse(localStorage.getItem('aac_hist') || '[]');
+    hist.unshift({ t: new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' }), s: sentence });
+    localStorage.setItem('aac_hist', JSON.stringify(hist.slice(0, 20)));
+  } catch(e) {}
+  sentence = "";
+inputBuffer = "";
+lastSelectedWord = "";
+updateUI();
+renderHistory();
+}
+
+function clearAll() {
+  sentence = "";
+  inputBuffer = "";
+  lastSelectedWord = "";
+  updateUI();
+}
+
+
+function renderHistory() {
+  let hist = []; try { hist = JSON.parse(localStorage.getItem('aac_hist') || '[]'); } catch {}
+  const box = document.getElementById('history-box');
+  if (!hist.length) { box.innerHTML = '<div class="history-empty">尚無紀錄</div>'; return; }
+  box.innerHTML = hist.slice(0, 10).map(h => `<div class="history-item"><span class="history-time">${h.t}</span><span class="history-text">${h.s}</span></div>`).join('');
+}
+
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    alert('此瀏覽器不支援語音輸入，請使用 Chrome。');
+    return;
+  }
+
+  const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  rec.lang = 'zh-TW';
+  rec.interimResults = false;
+
+  const btn = document.getElementById('mic-btn');
+  if (btn) btn.textContent = '⏳';
+
+  rec.start();
+
+  rec.onresult = e => {
+    sentence += e.results[0][0].transcript;
+    inputBuffer = "";
+    lastSelectedWord = "";
+    updateUI();
+  };
+
+  rec.onend = rec.onerror = () => {
+    if (btn) btn.textContent = '🎙';
+  };
+}
+
+setInputMode("keyboard");
+renderHistory();
+updateUI();
+
 </script>
 </body>
 </html>
