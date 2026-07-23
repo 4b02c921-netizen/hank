@@ -3131,7 +3131,7 @@ function createGeneralLinePayload(sentText, result, summary) {
   const second = String(now.getSeconds()).padStart(2, "0");
 
   const messageId =
-    `AAC-MSG-${year}${month}${day}-${hour}${minute}${second}`;
+    `MSG-${year}${month}${day}-${hour}${minute}${second}`;
 
   return {
     type: "AAC_GENERAL_MESSAGE",
