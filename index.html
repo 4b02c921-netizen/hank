@@ -1020,7 +1020,7 @@ body {
 </head>
 <body>
 
-<div class="hint-banner">💡 教授演示版：按下「傳送」後，一般表達也會送交已綁定的 LINE 接收者；疼痛與緊急流程仍保留防誤觸確認。</div>
+<div class="hint-banner">💡 按下「傳送」後，會送交已綁定的 LINE 接收者 / 疼痛與緊急流程保留防誤觸確認。</div>
 
 <div class="display-area">
   <div class="label">目前句子</div>
@@ -4657,7 +4657,6 @@ async function confirmAndSendHealthAlert() {
     tone: "emergency",
     icon: "⏳",
     title: "正在傳送 LINE 警示",
-    badge: "教授演示版",
     message: "正在將疼痛資訊送交 AAC 護理站示範帳號。",
     summary: buildHealthAssessmentSummary(),
     note: "請稍候，完成後可查看接收端手機。",
@@ -4898,8 +4897,8 @@ async function confirmAndSendEmergencyAlert() {
     tone: "emergency",
     icon: "⏳",
     title: "正在傳送緊急 LINE 通知",
-    badge: "教授演示版",
-    message: "正在將緊急資訊送交 AAC 護理站示範帳號。",
+    badge: "演示版",
+    message: "正在將緊急資訊送交 AAC護理站 LINE帳號。",
     summary: buildEmergencySummary(),
     note: "請稍候，完成後可查看接收端手機。",
     actions: []
