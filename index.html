@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC 聲母溝通系統 </title>
+<title>AAC 混合注音溝通系統－智慧提醒 Agent v7.1</title>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --bg: #F5F4F0;
@@ -61,6 +64,181 @@ body {
 .buffer-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-height: 22px; }
 #buffer-box { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 4px; font-family: 'Courier New', monospace; }
 #buffer-box:empty::after { content: '等待輸入…'; color: var(--border-strong); font-weight: 400; letter-spacing: 0; font-family: inherit; font-size: 12px; }
+#input-type-label { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--accent-text); background: var(--accent-bg); border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+#input-type-label:empty { display: none; }
+.custom-word-btn {
+  border: 0.5px solid rgba(24,95,165,0.28);
+  background: #fff;
+  color: var(--accent-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.custom-word-btn:active { background: var(--accent-bg); transform: scale(.97); }
+
+
+/* ── 自訂詞視窗 ── */
+.custom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,.38);
+}
+.custom-modal.open { display: flex; }
+.custom-dialog {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
+  padding: 18px;
+}
+.custom-dialog h2 {
+  font-size: 20px;
+  color: var(--accent-text);
+  margin-bottom: 6px;
+}
+.custom-dialog-note {
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.custom-field { margin-bottom: 12px; }
+.custom-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  margin-bottom: 5px;
+}
+.custom-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 18px;
+  color: var(--text);
+  background: #fff;
+}
+.custom-field input:focus {
+  outline: 3px solid rgba(24,95,165,.14);
+  border-color: var(--accent);
+}
+.custom-voice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.custom-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.custom-dialog button {
+  min-height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.custom-voice-button {
+  background: var(--ai-bg);
+  color: var(--ai-a);
+}
+.custom-clear-button {
+  background: var(--surface2);
+  color: var(--text2);
+}
+.custom-cancel-button {
+  background: var(--surface2);
+  color: var(--text2);
+}
+.custom-save-button {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent) !important;
+}
+.custom-status {
+  min-height: 20px;
+  color: var(--danger);
+  font-size: 13px;
+  margin: -4px 0 10px;
+}
+@media (max-width: 560px) {
+  .custom-dialog { padding: 14px; }
+  .custom-voice-row,
+  .custom-dialog-actions { grid-template-columns: 1fr; }
+}
+
+
+.custom-pronunciation-card {
+  border: 1px solid rgba(24,95,165,.20);
+  background: var(--accent-bg);
+  border-radius: 12px;
+  padding: 11px 12px;
+  margin-bottom: 12px;
+}
+.custom-pronunciation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+.custom-pronunciation-row {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 5px 0;
+  border-top: 1px solid rgba(24,95,165,.12);
+}
+.custom-pronunciation-row span {
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.custom-pronunciation-row strong {
+  color: var(--accent-text);
+  font-size: 17px;
+  line-height: 1.35;
+  letter-spacing: 2px;
+  word-break: break-all;
+}
+.custom-lookup-badge {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgba(0,0,0,.06);
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 800;
+}
+.custom-lookup-badge.success {
+  background: #E7F7F1;
+  color: #13795B;
+}
+.custom-lookup-badge.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.custom-status.success { color: #13795B; }
 
 /* ── 候選列 ── */
 .predict-section {
@@ -89,7 +267,46 @@ body {
   overflow: hidden;
   padding: 2px 2px 4px;
   min-height: 42px;
-  max-height: 92px;
+  max-height: 142px;
+}
+
+.candidate-controls {
+  display: none;
+  grid-template-columns: 110px 1fr 110px;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px 1px;
+  flex-shrink: 0;
+}
+.candidate-controls.show { display: grid; }
+.candidate-nav-btn {
+  height: 34px;
+  border: 0.5px solid rgba(24,95,165,0.28);
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.candidate-nav-btn:disabled {
+  opacity: .38;
+  cursor: default;
+}
+.candidate-page-info {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.3;
+}
+.candidate-page-info strong {
+  color: var(--accent-text);
+}
+.candidate-loading {
+  font-size: 11px;
+  color: var(--text2);
+  margin-left: 5px;
 }
 .predict-bar::-webkit-scrollbar { display: none; }
 .predict-item {
@@ -125,6 +342,7 @@ body {
 .dot-pulse span:nth-child(3) { animation-delay: .36s; }
 @keyframes dp { 0%,80%,100% { transform: scale(.5); opacity: .3; } 40% { transform: scale(1); opacity: 1; } }
 .predict-empty { font-size: 13px; color: var(--text2); padding: 8px 4px; }
+
 
 /* ── 輸入模式切換 ── */
 .mode-row {
@@ -179,7 +397,7 @@ body {
 /* ── 操作列 ── */
 .action-row {
   display: grid;
-  grid-template-columns: 48px 48px 150px 180px;
+  grid-template-columns: 48px 150px 180px;
   gap: 8px;
   flex-shrink: 0;
   justify-content: center;
@@ -215,6 +433,26 @@ body {
   flex-direction: column;
   min-height: 40px;
 }
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.history-clear-btn {
+  border: 0.5px solid rgba(163,45,45,0.25);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.history-clear-btn:active { transform: scale(.96); opacity: .8; }
 .history-scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; }
 .history-item { padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 14px; color: var(--text2); display: flex; gap: 8px; }
 .history-item:last-child { border-bottom: none; }
@@ -222,13 +460,156 @@ body {
 .history-text { color: var(--text); font-size: 14px; }
 .history-empty { font-size: 13px; color: var(--border-strong); text-align: center; padding: 8px 0; }
 
+
+/* ── 智慧陪伴／Agent 雛形 ── */
+.agent-panel {
+  display: none;
+  background: var(--surface);
+  border: 1px solid rgba(24,95,165,0.22);
+  border-left: 5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+.agent-panel.show { display: block; }
+.agent-panel.tone-rest { border-left-color: #8A6116; background: #FFF9E8; }
+.agent-panel.tone-emotion { border-left-color: #7A4BA3; background: #F8F1FF; }
+.agent-panel.tone-health { border-left-color: #B6572A; background: #FFF5EF; }
+.agent-panel.tone-emergency {
+  border: 3px solid var(--danger);
+  border-left-width: 8px;
+  background: #FFF1F1;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(680px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+  z-index: 10050;
+  box-shadow: 0 22px 70px rgba(110, 20, 20, .34);
+  animation: emergencyPop .18s ease-out;
+}
+.agent-panel.tone-emergency .agent-title {
+  color: var(--danger);
+  font-size: 18px;
+}
+.agent-panel.tone-emergency .agent-icon { font-size: 28px; }
+.agent-panel.tone-emergency .agent-message {
+  font-size: 17px;
+  font-weight: 700;
+}
+@keyframes emergencyPop {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.agent-panel.tone-success { border-left-color: #18794E; background: #F0FAF5; }
+.agent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.agent-title-wrap { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.agent-icon { font-size: 18px; flex-shrink: 0; }
+.agent-title { font-size: 14px; font-weight: 700; color: var(--accent-text); }
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.agent-close {
+  border: 0;
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 6px;
+}
+.agent-message { font-size: 14px; line-height: 1.5; color: var(--text); }
+.agent-note { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text2); }
+.agent-summary {
+  display: none;
+  margin-top: 7px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.72);
+  border: 0.5px solid var(--border);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text2);
+}
+.agent-summary.show { display: block; }
+.agent-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.agent-action {
+  min-height: 36px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 7px;
+}
+.agent-action.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.agent-action.warn { background: #FFF0E8; color: #9A431B; border-color: rgba(182,87,42,0.28); }
+.agent-action.danger { background: var(--danger-bg); color: var(--danger); border-color: rgba(163,45,45,0.28); }
+.agent-action:active { transform: scale(.97); opacity: .86; }
+.history-content { min-width: 0; }
+.history-meta { margin-top: 2px; font-size: 11px; color: var(--text2); }
+.history-category {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 @media (max-width: 700px) {
+  .agent-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agent-panel { padding: 8px 9px; }
+}
+
+@media (max-height: 760px) {
+  .agent-panel { padding: 6px 8px; }
+  .agent-head { margin-bottom: 3px; }
+  .agent-message { font-size: 12px; line-height: 1.35; }
+  .agent-actions { margin-top: 5px; }
+  .agent-action { min-height: 30px; padding: 4px 5px; font-size: 11px; }
+  .agent-summary { margin-top: 4px; padding: 5px 7px; }
+}
+
+@media (max-width: 700px) {
+
   .mode-row {
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .keyboard {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
   .action-row {
-    grid-template-columns: 42px 42px 1fr 1fr;
+    grid-template-columns: 42px 1fr 1fr;
   }
 
   .btn {
@@ -236,11 +617,410 @@ body {
   }
 }
 
+
+/* 小螢幕高度不足時，自動壓縮介面，保留傳送紀錄 */
+@media (max-height: 760px) {
+  body { gap: 4px; padding: 6px; }
+  .hint-banner { font-size: 11px; padding: 4px 8px; }
+  .display-area { padding: 5px 10px 4px; }
+  #sentence-box { font-size: 20px; min-height: 27px; }
+  .buffer-row { min-height: 18px; margin-top: 2px; }
+  .predict-bar { min-height: 36px; max-height: 76px; gap: 4px; }
+  .predict-item { min-height: 34px; font-size: 16px; padding: 4px; }
+  .mode-tab { height: 30px; font-size: 12px; }
+  .key { height: 31px; font-size: 16px; }
+  .btn { height: 34px; }
+  .history-wrap { min-height: 62px; padding: 5px 8px; }
+  .history-empty { padding: 4px 0; }
+  .predict-bar { max-height: 132px; }
+  .candidate-controls { grid-template-columns: 88px 1fr 88px; gap: 5px; }
+  .candidate-nav-btn { height: 32px; font-size: 12px; }
+}
+
+
+
+/* ── v7.3：大型自動提醒視窗 ── */
+.agent-panel.show {
+  display: block;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  z-index: 10040;
+  padding: 24px 26px;
+  border-radius: 22px;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 100vmax rgba(0, 0, 0, .40),
+    0 26px 80px rgba(0, 0, 0, .28);
+  animation: agentLargePop .20s ease-out;
+}
+
+.agent-panel.show .agent-head {
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+
+.agent-panel.show .agent-title-wrap {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.agent-panel.show .agent-icon {
+  font-size: 38px;
+  line-height: 1;
+}
+
+.agent-panel.show .agent-title {
+  font-size: 27px;
+  line-height: 1.25;
+}
+
+.agent-panel.show .agent-badge {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.agent-panel.show .agent-close {
+  flex-shrink: 0;
+  min-width: 76px;
+  min-height: 42px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: rgba(255,255,255,.82);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agent-panel.show .agent-message {
+  font-size: 20px;
+  line-height: 1.65;
+  font-weight: 650;
+}
+
+.agent-panel.show .agent-note {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.agent-panel.show .agent-summary {
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.agent-panel.show .agent-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.agent-panel.show .agent-action {
+  min-height: 58px;
+  padding: 12px 14px;
+  border-radius: 13px;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.agent-panel.show.tone-emergency {
+  width: min(860px, calc(100vw - 28px));
+  padding: 28px 30px;
+  border-width: 4px;
+  border-left-width: 10px;
+  z-index: 10050;
+  box-shadow:
+    0 0 0 100vmax rgba(70, 0, 0, .52),
+    0 28px 90px rgba(110, 20, 20, .38);
+}
+
+.agent-panel.show.tone-emergency .agent-title {
+  font-size: 32px;
+}
+
+.agent-panel.show.tone-emergency .agent-icon {
+  font-size: 48px;
+}
+
+.agent-panel.show.tone-emergency .agent-message {
+  font-size: 23px;
+  line-height: 1.6;
+}
+
+.agent-panel.show.tone-emergency .agent-action {
+  min-height: 64px;
+  font-size: 18px;
+}
+
+@keyframes agentLargePop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (max-width: 700px) {
+  .agent-panel.show {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 20px 18px;
+    border-radius: 18px;
+  }
+
+  .agent-panel.show .agent-icon { font-size: 32px; }
+  .agent-panel.show .agent-title { font-size: 23px; }
+  .agent-panel.show .agent-message { font-size: 18px; }
+  .agent-panel.show .agent-actions { grid-template-columns: 1fr; }
+  .agent-panel.show .agent-action {
+    min-height: 54px;
+    font-size: 16px;
+  }
+
+  .agent-panel.show.tone-emergency {
+    width: calc(100vw - 14px);
+    padding: 22px 18px;
+  }
+
+  .agent-panel.show.tone-emergency .agent-title { font-size: 27px; }
+  .agent-panel.show.tone-emergency .agent-message { font-size: 20px; }
+}
+
+@media (max-height: 620px) {
+  .agent-panel.show {
+    top: 10px;
+    transform: translateX(-50%);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .agent-panel.show .agent-title { font-size: 21px; }
+  .agent-panel.show .agent-message { font-size: 17px; }
+  .agent-panel.show .agent-actions { gap: 8px; margin-top: 12px; }
+  .agent-panel.show .agent-action { min-height: 46px; padding: 9px 10px; }
+}
+
+
+/* ── v7.4：疼痛評估與通知狀態 ── */
+.agent-panel.show .agent-action.selected {
+  background: #DCEEFF;
+  color: #0C447C;
+  border-color: #5798D2;
+  box-shadow: inset 0 0 0 2px rgba(24,95,165,.16);
+}
+
+.agent-panel.show .agent-action.confirm-alert {
+  background: #A32D2D;
+  color: #fff;
+  border-color: #A32D2D;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.agent-panel.show .agent-action.confirm-alert:active {
+  background: #7F1F1F;
+}
+
+.alert-status-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.alert-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,.78);
+  font-size: 14px;
+}
+
+.alert-status-item strong {
+  color: var(--text);
+}
+
+.alert-status-sent { color: #18794E; font-weight: 800; }
+.alert-status-pending { color: #8A6116; font-weight: 800; }
+.alert-status-failed { color: var(--danger); font-weight: 800; }
+
+@media (max-width: 700px) {
+  .alert-status-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 </style>
+
+<style>
+  .aac-profile-toolbar {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .aac-profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border: 1px solid #bfd6ec;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0f4c81;
+    font-weight: 700;
+  }
+
+  .aac-profile-toolbar button,
+  .aac-profile-modal button {
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #153e68;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .aac-profile-toolbar button {
+    padding: 8px 12px;
+  }
+
+  .aac-profile-toolbar .primary,
+  .aac-profile-modal .primary {
+    border-color: #1f69ad;
+    background: #1f69ad;
+    color: #ffffff;
+  }
+
+  .aac-profile-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  .aac-profile-overlay.show {
+    display: flex;
+  }
+
+  .aac-profile-modal {
+    width: min(560px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    padding: 26px;
+    border: 2px solid #9fc7df;
+    border-radius: 24px;
+    background: #f7fffc;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  }
+
+  .aac-profile-modal h2 {
+    margin: 0 0 10px;
+    color: #0f4c81;
+  }
+
+  .aac-profile-modal p {
+    line-height: 1.65;
+  }
+
+  .aac-profile-modal label {
+    display: block;
+    margin-top: 16px;
+    font-weight: 800;
+  }
+
+  .aac-profile-modal input {
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 7px;
+    padding: 13px 14px;
+    border: 1px solid #b7c6d6;
+    border-radius: 12px;
+    background: #ffffff;
+    font: inherit;
+    font-size: 18px;
+  }
+
+  .aac-profile-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .aac-profile-actions button {
+    padding: 12px;
+  }
+
+  .aac-profile-summary {
+    margin-top: 14px;
+    padding: 13px;
+    border: 1px solid #d8e5ef;
+    border-radius: 14px;
+    background: #ffffff;
+    line-height: 1.7;
+  }
+
+  .aac-profile-code {
+    word-break: break-all;
+    color: #0f4c81;
+    font-weight: 800;
+  }
+
+  #aac-binding-qrcode {
+    display: flex;
+    justify-content: center;
+    margin: 18px auto;
+    padding: 14px;
+    width: fit-content;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  #aac-binding-qrcode img,
+  #aac-binding-qrcode canvas {
+    max-width: 230px;
+    width: 100%;
+    height: auto;
+  }
+
+  .aac-profile-note {
+    color: #5f6f7f;
+    font-size: 14px;
+  }
+
+  @media (max-width: 560px) {
+    .aac-profile-actions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
 </head>
 <body>
 
-<div class="hint-banner">💡 操作提示：請輸入每字的「最前面注音」（例如：早安 👉 點選 ㄗ 和 ㄢ）</div>
+<div class="hint-banner">💡 教授演示版：按下「傳送」後，一般表達也會送交已綁定的 LINE 接收者；疼痛與緊急流程仍保留防誤觸確認。</div>
 
 <div class="display-area">
   <div class="label">目前句子</div>
@@ -248,15 +1028,23 @@ body {
   <div class="buffer-row">
     <div class="label" style="margin:0">聲母緩衝</div>
     <div id="buffer-box"></div>
+    <div id="input-type-label"></div>
+    <button class="custom-word-btn" type="button" onclick="openCustomWordInput()">找不到？新增詞</button>
   </div>
 </div>
 
 <div id="predict-section" class="predict-section">
   <div id="predict-bar" class="predict-bar"></div>
+  <div id="candidate-controls" class="candidate-controls">
+    <button id="candidate-prev" class="candidate-nav-btn" type="button" onclick="changeCandidatePage(-1)">← 上一頁</button>
+    <div id="candidate-page-info" class="candidate-page-info"></div>
+    <button id="candidate-next" class="candidate-nav-btn" type="button" onclick="changeCandidatePage(1)">下一頁 →</button>
+  </div>
 </div>
 
+
 <div class="mode-row">
-  <button class="mode-tab active" id="mode-keyboard" onclick="setInputMode('keyboard')">注音鍵盤</button>
+  <button class="mode-tab active" id="mode-keyboard" onclick="setInputMode('keyboard')">混合注音鍵盤</button>
   <button class="mode-tab" id="mode-voice" onclick="setInputMode('voice')">語音輸入</button>
   <button class="mode-tab" id="mode-ninegrid" onclick="setInputMode('nineGrid')">九宮格</button>
 </div>
@@ -267,14 +1055,75 @@ body {
 
 <div class="action-row">
   <button id="mic-btn" class="btn btn-mic" onclick="toggleVoice()" title="語音輸入">🎙</button>
-  <button class="btn btn-cfg" onclick="alert('AI 輔助設定：大眾版已內建高頻詞庫支援。若需串接 Anthropic API，請參考實驗室版設定。')" title="AI 設定">✦</button>
   <button class="btn btn-clear" onclick="clearAll()">🗑 全部清除</button>
   <button class="btn btn-send" onclick="sendAndClear()">✓ 傳送並清空</button>
 </div>
 
+
+
+<div id="agent-panel" class="agent-panel" aria-live="polite" aria-atomic="true">
+  <div class="agent-head">
+    <div class="agent-title-wrap">
+      <span id="agent-icon" class="agent-icon">✦</span>
+      <span id="agent-title" class="agent-title">智慧陪伴</span>
+      <span id="agent-badge" class="agent-badge">規則式 Agent 雛形</span>
+    </div>
+    <button class="agent-close" type="button" onclick="dismissAgentPanel()">關閉</button>
+  </div>
+  <div id="agent-message" class="agent-message"></div>
+  <div id="agent-note" class="agent-note"></div>
+  <div id="agent-summary" class="agent-summary"></div>
+  <div id="agent-actions" class="agent-actions"></div>
+</div>
+
 <div class="history-wrap">
-  <div class="label" style="margin-bottom:6px">傳送紀錄</div>
+  <div class="history-header">
+    <div class="label" style="margin:0">傳送紀錄</div>
+    <button class="history-clear-btn" type="button" onclick="clearHistory()">🗑 清除紀錄</button>
+  </div>
   <div class="history-scroll" id="history-box"></div>
+</div>
+
+
+<div id="custom-word-modal" class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="custom-word-title">
+  <div class="custom-dialog">
+    <h2 id="custom-word-title">新增自訂詞</h2>
+    <div class="custom-dialog-note">
+      只要輸入中文字，或按「語音辨識詞彙」說出內容；系統會自動查詢完整注音與每個字的第一個注音符號，不需要手動輸入注音。
+    </div>
+
+    <div class="custom-field">
+      <label for="custom-word-text">詞彙</label>
+      <input id="custom-word-text" type="text" inputmode="text" autocomplete="off" placeholder="例如：劉貴璇、劉先生、喝藥">
+    </div>
+
+    <div class="custom-pronunciation-card" aria-live="polite">
+      <div class="custom-pronunciation-head">
+        <span>系統自動辨識</span>
+        <span id="custom-lookup-badge" class="custom-lookup-badge">等待詞彙</span>
+      </div>
+      <div class="custom-pronunciation-row">
+        <span>完整注音</span>
+        <strong id="custom-auto-zhuyin">—</strong>
+      </div>
+      <div class="custom-pronunciation-row">
+        <span>聲母／首符號</span>
+        <strong id="custom-auto-initials">—</strong>
+      </div>
+    </div>
+
+    <div class="custom-voice-row">
+      <button id="custom-voice-btn" class="custom-voice-button" type="button" onclick="recognizeCustomWord()">🎙 語音辨識詞彙</button>
+      <button class="custom-clear-button" type="button" onclick="clearCustomWordFields()">清空欄位</button>
+    </div>
+
+    <div id="custom-word-status" class="custom-status"></div>
+
+    <div class="custom-dialog-actions">
+      <button class="custom-cancel-button" type="button" onclick="closeCustomWordInput()">取消</button>
+      <button class="custom-save-button" type="button" onclick="saveCustomWord()">儲存並加入句子</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -283,6 +1132,31 @@ let inputMode = "keyboard";
 let sentence = "";
 let inputBuffer = "";
 let lastSelectedWord = "";
+let candidatePage = 0;
+let candidateQueryKey = "";
+let currentCandidateItems = [];
+const CANDIDATES_PER_PAGE = 9;
+let fullCharacterIndexReady = false;
+let fullCharacterIndexBuilding = false;
+
+// ════════════════════════════════════════
+// 智慧提醒 Agent 雛形狀態
+// 目前採前端規則判斷，不會自行診斷，也不會真的對外發送通知。
+// ════════════════════════════════════════
+const AGENT_REST_MINUTES = 10;
+const AGENT_DELETE_WINDOW_MS = 90 * 1000;
+const AGENT_DELETE_THRESHOLD = 5;
+let sessionStartedAt = Date.now();
+let lastRestReminderAt = 0;
+let deleteActionTimes = [];
+let agentCooldowns = new Map();
+let restCountdownTimer = null;
+let restEndsAt = 0;
+let lastSentSummary = '';
+let automaticAnalysisTimer = null;
+let lastAutomaticallyAnalyzedSentence = '';
+const AUTOMATIC_ANALYSIS_DELAY_MS = 280;
+
 
 // ════════════════════════════════════════
 // 🌟 專業級 AAC 詞庫架構 (格式: "詞彙|聲母")
@@ -300,7 +1174,7 @@ const rawDictionary = [
   "這個|ㄓㄍ", "那個|ㄋㄍ", "這裡|ㄓㄌ", "那裡|ㄋㄌ",
   
   // 日常生活動作
-  "吃飯|ㄔㄈ", "吃早餐|ㄔㄗㄘ", "喝水|ㄏㄕ", "睡覺|ㄕㄐ", "上廁所|ㄕㄘㄙ",
+  "吃飯|ㄔㄈ", "吃早餐|ㄔㄗㄘ", "喝水|ㄏㄕ", "喝藥|ㄏㄧ", "睡覺|ㄕㄐ", "上廁所|ㄕㄘㄙ",
   "洗澡|ㄒㄗ", "刷牙|ㄕㄧ", "洗臉|ㄒㄌ", "換衣服|ㄏㄧㄈ", "起床|ㄑㄔ",
   "坐下|ㄗㄒ", "躺下|ㄊㄒ", "翻身|ㄈㄕ", "起來|ㄑㄌ", "出去走走|ㄔㄑㄗㄗ",
   
@@ -461,13 +1335,740 @@ const extraDictionary = [
   "我聽不懂|ㄨㄊㄅㄉ", "我知道了|ㄨㄓㄉㄌ", "我不知道|ㄨㄅㄓㄉ", "我想回家|ㄨㄒㄏㄐ"
 ];
 
-// 初始化高速檢索字典
-const parsedDict = [...rawDictionary, ...extraDictionary]
+// ════════════════════════════════════════
+// 🔤 完整注音詞庫（格式：詞彙|聲母|完整注音）
+// 可逐步擴充；聲調可輸入也可省略
+// ════════════════════════════════════════
+const nameAndTitleDictionary = [
+  // 常見姓氏
+  "劉|ㄌ|ㄌㄧㄡˊ", "王|ㄨ|ㄨㄤˊ", "李|ㄌ|ㄌㄧˇ", "張|ㄓ|ㄓㄤ",
+  "陳|ㄔ|ㄔㄣˊ", "林|ㄌ|ㄌㄧㄣˊ", "黃|ㄏ|ㄏㄨㄤˊ", "吳|ㄨ|ㄨˊ",
+  "周|ㄓ|ㄓㄡ", "徐|ㄒ|ㄒㄩˊ", "孫|ㄙ|ㄙㄨㄣ", "郭|ㄍ|ㄍㄨㄛ",
+  "趙|ㄓ|ㄓㄠˋ", "何|ㄏ|ㄏㄜˊ", "高|ㄍ|ㄍㄠ", "羅|ㄌ|ㄌㄨㄛˊ",
+  "鄭|ㄓ|ㄓㄥˋ", "謝|ㄒ|ㄒㄧㄝˋ", "楊|ㄧ|ㄧㄤˊ", "蔡|ㄘ|ㄘㄞˋ",
+
+  // 稱謂與常見完整詞
+  "先生|ㄒㄕ|ㄒㄧㄢㄕㄥ", "小姐|ㄒㄐ|ㄒㄧㄠˇㄐㄧㄝˇ",
+  "老師|ㄌㄕ|ㄌㄠˇㄕ", "同學|ㄊㄒ|ㄊㄨㄥˊㄒㄩㄝˊ",
+  "護理師|ㄏㄌㄕ|ㄏㄨˋㄌㄧˇㄕ", "醫師|ㄧㄕ|ㄧㄕ",
+  "劉先生|ㄌㄒㄕ|ㄌㄧㄡˊㄒㄧㄢㄕㄥ",
+  "王先生|ㄨㄒㄕ|ㄨㄤˊㄒㄧㄢㄕㄥ",
+  "李先生|ㄌㄒㄕ|ㄌㄧˇㄒㄧㄢㄕㄥ",
+  "陳先生|ㄔㄒㄕ|ㄔㄣˊㄒㄧㄢㄕㄥ",
+  "林先生|ㄌㄒㄕ|ㄌㄧㄣˊㄒㄧㄢㄕㄥ",
+  "劉老師|ㄌㄌㄕ|ㄌㄧㄡˊㄌㄠˇㄕ",
+  "劉小姐|ㄌㄒㄐ|ㄌㄧㄡˊㄒㄧㄠˇㄐㄧㄝˇ"
+];
+
+function loadPersonalDictionary() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('aac_personal_dictionary') || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+const personalDictionary = loadPersonalDictionary();
+
+const fullZhuyinDictionary = [
+  // 本表由現有 AAC 基礎詞庫與擴充詞庫整合產生。
+  // 格式：詞彙|聲母|完整注音；聲調可輸入，也可省略。
+  // 因此不只「ㄏㄜ」，其他完整注音也能搜尋對應詞彙。
+  "早安|ㄗㄢ|ㄗㄠˇㄢ",
+  "資安|ㄗㄢ|ㄗㄢ",
+  "早上好|ㄗㄕㄏ|ㄗㄠˇㄕㄤˋㄏㄠˇ",
+  "午安|ㄨㄢ|ㄨˇㄢ",
+  "晚安|ㄨㄢ|ㄨㄢˇㄢ",
+  "你好|ㄋㄏ|ㄋㄧˇㄏㄠˇ",
+  "謝謝|ㄒㄒ|ㄒㄧㄝˋㄒㄧㄝ˙",
+  "對不起|ㄉㄅㄑ|ㄉㄨㄟˋㄅㄨˋㄑㄧˇ",
+  "沒關係|ㄇㄍㄒ|ㄇㄟˊㄍㄨㄢㄒㄧˋ",
+  "拜拜|ㄅㄅ|ㄅㄞˋㄅㄞˋ",
+  "讚|ㄗ|ㄗㄢˋ",
+  "很棒|ㄏㄅ|ㄏㄣˇㄅㄤˋ",
+  "辛苦了|ㄒㄎㄌ|ㄒㄧㄣㄎㄨˇㄌㄜ˙",
+  "麻煩你|ㄇㄈㄋ|ㄇㄚˊㄈㄢˊㄋㄧˇ",
+  "我|ㄨ|ㄨㄛˇ",
+  "你|ㄋ|ㄋㄧˇ",
+  "他|ㄊ|ㄊㄚ",
+  "我們|ㄨㄇ|ㄨㄛˇㄇㄣ˙",
+  "你們|ㄋㄇ|ㄋㄧˇㄇㄣ˙",
+  "他們|ㄊㄇ|ㄊㄚㄇㄣ˙",
+  "想|ㄒ|ㄒㄧㄤˇ",
+  "要|ㄧ|ㄧㄠˋ",
+  "不要|ㄅㄧ|ㄅㄨˊㄧㄠˋ",
+  "可以|ㄎㄧ|ㄎㄜˇㄧˇ",
+  "不可以|ㄅㄎㄧ|ㄅㄨˋㄎㄜˇㄧˇ",
+  "有|ㄧ|ㄧㄡˇ",
+  "沒有|ㄇㄧ|ㄇㄟˊㄧㄡˇ",
+  "好|ㄏ|ㄏㄠˇ",
+  "不好|ㄅㄏ|ㄅㄨˋㄏㄠˇ",
+  "是|ㄕ|ㄕˋ",
+  "不是|ㄅㄕ|ㄅㄨˊㄕˋ",
+  "這個|ㄓㄍ|ㄓㄜˋㄍㄜˋ",
+  "那個|ㄋㄍ|ㄋㄚˋㄍㄜˋ",
+  "這裡|ㄓㄌ|ㄓㄜˋㄌㄧˇ",
+  "那裡|ㄋㄌ|ㄋㄚˋㄌㄧˇ",
+  "吃飯|ㄔㄈ|ㄔㄈㄢˋ",
+  "吃早餐|ㄔㄗㄘ|ㄔㄗㄠˇㄘㄢ",
+  "喝水|ㄏㄕ|ㄏㄜㄕㄨㄟˇ",
+  "喝藥|ㄏㄧ|ㄏㄜㄧㄠˋ",
+  "睡覺|ㄕㄐ|ㄕㄨㄟˋㄐㄧㄠˋ",
+  "上廁所|ㄕㄘㄙ|ㄕㄤˋㄘㄜˋㄙㄨㄛˇ",
+  "洗澡|ㄒㄗ|ㄒㄧˇㄗㄠˇ",
+  "刷牙|ㄕㄧ|ㄕㄨㄚㄧㄚˊ",
+  "洗臉|ㄒㄌ|ㄒㄧˇㄌㄧㄢˇ",
+  "換衣服|ㄏㄧㄈ|ㄏㄨㄢˋㄧㄈㄨˊ",
+  "起床|ㄑㄔ|ㄑㄧˇㄔㄨㄤˊ",
+  "坐下|ㄗㄒ|ㄗㄨㄛˋㄒㄧㄚˋ",
+  "躺下|ㄊㄒ|ㄊㄤˇㄒㄧㄚˋ",
+  "翻身|ㄈㄕ|ㄈㄢㄕㄣ",
+  "起來|ㄑㄌ|ㄑㄧˇㄌㄞˊ",
+  "出去走走|ㄔㄑㄗㄗ|ㄔㄨㄑㄩˋㄗㄡˇㄗㄡˇ",
+  "痛|ㄊ|ㄊㄨㄥˋ",
+  "很痛|ㄏㄊ|ㄏㄣˇㄊㄨㄥˋ",
+  "不舒服|ㄅㄕㄈ|ㄅㄨˋㄕㄨㄈㄨˊ",
+  "舒服|ㄕㄈ|ㄕㄨㄈㄨˊ",
+  "癢|ㄧ|ㄧㄤˇ",
+  "累|ㄌ|ㄌㄟˋ",
+  "餓|ㄜ|ㄜˋ",
+  "渴|ㄎ|ㄎㄜˇ",
+  "冷|ㄌ|ㄌㄥˇ",
+  "熱|ㄖ|ㄖㄜˋ",
+  "頭暈|ㄊㄩ|ㄊㄡˊㄩㄣ",
+  "發燒|ㄈㄕ|ㄈㄚㄕㄠ",
+  "噁心|ㄜㄒ|ㄜˇㄒㄧㄣ",
+  "叫醫生|ㄐㄧㄕ|ㄐㄧㄠˋㄧㄕㄥ",
+  "叫護士|ㄐㄏㄕ|ㄐㄧㄠˋㄏㄨˋㄕˋ",
+  "找家人|ㄓㄐㄖ|ㄓㄠˇㄐㄧㄚㄖㄣˊ",
+  "吃藥|ㄔㄧ|ㄔㄧㄠˋ",
+  "量血壓|ㄌㄒㄧ|ㄌㄧㄤˋㄒㄩㄝˋㄧㄚ",
+  "換尿布|ㄏㄋㄅ|ㄏㄨㄢˋㄋㄧㄠˋㄅㄨˋ",
+  "抽痰|ㄔㄊ|ㄔㄡㄊㄢˊ",
+  "拍背|ㄆㄅ|ㄆㄞㄅㄟˋ",
+  "冷氣|ㄌㄑ|ㄌㄥˇㄑㄧˋ",
+  "電風扇|ㄉㄈㄕ|ㄉㄧㄢˋㄈㄥㄕㄢˋ",
+  "電燈|ㄉㄉ|ㄉㄧㄢˋㄉㄥ",
+  "電視|ㄉㄕ|ㄉㄧㄢˋㄕˋ",
+  "手機|ㄕㄐ|ㄕㄡˇㄐㄧ",
+  "開|ㄎ|ㄎㄞ",
+  "關|ㄍ|ㄍㄨㄢ",
+  "轉台|ㄓㄊ|ㄓㄨㄢˇㄊㄞˊ",
+  "大聲|ㄉㄕ|ㄉㄚˋㄕㄥ",
+  "小聲|ㄒㄕ|ㄒㄧㄠˇㄕㄥ",
+  "什麼|ㄕㄇ|ㄕㄣˊㄇㄜ˙",
+  "怎麼辦|ㄗㄇㄅ|ㄗㄣˇㄇㄜ˙ㄅㄢˋ",
+  "為什麼|ㄨㄕㄇ|ㄨㄟˋㄕㄣˊㄇㄜ˙",
+  "知道|ㄓㄉ|ㄓㄉㄠˋ",
+  "不知道|ㄅㄓㄉ|ㄅㄨˋㄓㄉㄠˋ",
+  "懂了|ㄉㄌ|ㄉㄨㄥˇㄌㄜ˙",
+  "不懂|ㄅㄉ|ㄅㄨˋㄉㄨㄥˇ",
+  "等一下|ㄉㄧㄒ|ㄉㄥˇㄧㄒㄧㄚˋ",
+  "快一點|ㄎㄧㄉ|ㄎㄨㄞˋㄧㄉㄧㄢˇ",
+  "再說一次|ㄗㄕㄧㄘ|ㄗㄞˋㄕㄨㄛㄧㄘˋ",
+  "緊急|ㄐㄐ|ㄐㄧㄣˇㄐㄧˊ",
+  "救命|ㄐㄇ|ㄐㄧㄡˋㄇㄧㄥˋ",
+  "現在幾點|ㄒㄗㄐㄉ|ㄒㄧㄢˋㄗㄞˋㄐㄧˇㄉㄧㄢˇ",
+  "不要了|ㄅㄧㄌ|ㄅㄨˊㄧㄠˋㄌㄜ˙",
+  "不行|ㄅㄒ|ㄅㄨˋㄒㄧㄥˊ",
+  "不想|ㄅㄒ|ㄅㄨˋㄒㄧㄤˇ",
+  "幫我|ㄅㄨ|ㄅㄤㄨㄛˇ",
+  "幫忙|ㄅㄇ|ㄅㄤㄇㄤˊ",
+  "幫我拿|ㄅㄨㄋ|ㄅㄤㄨㄛˇㄋㄚˊ",
+  "幫我開|ㄅㄨㄎ|ㄅㄤㄨㄛˇㄎㄞ",
+  "幫我關|ㄅㄨㄍ|ㄅㄤㄨㄛˇㄍㄨㄢ",
+  "抱歉|ㄅㄑ|ㄅㄠˋㄑㄧㄢˋ",
+  "被子|ㄅㄗ|ㄅㄟˋㄗ˙",
+  "背痛|ㄅㄊ|ㄅㄟˋㄊㄨㄥˋ",
+  "鼻子|ㄅㄗ|ㄅㄧˊㄗ˙",
+  "比較好|ㄅㄐㄏ|ㄅㄧˇㄐㄧㄠˋㄏㄠˇ",
+  "陪我|ㄆㄨ|ㄆㄟˊㄨㄛˇ",
+  "陪我一下|ㄆㄨㄧㄒ|ㄆㄟˊㄨㄛˇㄧㄒㄧㄚˋ",
+  "平躺|ㄆㄊ|ㄆㄧㄥˊㄊㄤˇ",
+  "旁邊|ㄆㄅ|ㄆㄤˊㄅㄧㄢ",
+  "朋友|ㄆㄧ|ㄆㄥˊㄧㄡˇ",
+  "碰到|ㄆㄉ|ㄆㄥˋㄉㄠˋ",
+  "皮膚癢|ㄆㄈㄧ|ㄆㄧˊㄈㄨㄧㄤˇ",
+  "蘋果|ㄆㄍ|ㄆㄧㄥˊㄍㄨㄛˇ",
+  "泡澡|ㄆㄗ|ㄆㄠˋㄗㄠˇ",
+  "媽媽|ㄇㄇ|ㄇㄚㄇㄚ",
+  "沒事|ㄇㄕ|ㄇㄟˊㄕˋ",
+  "慢一點|ㄇㄧㄉ|ㄇㄢˋㄧㄉㄧㄢˇ",
+  "門|ㄇ|ㄇㄣˊ",
+  "門關起來|ㄇㄍㄑㄌ|ㄇㄣˊㄍㄨㄢㄑㄧˇㄌㄞˊ",
+  "面紙|ㄇㄓ|ㄇㄧㄢˋㄓˇ",
+  "馬上|ㄇㄕ|ㄇㄚˇㄕㄤˋ",
+  "明天|ㄇㄊ|ㄇㄧㄥˊㄊㄧㄢ",
+  "目前|ㄇㄑ|ㄇㄨˋㄑㄧㄢˊ",
+  "名字|ㄇㄗ|ㄇㄧㄥˊㄗˋ",
+  "摸一下|ㄇㄧㄒ|ㄇㄛㄧㄒㄧㄚˋ",
+  "悶悶的|ㄇㄇㄉ|ㄇㄣˋㄇㄣˋㄉㄜ˙",
+  "放下|ㄈㄒ|ㄈㄤˋㄒㄧㄚˋ",
+  "放鬆|ㄈㄙ|ㄈㄤˋㄙㄨㄥ",
+  "房間|ㄈㄐ|ㄈㄤˊㄐㄧㄢ",
+  "風扇|ㄈㄕ|ㄈㄥㄕㄢˋ",
+  "發冷|ㄈㄌ|ㄈㄚㄌㄥˇ",
+  "發熱|ㄈㄖ|ㄈㄚㄖㄜˋ",
+  "飯|ㄈ|ㄈㄢˋ",
+  "方便|ㄈㄅ|ㄈㄤㄅㄧㄢˋ",
+  "服務員|ㄈㄨㄩ|ㄈㄨˊㄨˋㄩㄢˊ",
+  "扶我|ㄈㄨ|ㄈㄨˊㄨㄛˇ",
+  "扶起來|ㄈㄑㄌ|ㄈㄨˊㄑㄧˇㄌㄞˊ",
+  "附近|ㄈㄐ|ㄈㄨˋㄐㄧㄣˋ",
+  "分享|ㄈㄒ|ㄈㄣㄒㄧㄤˇ",
+  "等等|ㄉㄉ|ㄉㄥˇㄉㄥˇ",
+  "對|ㄉ|ㄉㄨㄟˋ",
+  "電話|ㄉㄏ|ㄉㄧㄢˋㄏㄨㄚˋ",
+  "打開|ㄉㄎ|ㄉㄚˇㄎㄞ",
+  "低一點|ㄉㄧㄉ|ㄉㄧㄧㄉㄧㄢˇ",
+  "多一點|ㄉㄧㄉ|ㄉㄨㄛㄧㄉㄧㄢˇ",
+  "肚子痛|ㄉㄗㄊ|ㄉㄨˋㄗ˙ㄊㄨㄥˋ",
+  "到了|ㄉㄌ|ㄉㄠˋㄌㄜ˙",
+  "倒水|ㄉㄕ|ㄉㄠˋㄕㄨㄟˇ",
+  "頭痛|ㄊㄊ|ㄊㄡˊㄊㄨㄥˋ",
+  "太冷|ㄊㄌ|ㄊㄞˋㄌㄥˇ",
+  "太熱|ㄊㄖ|ㄊㄞˋㄖㄜˋ",
+  "太大聲|ㄊㄉㄕ|ㄊㄞˋㄉㄚˋㄕㄥ",
+  "聽不懂|ㄊㄅㄉ|ㄊㄧㄥㄅㄨˋㄉㄨㄥˇ",
+  "聽得到|ㄊㄉㄉ|ㄊㄧㄥㄉㄜˊㄉㄠˋ",
+  "停一下|ㄊㄧㄒ|ㄊㄧㄥˊㄧㄒㄧㄚˋ",
+  "推我|ㄊㄨ|ㄊㄨㄟㄨㄛˇ",
+  "退後|ㄊㄏ|ㄊㄨㄟˋㄏㄡˋ",
+  "提醒我|ㄊㄒㄨ|ㄊㄧˊㄒㄧㄥˇㄨㄛˇ",
+  "糖果|ㄊㄍ|ㄊㄤˊㄍㄨㄛˇ",
+  "你在哪裡|ㄋㄗㄋㄌ|ㄋㄧˇㄗㄞˋㄋㄚˇㄌㄧˇ",
+  "你可以嗎|ㄋㄎㄧㄇ|ㄋㄧˇㄎㄜˇㄧˇㄇㄚ˙",
+  "拿給我|ㄋㄍㄨ|ㄋㄚˊㄍㄟˇㄨㄛˇ",
+  "拿水|ㄋㄕ|ㄋㄚˊㄕㄨㄟˇ",
+  "尿布|ㄋㄅ|ㄋㄧㄠˋㄅㄨˋ",
+  "哪裡|ㄋㄌ|ㄋㄚˇㄌㄧˇ",
+  "那邊|ㄋㄅ|ㄋㄚˋㄅㄧㄢ",
+  "難過|ㄋㄍ|ㄋㄢˊㄍㄨㄛˋ",
+  "難受|ㄋㄕ|ㄋㄢˊㄕㄡˋ",
+  "弄好|ㄋㄏ|ㄋㄨㄥˋㄏㄠˇ",
+  "弄乾|ㄋㄍ|ㄋㄨㄥˋㄑㄧㄢˊ",
+  "暖一點|ㄋㄧㄉ|ㄋㄨㄢˇㄧㄉㄧㄢˇ",
+  "很累|ㄏㄌ|ㄏㄣˇㄌㄟˋ",
+  "很冷|ㄏㄌ|ㄏㄣˇㄌㄥˇ",
+  "來|ㄌ|ㄌㄞˊ",
+  "來一下|ㄌㄧㄒ|ㄌㄞˊㄧㄒㄧㄚˋ",
+  "離開|ㄌㄎ|ㄌㄧˊㄎㄞ",
+  "留下來|ㄌㄒㄌ|ㄌㄧㄡˊㄒㄧㄚˋㄌㄞˊ",
+  "聯絡家人|ㄌㄌㄐㄖ|ㄌㄧㄢˊㄌㄨㄛˋㄐㄧㄚㄖㄣˊ",
+  "輪椅|ㄌㄧ|ㄌㄨㄣˊㄧˇ",
+  "量體溫|ㄌㄊㄨ|ㄌㄧㄤˋㄊㄧˇㄨㄣ",
+  "流鼻水|ㄌㄅㄕ|ㄌㄧㄡˊㄅㄧˊㄕㄨㄟˇ",
+  "拉高|ㄌㄍ|ㄌㄚㄍㄠ",
+  "拉低|ㄌㄉ|ㄌㄚㄉㄧ",
+  "給我|ㄍㄨ|ㄍㄟˇㄨㄛˇ",
+  "給你|ㄍㄋ|ㄍㄟˇㄋㄧˇ",
+  "關燈|ㄍㄉ|ㄍㄨㄢㄉㄥ",
+  "關門|ㄍㄇ|ㄍㄨㄢㄇㄣˊ",
+  "關冷氣|ㄍㄌㄑ|ㄍㄨㄢㄌㄥˇㄑㄧˋ",
+  "關電視|ㄍㄉㄕ|ㄍㄨㄢㄉㄧㄢˋㄕˋ",
+  "感謝|ㄍㄒ|ㄍㄢˇㄒㄧㄝˋ",
+  "剛剛|ㄍㄍ|ㄍㄤㄍㄤ",
+  "高一點|ㄍㄧㄉ|ㄍㄠㄧㄉㄧㄢˇ",
+  "更痛|ㄍㄊ|ㄍㄥˋㄊㄨㄥˋ",
+  "哥哥|ㄍㄍ|ㄍㄜㄍㄜ",
+  "趕快|ㄍㄎ|ㄍㄢˇㄎㄨㄞˋ",
+  "乾淨|ㄍㄐ|ㄑㄧㄢˊㄐㄧㄥˋ",
+  "告訴我|ㄍㄙㄨ|ㄍㄠˋㄙㄨˋㄨㄛˇ",
+  "改一下|ㄍㄧㄒ|ㄍㄞˇㄧㄒㄧㄚˋ",
+  "可以嗎|ㄎㄧㄇ|ㄎㄜˇㄧˇㄇㄚ˙",
+  "很渴|ㄏㄎ|ㄏㄣˇㄎㄜˇ",
+  "開燈|ㄎㄉ|ㄎㄞㄉㄥ",
+  "開門|ㄎㄇ|ㄎㄞㄇㄣˊ",
+  "開冷氣|ㄎㄌㄑ|ㄎㄞㄌㄥˇㄑㄧˋ",
+  "開電視|ㄎㄉㄕ|ㄎㄞㄉㄧㄢˋㄕˋ",
+  "開風扇|ㄎㄈㄕ|ㄎㄞㄈㄥㄕㄢˋ",
+  "看醫生|ㄎㄧㄕ|ㄎㄢˋㄧㄕㄥ",
+  "看不清楚|ㄎㄅㄑㄔ|ㄎㄢˋㄅㄨˋㄑㄧㄥㄔㄨˇ",
+  "空氣|ㄎㄑ|ㄎㄨㄥㄑㄧˋ",
+  "哭|ㄎ|ㄎㄨ",
+  "困難|ㄎㄋ|ㄎㄨㄣˋㄋㄢˊ",
+  "好的|ㄏㄉ|ㄏㄠˇㄉㄜ˙",
+  "很好|ㄏㄏ|ㄏㄣˇㄏㄠˇ",
+  "喝一點|ㄏㄧㄉ|ㄏㄜㄧㄉㄧㄢˇ",
+  "很熱|ㄏㄖ|ㄏㄣˇㄖㄜˋ",
+  "很癢|ㄏㄧ|ㄏㄣˇㄧㄤˇ",
+  "呼吸|ㄏㄒ|ㄏㄨㄒㄧ",
+  "呼吸困難|ㄏㄒㄎㄋ|ㄏㄨㄒㄧㄎㄨㄣˋㄋㄢˊ",
+  "護士|ㄏㄕ|ㄏㄨˋㄕˋ",
+  "回家|ㄏㄐ|ㄏㄨㄟˊㄐㄧㄚ",
+  "換姿勢|ㄏㄗㄕ|ㄏㄨㄢˋㄗㄕˋ",
+  "壞掉|ㄏㄉ|ㄏㄨㄞˋㄉㄧㄠˋ",
+  "還要|ㄏㄧ|ㄏㄞˊㄧㄠˋ",
+  "還好|ㄏㄏ|ㄏㄞˊㄏㄠˇ",
+  "叫家人|ㄐㄐㄖ|ㄐㄧㄠˋㄐㄧㄚㄖㄣˊ",
+  "今天|ㄐㄊ|ㄐㄧㄣㄊㄧㄢ",
+  "幾點|ㄐㄉ|ㄐㄧˇㄉㄧㄢˇ",
+  "繼續|ㄐㄒ|ㄐㄧˋㄒㄩˋ",
+  "進來|ㄐㄌ|ㄐㄧㄣˋㄌㄞˊ",
+  "結束|ㄐㄕ|ㄐㄧㄝˊㄕㄨˋ",
+  "腳痛|ㄐㄊ|ㄐㄧㄠˇㄊㄨㄥˋ",
+  "肩膀痛|ㄐㄅㄊ|ㄐㄧㄢㄅㄤˇㄊㄨㄥˋ",
+  "檢查|ㄐㄔ|ㄐㄧㄢˇㄔㄚˊ",
+  "記得|ㄐㄉ|ㄐㄧˋㄉㄜˊ",
+  "請|ㄑ|ㄑㄧㄥˇ",
+  "請幫我|ㄑㄅㄨ|ㄑㄧㄥˇㄅㄤㄨㄛˇ",
+  "請等一下|ㄑㄉㄧㄒ|ㄑㄧㄥˇㄉㄥˇㄧˊㄒㄧㄚˋ",
+  "去廁所|ㄑㄘㄙ|ㄑㄩˋㄘㄜˋㄙㄨㄛˇ",
+  "去睡覺|ㄑㄕㄐ|ㄑㄩˋㄕㄨㄟˋㄐㄧㄠˋ",
+  "去外面|ㄑㄨㄇ|ㄑㄩˋㄨㄞˋㄇㄧㄢˋ",
+  "前面|ㄑㄇ|ㄑㄧㄢˊㄇㄧㄢˋ",
+  "輕一點|ㄑㄧㄉ|ㄑㄧㄥㄧㄉㄧㄢˇ",
+  "清潔|ㄑㄐ|ㄑㄧㄥㄐㄧㄝˊ",
+  "切小塊|ㄑㄒㄎ|ㄑㄧㄝˋㄒㄧㄠˇㄎㄨㄞˋ",
+  "牽我|ㄑㄨ|ㄑㄧㄢㄨㄛˇ",
+  "球|ㄑ|ㄑㄧㄡˊ",
+  "全部|ㄑㄅ|ㄑㄩㄢˊㄅㄨˋ",
+  "想喝水|ㄒㄏㄕ|ㄒㄧㄤˇㄏㄜㄕㄨㄟˇ",
+  "想吃飯|ㄒㄔㄈ|ㄒㄧㄤˇㄔㄈㄢˋ",
+  "想休息|ㄒㄒㄒ|ㄒㄧㄤˇㄒㄧㄡㄒㄧˊ",
+  "想睡覺|ㄒㄕㄐ|ㄒㄧㄤˇㄕㄨㄟˋㄐㄧㄠˋ",
+  "想上廁所|ㄒㄕㄘㄙ|ㄒㄧㄤˇㄕㄤˋㄘㄜˋㄙㄨㄛˇ",
+  "需要|ㄒㄧ|ㄒㄩㄧㄠˋ",
+  "需要幫忙|ㄒㄧㄅㄇ|ㄒㄩㄧㄠˋㄅㄤㄇㄤˊ",
+  "心情不好|ㄒㄑㄅㄏ|ㄒㄧㄣㄑㄧㄥˊㄅㄨˋㄏㄠˇ",
+  "現在|ㄒㄗ|ㄒㄧㄢˋㄗㄞˋ",
+  "現在不要|ㄒㄗㄅㄧ|ㄒㄧㄢˋㄗㄞˋㄅㄨˊㄧㄠˋ",
+  "洗手|ㄒㄕ|ㄒㄧˇㄕㄡˇ",
+  "下面|ㄒㄇ|ㄒㄧㄚˋㄇㄧㄢˋ",
+  "小心|ㄒㄒ|ㄒㄧㄠˇㄒㄧㄣ",
+  "醒了|ㄒㄌ|ㄒㄧㄥˇㄌㄜ˙",
+  "休息|ㄒㄒ|ㄒㄧㄡㄒㄧˊ",
+  "這邊|ㄓㄅ|ㄓㄜˋㄅㄧㄢ",
+  "真的|ㄓㄉ|ㄓㄣㄉㄜ˙",
+  "找老師|ㄓㄌㄕ|ㄓㄠˇㄌㄠˇㄕ",
+  "中午|ㄓㄨ|ㄓㄨㄥㄨˇ",
+  "站起來|ㄓㄑㄌ|ㄓㄢˋㄑㄧˇㄌㄞˊ",
+  "睜開眼睛|ㄓㄎㄧㄐ|ㄓㄥㄎㄞㄧㄢˇㄐㄧㄥ",
+  "枕頭|ㄓㄊ|ㄓㄣˇㄊㄡˊ",
+  "只要|ㄓㄧ|ㄓˇㄧㄠˋ",
+  "這樣|ㄓㄧ|ㄓㄜˋㄧㄤˋ",
+  "吃午餐|ㄔㄨㄘ|ㄔㄨˇㄘㄢ",
+  "吃晚餐|ㄔㄨㄘ|ㄔㄨㄢˇㄘㄢ",
+  "穿衣服|ㄔㄧㄈ|ㄔㄨㄢㄧㄈㄨˊ",
+  "出去|ㄔㄑ|ㄔㄨㄑㄩˋ",
+  "擦嘴巴|ㄔㄗㄅ|ㄘㄚㄗㄨㄟˇㄅㄚ",
+  "擦一下|ㄔㄧㄒ|ㄘㄚㄧㄒㄧㄚˋ",
+  "充電|ㄔㄉ|ㄔㄨㄥㄉㄧㄢˋ",
+  "吹風|ㄔㄈ|ㄔㄨㄟㄈㄥ",
+  "床|ㄔ|ㄔㄨㄤˊ",
+  "窗戶|ㄔㄏ|ㄔㄨㄤㄏㄨˋ",
+  "身體|ㄕㄊ|ㄕㄣㄊㄧˇ",
+  "手痛|ㄕㄊ|ㄕㄡˇㄊㄨㄥˋ",
+  "水|ㄕ|ㄕㄨㄟˇ",
+  "說話|ㄕㄏ|ㄕㄨㄛㄏㄨㄚˋ",
+  "聲音|ㄕㄧ|ㄕㄥㄧㄣ",
+  "濕了|ㄕㄌ|ㄕㄌㄜ˙",
+  "稍等|ㄕㄉ|ㄕㄠㄉㄥˇ",
+  "時間|ㄕㄐ|ㄕˊㄐㄧㄢ",
+  "什麼時候|ㄕㄇㄕㄏ|ㄕㄣˊㄇㄜ˙ㄕˊㄏㄡˋ",
+  "生氣|ㄕㄑ|ㄕㄥㄑㄧˋ",
+  "受傷|ㄕㄕ|ㄕㄡˋㄕㄤ",
+  "收起來|ㄕㄑㄌ|ㄕㄡㄑㄧˇㄌㄞˊ",
+  "熱水|ㄖㄕ|ㄖㄜˋㄕㄨㄟˇ",
+  "讓我|ㄖㄨ|ㄖㄤˋㄨㄛˇ",
+  "讓我休息|ㄖㄨㄒㄒ|ㄖㄤˋㄨㄛˇㄒㄧㄡㄒㄧ",
+  "讓我想一下|ㄖㄨㄒㄧㄒ|ㄖㄤˋㄨㄛˇㄒㄧㄤˇㄧㄒㄧㄚˋ",
+  "人|ㄖ|ㄖㄣˊ",
+  "如果|ㄖㄍ|ㄖㄨˊㄍㄨㄛˇ",
+  "容易|ㄖㄧ|ㄖㄨㄥˊㄧˋ",
+  "忍一下|ㄖㄧㄒ|ㄖㄣˇㄧㄒㄧㄚˋ",
+  "走開|ㄗㄎ|ㄗㄡˇㄎㄞ",
+  "走慢一點|ㄗㄇㄧㄉ|ㄗㄡˇㄇㄢˋㄧㄉㄧㄢˇ",
+  "自己|ㄗㄐ|ㄗˋㄐㄧˇ",
+  "左邊|ㄗㄅ|ㄗㄨㄛˇㄅㄧㄢ",
+  "昨天|ㄗㄊ|ㄗㄨㄛˊㄊㄧㄢ",
+  "最痛|ㄗㄊ|ㄗㄨㄟˋㄊㄨㄥˋ",
+  "再見|ㄗㄐ|ㄗㄞˋㄐㄧㄢˋ",
+  "嘴巴|ㄗㄅ|ㄗㄨㄟˇㄅㄚ",
+  "早餐|ㄗㄘ|ㄗㄠˇㄘㄢ",
+  "廁所|ㄘㄙ|ㄘㄜˋㄙㄨㄛˇ",
+  "錯了|ㄘㄌ|ㄘㄨㄛˋㄌㄜ˙",
+  "從這裡|ㄘㄓㄌ|ㄘㄨㄥˊㄓㄜˋㄌㄧˇ",
+  "菜|ㄘ|ㄘㄞˋ",
+  "餐具|ㄘㄐ|ㄘㄢㄐㄩˋ",
+  "測量|ㄘㄌ|ㄘㄜˋㄌㄧㄤˋ",
+  "刺痛|ㄘㄊ|ㄘˋㄊㄨㄥˋ",
+  "三點|ㄙㄉ|ㄙㄢㄉㄧㄢˇ",
+  "四點|ㄙㄉ|ㄙˋㄉㄧㄢˇ",
+  "酸|ㄙ|ㄙㄨㄢ",
+  "酸痛|ㄙㄊ|ㄙㄨㄢㄊㄨㄥˋ",
+  "送我|ㄙㄨ|ㄙㄨㄥˋㄨㄛˇ",
+  "事情|ㄙㄑ|ㄕˋㄑㄧㄥˊ",
+  "速度慢一點|ㄙㄉㄇㄧㄉ|ㄙㄨˋㄉㄨˋㄇㄢˋㄧㄉㄧㄢˇ",
+  "掃地|ㄙㄉ|ㄙㄠˇㄉㄧˋ",
+  "鬆一點|ㄙㄧㄉ|ㄙㄨㄥㄧㄉㄧㄢˇ",
+  "算了|ㄙㄌ|ㄙㄨㄢˋㄌㄜ˙",
+  "也可以|ㄧㄎㄧ|ㄧㄝˇㄎㄜˇㄧˇ",
+  "一點|ㄧㄉ|ㄧㄉㄧㄢˇ",
+  "一點點|ㄧㄉㄉ|ㄧㄉㄧㄢˇㄉㄧㄢˇ",
+  "一下|ㄧㄒ|ㄧㄒㄧㄚˋ",
+  "衣服|ㄧㄈ|ㄧㄈㄨˊ",
+  "醫生|ㄧㄕ|ㄧㄕㄥ",
+  "醫院|ㄧㄩ|ㄧㄩㄢˋ",
+  "眼睛|ㄧㄐ|ㄧㄢˇㄐㄧㄥ",
+  "藥|ㄧ|ㄧㄠˋ",
+  "藥水|ㄧㄕ|ㄧㄠˋㄕㄨㄟˇ",
+  "椅子|ㄧㄗ|ㄧˇㄗ˙",
+  "右邊|ㄧㄅ|ㄧㄡˋㄅㄧㄢ",
+  "已經好了|ㄧㄐㄏㄌ|ㄧˇㄐㄧㄥㄏㄠˇㄌㄜ˙",
+  "我想|ㄨㄒ|ㄨㄛˇㄒㄧㄤˇ",
+  "我要|ㄨㄧ|ㄨㄛˇㄧㄠˋ",
+  "我不要|ㄨㄅㄧ|ㄨㄛˇㄅㄨˊㄧㄠˋ",
+  "我可以|ㄨㄎㄧ|ㄨㄛˇㄎㄜˇㄧˇ",
+  "我不舒服|ㄨㄅㄕㄈ|ㄨㄛˇㄅㄨˋㄕㄨㄈㄨˊ",
+  "我不知道|ㄨㄅㄓㄉ|ㄨㄛˇㄅㄨˋㄓㄉㄠˋ",
+  "我想休息|ㄨㄒㄒㄒ|ㄨㄛˇㄒㄧㄤˇㄒㄧㄡㄒㄧˊ",
+  "我想喝水|ㄨㄒㄏㄕ|ㄨㄛˇㄒㄧㄤˇㄏㄜㄕㄨㄟˇ",
+  "我想睡覺|ㄨㄒㄕㄐ|ㄨㄛˇㄒㄧㄤˇㄕㄨㄟˋㄐㄩㄝˊ",
+  "外面|ㄨㄇ|ㄨㄞˋㄇㄧㄢˋ",
+  "無聊|ㄨㄌ|ㄨˊㄌㄧㄠˊ",
+  "暈|ㄩ|ㄩㄣ",
+  "浴室|ㄩㄕ|ㄩˋㄕˋ",
+  "原本|ㄩㄅ|ㄩㄢˊㄅㄣˇ",
+  "越來越痛|ㄩㄌㄩㄊ|ㄩㄝˋㄌㄞˊㄩㄝˋㄊㄨㄥˋ",
+  "願意|ㄩㄧ|ㄩㄢˋㄧˋ",
+  "雨傘|ㄩㄙ|ㄩˇㄙㄢˇ",
+  "運動|ㄩㄉ|ㄩㄣˋㄉㄨㄥˋ",
+  "用這個|ㄩㄓㄍ|ㄩㄥˋㄓㄜˋㄍㄜˋ",
+  "用那個|ㄩㄋㄍ|ㄩㄥˋㄋㄚˋㄍㄜˋ",
+  "啊|ㄚ|ㄚ˙",
+  "阿姨|ㄚㄧ|ㄚㄧˊ",
+  "安全|ㄢㄑ|ㄢㄑㄩㄢˊ",
+  "安靜|ㄢㄐ|ㄢㄐㄧㄥˋ",
+  "按一下|ㄢㄧㄒ|ㄢˋㄧㄒㄧㄚˋ",
+  "按摩|ㄢㄇ|ㄢˋㄇㄛˊ",
+  "喔|ㄛ|ㄛ",
+  "很餓|ㄏㄜ|ㄏㄣˇㄜˋ",
+  "耳朵|ㄦㄉ|ㄦˇㄉㄨㄛˇ",
+  "二點|ㄦㄉ|ㄦˋㄉㄧㄢˇ",
+  "欸|ㄟ|ㄞ",
+  "愛你|ㄞㄋ|ㄞˋㄋㄧˇ",
+  "哎呀|ㄞㄧ|ㄞㄧㄚ",
+  "懊惱|ㄠㄋ|ㄠˋㄋㄠˇ",
+  "嘔吐|ㄡㄊ|ㄡˇㄊㄨˇ",
+  "偶爾|ㄡㄦ|ㄡˇㄦˇ",
+  "嗯|ㄣ|ㄣˊ",
+  "恩|ㄣ|ㄣ",
+  "我想吃飯|ㄨㄒㄔㄈ|ㄨㄛˇㄒㄧㄤˇㄔㄈㄢˋ",
+  "我想上廁所|ㄨㄒㄕㄘㄙ|ㄨㄛˇㄒㄧㄤˇㄕㄤˋㄘㄜˋㄙㄨㄛˇ",
+  "我要叫醫生|ㄨㄧㄐㄧㄕ|ㄨㄛˇㄧㄠˋㄐㄧㄠˋㄧㄕㄥ",
+  "我很痛|ㄨㄏㄊ|ㄨㄛˇㄏㄣˇㄊㄨㄥˋ",
+  "我很累|ㄨㄏㄌ|ㄨㄛˇㄏㄣˇㄌㄟˋ",
+  "我很冷|ㄨㄏㄌ|ㄨㄛˇㄏㄣˇㄌㄥˇ",
+  "我很熱|ㄨㄏㄖ|ㄨㄛˇㄏㄣˇㄖㄜˋ",
+  "我不想說話|ㄨㄅㄒㄕㄏ|ㄨㄛˇㄅㄨˋㄒㄧㄤˇㄕㄨㄛㄏㄨㄚˋ",
+  "我需要幫忙|ㄨㄒㄧㄅㄇ|ㄨㄛˇㄒㄩㄧㄠˋㄅㄤㄇㄤˊ",
+  "請幫我翻身|ㄑㄅㄨㄈㄕ|ㄑㄧㄥˇㄅㄤㄨㄛˇㄈㄢㄕㄣ",
+  "請幫我拍背|ㄑㄅㄨㄆㄅ|ㄑㄧㄥˇㄅㄤㄨㄛˇㄆㄞㄅㄟˋ",
+  "請幫我拿水|ㄑㄅㄨㄋㄕ|ㄑㄧㄥˇㄅㄤㄨㄛˇㄋㄚˊㄕㄨㄟˇ",
+  "請幫我開冷氣|ㄑㄅㄨㄎㄌㄑ|ㄑㄧㄥˇㄅㄤㄨㄛˇㄎㄞㄌㄥˇㄑㄧˋ",
+  "請幫我關燈|ㄑㄅㄨㄍㄉ|ㄑㄧㄥˇㄅㄤㄨㄛˇㄍㄨㄢㄉㄥ",
+  "請再說一次|ㄑㄗㄕㄧㄘ|ㄑㄧㄥˇㄗㄞˋㄕㄨㄛㄧㄘˋ",
+  "我聽不懂|ㄨㄊㄅㄉ|ㄨㄛˇㄊㄧㄥㄅㄨˋㄉㄨㄥˇ",
+  "我知道了|ㄨㄓㄉㄌ|ㄨㄛˇㄓㄉㄠˋㄌㄜ˙",
+  "我想回家|ㄨㄒㄏㄐ|ㄨㄛˇㄒㄧㄤˇㄏㄨㄟˊㄐㄧㄚ",
+  "喝|ㄏ|ㄏㄜ",
+  "喝飲料|ㄏㄧㄌ|ㄏㄜㄧㄣˇㄌㄧㄠˋ",
+  "喝湯|ㄏㄊ|ㄏㄜㄊㄤ",
+  "喝牛奶|ㄏㄋㄋ|ㄏㄜㄋㄧㄡˊㄋㄞˇ",
+  "喝茶|ㄏㄔ|ㄏㄜㄔㄚˊ",
+  "喝果汁|ㄏㄍㄓ|ㄏㄜㄍㄨㄛˇㄓ",
+  "喝豆漿|ㄏㄉㄐ|ㄏㄜㄉㄡˋㄐㄧㄤ",
+  "喝咖啡|ㄏㄎㄈ|ㄏㄜㄎㄚㄈㄟ",
+  "喝溫水|ㄏㄨㄕ|ㄏㄜㄨㄣㄕㄨㄟˇ",
+  "喝熱水|ㄏㄖㄕ|ㄏㄜㄖㄜˋㄕㄨㄟˇ",
+  "喝冷水|ㄏㄌㄕ|ㄏㄜㄌㄥˇㄕㄨㄟˇ",
+  "常溫|ㄔㄨ|ㄔㄤˊㄨㄣ",
+  "不要冰|ㄅㄧㄅ|ㄅㄨˊㄧㄠˋㄅㄧㄥ",
+  "可以了|ㄎㄧㄌ|ㄎㄜˇㄧˇㄌㄜ˙",
+  "不用了|ㄅㄩㄌ|ㄅㄨˊㄩㄥˋㄌㄜ˙",
+  "不要太燙|ㄅㄧㄊㄊ|ㄅㄨˊㄧㄠˋㄊㄞˋㄊㄤˋ",
+  "不要吵我|ㄅㄧㄔㄨ|ㄅㄨˊㄧㄠˋㄔㄠˇㄨㄛˇ",
+  "蓋被子|ㄍㄅㄗ|ㄍㄞˋㄅㄟˋㄗ˙",
+  "再一下|ㄗㄧㄒ|ㄗㄞˋㄧㄒㄧㄚˋ",
+  "好了|ㄏㄌ|ㄏㄠˇㄌㄜ˙",
+  "不要碰|ㄅㄧㄆ|ㄅㄨˊㄧㄠˋㄆㄥˋ",
+  "不要碰我|ㄅㄧㄆㄨ|ㄅㄨˊㄧㄠˋㄆㄥˋㄨㄛˇ",
+  "想吐|ㄒㄊ|ㄒㄧㄤˇㄊㄨˋ",
+  "不要說話|ㄅㄧㄕㄏ|ㄅㄨˊㄧㄠˋㄕㄨㄛㄏㄨㄚˋ",
+  "拿垃圾桶|ㄋㄌㄙㄊ|ㄋㄚˊㄌㄜˋㄙㄜˋㄊㄨㄥˇ",
+  "小聲一點|ㄒㄕㄧㄉ|ㄒㄧㄠˇㄕㄥㄧㄉㄧㄢˇ",
+  "我要休息|ㄨㄧㄒㄒ|ㄨㄛˇㄧㄠˋㄒㄧㄡㄒㄧˊ",
+  "害怕|ㄏㄆ|ㄏㄞˋㄆㄚˋ",
+  "不要離開|ㄅㄧㄌㄎ|ㄅㄨˊㄧㄠˋㄌㄧˊㄎㄞ",
+  "我想自己冷靜|ㄨㄒㄗㄐㄌㄐ|ㄨㄛˇㄒㄧㄤˇㄗˋㄐㄧˇㄌㄥˇㄐㄧㄥˋ",
+  "開心|ㄎㄒ|ㄎㄞㄒㄧㄣ",
+  "我喜歡|ㄨㄒㄏ|ㄨㄛˇㄒㄧˇㄏㄨㄢ",
+  "再一次|ㄗㄧㄘ|ㄗㄞˋㄧㄘˋ",
+  "我好多了|ㄨㄏㄉㄌ|ㄨㄛˇㄏㄠˇㄉㄨㄛㄌㄜ˙",
+  "請問|ㄑㄨ|ㄑㄧㄥˇㄨㄣˋ",
+  "明天見|ㄇㄊㄐ|ㄇㄧㄥˊㄊㄧㄢㄐㄧㄢˋ",
+  "我不是故意的|ㄨㄅㄕㄍㄧㄉ|ㄨㄛˇㄅㄨˋㄕˋㄍㄨˋㄧˋㄉㄜ˙",
+  "請原諒我|ㄑㄩㄌㄨ|ㄑㄧㄥˇㄩㄢˊㄌㄧㄤˋㄨㄛˇ",
+  "謝謝你|ㄒㄒㄋ|ㄒㄧㄝˋㄒㄧㄝ˙ㄋㄧˇ",
+  "你真好|ㄋㄓㄏ|ㄋㄧˇㄓㄣㄏㄠˇ",
+  "我不想要|ㄨㄅㄒㄧ|ㄨㄛˇㄅㄨˋㄒㄧㄤˇㄧㄠˋ",
+  "我要喝水|ㄨㄧㄏㄕ|ㄨㄛˇㄧㄠˋㄏㄜㄕㄨㄟˇ",
+  "幫我嗎|ㄅㄨㄇ|ㄅㄤㄨㄛˇㄇㄚ˙",
+  "我還是不懂|ㄨㄏㄕㄅㄉ|ㄨㄛˇㄏㄞˊㄕˋㄅㄨˋㄉㄨㄥˇ",
+  "我想一下|ㄨㄒㄧㄒ|ㄨㄛˇㄒㄧㄤˇㄧㄒㄧㄚˋ"
+];
+
+function normalizeZhuyin(value = "") {
+  return value
+    .replace(/\s+/g, "")
+    .replace(/[，、。,.]/g, "")
+    .trim();
+}
+
+function stripToneMarks(value = "") {
+  return normalizeZhuyin(value).replace(/[ˊˇˋ˙]/g, "");
+}
+
+function detectInputType(buffer) {
+  const value = stripToneMarks(buffer);
+  if (!value) return "initials";
+
+  // 出現明確韻母時，可直接判定為完整注音。
+  if (/[ㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ]/.test(value)) {
+    return "fullZhuyin";
+  }
+
+  // ㄧ、ㄨ、ㄩ同時可能是介音，也可能被當作下一個字的首符號。
+  // 當它出現在第一個符號之後，先標示為混合判斷，再由詞庫結果排序。
+  const chars = Array.from(value);
+  if (chars.slice(1).some(ch => "ㄧㄨㄩ".includes(ch))) {
+    return "mixed";
+  }
+
+  return "initials";
+}
+
+// 初始化混合檢索字典
+const parsedDict = [
+  ...rawDictionary,
+  ...extraDictionary,
+  ...nameAndTitleDictionary,
+  ...fullZhuyinDictionary,
+  ...personalDictionary
+]
   .map(entry => {
-    const [word, init] = entry.split('|');
-    return { word, init };
+    const [word, init, zhuyin = ""] = entry.split("|");
+    return {
+      word,
+      init: normalizeZhuyin(init),
+      zhuyin: normalizeZhuyin(zhuyin),
+      zhuyinNoTone: stripToneMarks(zhuyin)
+    };
   })
   .filter(item => item.word && item.init);
+
+// 建立「單字完整注音索引」，讓使用者可逐字或整串注音組合未預先收錄的詞。
+// 例如：ㄏㄜㄧㄠ → ㄏㄜ（喝）＋ ㄧㄠ（藥）→ 喝藥。
+const singleCharZhuyinMap = new Map();
+parsedDict.forEach(item => {
+  if (Array.from(item.word).length !== 1 || !item.zhuyinNoTone) return;
+
+  if (!singleCharZhuyinMap.has(item.zhuyinNoTone)) {
+    singleCharZhuyinMap.set(item.zhuyinNoTone, []);
+  }
+
+  const words = singleCharZhuyinMap.get(item.zhuyinNoTone);
+  if (!words.includes(item.word)) words.push(item.word);
+});
+
+const singleCharSyllables = Array.from(singleCharZhuyinMap.keys())
+  .sort((a, b) => Array.from(b).length - Array.from(a).length);
+
+const knownWordSet = new Set(parsedDict.map(item => item.word));
+
+
+const toTaiwanTraditional =
+  window.OpenCC &&
+  typeof window.OpenCC.Converter === 'function'
+    ? window.OpenCC.Converter({ from: 'cn', to: 'tw' })
+    : text => String(text || '');
+
+function normalizeTaiwanTraditionalText(value) {
+  const text = String(value || '');
+  if (!text) return '';
+
+  try {
+    return toTaiwanTraditional(text);
+  } catch (error) {
+    return text;
+  }
+}
+
+
+
+// 常用字優先順序：同音字很多時，先把日常常見字與常見姓名用字排前面。
+const COMMON_CHARACTER_PRIORITY = Array.from(
+  "的一是不了人我在有他這為之大來以個中上們到說國和地也子時道出而要於就下得可你年生自會那後能對著事其裡所去行過家十用發天如然作方成者多日都三小軍二無同麼經法當起與好看學進種將還分此心前面又定見只主沒公從知全工動間把情者沒重與很名月本才前開但因只從想實日軍者意無力它與長把機十民第公此已工使情明性知全三又關點正業外將兩高間由問很最重並物手應戰向頭文體政美相見被利什二等產或新己制身果加西斯月話合回特代內信表化老給世位次度門任常先海通教兒原東聲提立及比員解水名真論處走義各入幾口認條平系氣題活爾更別打女變四神總何電數安少報結反受目太量再感建務做接必場件計管期市直德資命山金指克許統區保至隊形社便空決治展馬科司五基眼書非則聽白卻界達光放強即像難且權思王象完設式色路記南品住告類求據程北邊死張該交規萬取拉格望覺術領共確傳師觀清今切院讓識候帶導爭運笑飛風步改收根干造言聯持組每濟車親極林服快辦議往元英士證近失轉夫令準布始怎呢存未遠叫台單影具羅字愛擊流備兵連調深商算質團集百需價花黨華城石級整府離況亞請技際約示復病息究線似官火斷精滿支視消越器容照須九增研寫稱企八功嗎包片史委乎查輕易早曾除農找裝廣顯吧阿李標談吃圖念六引歷首醫局突專費號盡另周較注語僅考落青隨選列武紅響雖推勢參希古眾構房半節土投某案黑維革劃敵致陳律足態護七興派孩驗責營星夠章音跟志底站嚴巴例防族供效續施留講型料終答緊黃絕奇察母京段依批群項故按河米圍江織害鬥雙境客紀採舉殺攻父蘇密低朝友訴止細願千值仍男錢破網熱助倒育屬坐帝限船臉職速刻樂否剛威毛狀率甚獨球般普怕彈校苦創假久錯承印晚蘭試股拿腦預誰益陽若哪微尼繼送急血驚傷素藥適波夜省初喜衛源食險待述陸習置居勞財環排福納歡雷警模充負雲停木游龍樹疑層冷洲衝射略範竟句室異激漢村哈策演簡卡罪判擔州靜退既衣您宗積餘痛檢差富靈協角占配徵修皮揮勝降階審沉堅善媽劉讀啊超免壓銀買皇養伊懷執副亂抗犯追幫宣佛歲航優怪香著田鐵控稅左右份穿藝背陣草腳概惡塊頓敢守酒島託央戶烈洋哥索胡款靠評版寶座釋景顧弟登貨互付伯慢歐換聞危忙核暗姐介壞討麗良序升監臨亮露永呼味野架域沙掉括艱掉密姓吳鄭蔡魏許謝徐孫朱高何郭羅梁宋唐韓曹曾彭蕭潘袁董葉蘇蔣杜鍾汪田任姜范方石姚譚廖鄒熊金陸郝孔白崔康毛邱秦江史顧侯邵孟龍萬段雷錢湯尹易黎賀賴龔文劉璇貴佳樺"
+);
+const commonCharacterRank = new Map();
+COMMON_CHARACTER_PRIORITY.forEach((ch, index) => {
+  if (!commonCharacterRank.has(ch)) commonCharacterRank.set(ch, index);
+});
+
+function sortCharactersByFrequency(characters) {
+  return Array.from(new Set(characters)).sort((a, b) => {
+    const ar = commonCharacterRank.has(a) ? commonCharacterRank.get(a) : 999999;
+    const br = commonCharacterRank.has(b) ? commonCharacterRank.get(b) : 999999;
+    return ar - br || a.localeCompare(b, 'zh-Hant');
+  });
+}
+
+function addCharacterToReverseIndex(character, zhuyin) {
+  const cleanZhuyin = stripToneMarks(zhuyin);
+  const traditionalCharacter =
+    normalizeTaiwanTraditionalText(character);
+
+  if (
+    !traditionalCharacter ||
+    Array.from(traditionalCharacter).length !== 1 ||
+    !cleanZhuyin
+  ) {
+    return;
+  }
+
+  if (!singleCharZhuyinMap.has(cleanZhuyin)) {
+    singleCharZhuyinMap.set(cleanZhuyin, []);
+    singleCharSyllables.push(cleanZhuyin);
+    singleCharSyllables.sort(
+      (a, b) =>
+        Array.from(b).length -
+        Array.from(a).length
+    );
+  }
+
+  const list =
+    singleCharZhuyinMap.get(cleanZhuyin);
+
+  if (!list.includes(traditionalCharacter)) {
+    list.push(traditionalCharacter);
+  }
+}
+
+// 建立較完整的「注音 → 單字」索引。
+// 先載入常用字，再分批補入基本 CJK 字元，避免一次阻塞畫面。
+async function buildFullCharacterReverseIndex() {
+  if (fullCharacterIndexReady || fullCharacterIndexBuilding) return;
+  if (!window.pinyinPro || typeof window.pinyinPro.pinyin !== 'function') return;
+
+  fullCharacterIndexBuilding = true;
+
+  const priorityChars = Array.from(new Set(COMMON_CHARACTER_PRIORITY));
+  const allChars = [...priorityChars];
+  const existing = new Set(priorityChars);
+
+  for (let code = 0x4E00; code <= 0x9FFF; code++) {
+    const ch = String.fromCharCode(code);
+    if (!existing.has(ch)) allChars.push(ch);
+  }
+
+  const chunkSize = 650;
+  const options = {
+    type: 'array',
+    toneType: 'none',
+    nonZh: 'consecutive',
+    traditional: true,
+    segmentit: false
+  };
+
+  for (let start = 0; start < allChars.length; start += chunkSize) {
+    const chars = allChars.slice(start, start + chunkSize);
+    let pinyins = [];
+
+    try {
+      pinyins = window.pinyinPro.pinyin(chars.join(''), options);
+    } catch (error) {
+      pinyins = [];
+    }
+
+    if (!Array.isArray(pinyins) || pinyins.length !== chars.length) {
+      pinyins = chars.map(ch => {
+        try {
+          const result = window.pinyinPro.pinyin(ch, options);
+          return Array.isArray(result) ? result[0] : result;
+        } catch (error) {
+          return '';
+        }
+      });
+    }
+
+    chars.forEach((ch, index) => {
+      const zhuyin = pinyinSyllableToZhuyin(pinyins[index]);
+      if (zhuyin) addCharacterToReverseIndex(ch, zhuyin);
+    });
+
+    // 讓瀏覽器有時間繪製畫面，避免載入時卡住。
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  singleCharZhuyinMap.forEach((characters, zhuyin) => {
+    singleCharZhuyinMap.set(zhuyin, sortCharactersByFrequency(characters));
+  });
+
+  fullCharacterIndexReady = true;
+  fullCharacterIndexBuilding = false;
+
+  if (inputBuffer) renderPredictBar();
+}
+
+function getComposedWordCandidates(queryNoTone, maxResults = 12) {
+  const queryChars = Array.from(queryNoTone);
+  const memo = new Map();
+
+  function dfs(position) {
+    if (position === queryChars.length) return [""];
+    if (memo.has(position)) return memo.get(position);
+
+    const combinations = [];
+
+    for (const syllable of singleCharSyllables) {
+      const syllableChars = Array.from(syllable);
+      const segment = queryChars
+        .slice(position, position + syllableChars.length)
+        .join("");
+
+      if (segment !== syllable) continue;
+
+      const characters = singleCharZhuyinMap.get(syllable) || [];
+      const suffixes = dfs(position + syllableChars.length);
+
+      for (const character of characters.slice(0, 6)) {
+        for (const suffix of suffixes) {
+          combinations.push(character + suffix);
+          if (combinations.length >= maxResults * 4) break;
+        }
+        if (combinations.length >= maxResults * 4) break;
+      }
+      if (combinations.length >= maxResults * 4) break;
+    }
+
+    memo.set(position, combinations);
+    return combinations;
+  }
+
+  const candidates = dfs(0)
+    .filter(word => Array.from(word).length >= 2);
+
+  // 已存在於詞庫的自然詞優先，再保留少量可自由拼出的詞。
+  return Array.from(new Set(candidates))
+    .sort((a, b) => {
+      const knownDiff = Number(knownWordSet.has(b)) - Number(knownWordSet.has(a));
+      if (knownDiff !== 0) return knownDiff;
+      return Array.from(a).length - Array.from(b).length;
+    })
+    .slice(0, maxResults);
+}
 
 const nineGridGroups = [
   {
@@ -514,34 +2115,117 @@ const nineGridGroups = [
 function getPrefixMatches(buf) {
   if (!buf) return [];
 
-  const results = new Set();
+  const query = normalizeZhuyin(buf);
+  const queryNoTone = stripToneMarks(query);
+  const inputType = detectInputType(query);
 
-  // 1. 精準前綴搜尋
+  const buckets = {
+    singleExact: [],
+    fullExact: [],
+    composed: [],
+    initialExact: [],
+    fullPrefix: [],
+    initialPrefix: []
+  };
+
+  const seenInBucket = Object.fromEntries(
+    Object.keys(buckets).map(key => [key, new Set()])
+  );
+
+  const add = (bucket, word) => {
+    const traditionalWord =
+      normalizeTaiwanTraditionalText(word);
+
+    if (
+      !traditionalWord ||
+      seenInBucket[bucket].has(traditionalWord)
+    ) {
+      return;
+    }
+
+    seenInBucket[bucket].add(traditionalWord);
+    buckets[bucket].push(traditionalWord);
+  };
+
+  // 完整注音剛好是一個音節時，加入所有同音單字。
+  const exactCharacters = singleCharZhuyinMap.get(queryNoTone) || [];
+  sortCharactersByFrequency(exactCharacters).forEach(word => add('singleExact', word));
+
+  // 同時檢查「完整注音」與「每字首符號」。
   parsedDict.forEach(item => {
-    if (item.init.startsWith(buf)) {
-      results.add(item.word);
+    if (item.zhuyinNoTone) {
+      if (item.zhuyinNoTone === queryNoTone) {
+        add('fullExact', item.word);
+      } else if (item.zhuyinNoTone.startsWith(queryNoTone)) {
+        add('fullPrefix', item.word);
+      }
+    }
+
+    if (item.init === query) {
+      add('initialExact', item.word);
+    } else if (item.init.startsWith(query)) {
+      add('initialPrefix', item.word);
     }
   });
 
-  // 2. 寬容搜尋：如果完全找不到，就退回「第一個注音」
-  // 例如輸入 ㄅㄚ 找不到，就改找所有 ㄅ 開頭的詞
-  if (results.size === 0 && buf.length >= 2) {
-    const firstSymbol = buf.slice(0, 1);
+  // 多音節可拆成單字自由組合，例如 ㄏㄜㄧㄠ → 喝藥。
+  if (inputType === 'fullZhuyin' || inputType === 'mixed') {
+    getComposedWordCandidates(queryNoTone, 36).forEach(word => add('composed', word));
+  }
+
+  let ordered;
+
+  if (inputType === 'fullZhuyin' || inputType === 'mixed') {
+    ordered = [
+      ...buckets.fullExact,
+      ...buckets.singleExact,
+      ...buckets.fullPrefix,
+      ...buckets.initialExact,
+      ...buckets.initialPrefix,
+      ...buckets.composed
+    ];
+  } else {
+    ordered = [
+      ...buckets.initialExact,
+      ...buckets.initialPrefix,
+      ...buckets.fullExact,
+      ...buckets.singleExact,
+      ...buckets.composed,
+      ...buckets.fullPrefix
+    ];
+  }
+
+  const results = [];
+  const seen = new Set();
+  ordered.forEach(word => {
+    if (!seen.has(word)) {
+      seen.add(word);
+      results.push(word);
+    }
+  });
+
+  // 完整字索引仍在背景建立時，保留目前結果；建立完成後會自動重繪。
+  if ((inputType === 'fullZhuyin' || inputType === 'mixed') && !fullCharacterIndexReady) {
+    buildFullCharacterReverseIndex();
+  }
+
+  // 若完全無結果，才退回第一個符號做寬容搜尋。
+  if (results.length === 0 && Array.from(query).length >= 2) {
+    const firstSymbol = Array.from(query)[0];
     parsedDict.forEach(item => {
-      if (item.init.startsWith(firstSymbol)) {
-        results.add(item.word);
+      if (item.init.startsWith(firstSymbol) && !seen.has(item.word)) {
+        seen.add(item.word);
+        results.push(item.word);
       }
     });
   }
 
-  // 3. 還是找不到時，給常用保底詞，不再顯示空白
-  if (results.size === 0) {
-    ["謝謝", "好的", "不要", "我想喝水", "我想休息", "上廁所", "緊急", "叫醫生"].forEach(word => {
-      results.add(word);
-    });
+  if (results.length === 0) {
+    return ["我要", "謝謝", "好的", "不要", "緊急", "現在幾點"];
   }
 
-  return Array.from(results).slice(0, 12);
+  // 不再只截取六個；交由候選詞翻頁功能顯示。
+  return results.slice(0, 120);
 }
 
 // ════════════════════════════════════════
@@ -550,12 +2234,33 @@ function getPrefixMatches(buf) {
 const wordFlow = {
   // 開頭常用
   "我": ["我想", "我要", "我需要幫忙", "我不舒服", "我不知道", "謝謝"],
+  "想": ["想休息", "想睡覺", "想吐", "想喝水", "想吃飯", "想上廁所", "想回家", "想找人陪", "想說話"],
   "我想": ["喝水", "吃飯", "休息", "睡覺", "上廁所", "回家"],
+  "想休息": ["休息一下", "關燈", "不要吵我", "陪我", "謝謝"],
+  "想睡覺": ["關燈", "蓋被子", "不要吵我", "陪我", "謝謝"],
+  "想喝水": ["常溫", "溫水", "一點", "多一點", "不要冰", "謝謝"],
+  "想吃飯": ["一點", "多一點", "不要太燙", "慢一點", "謝謝"],
+  "想上廁所": ["請幫我", "現在", "等一下", "謝謝"],
+  "想回家": ["找家人", "現在", "等一下", "陪我", "謝謝"],
+  "想找人陪": ["找家人", "找朋友", "請陪我", "不要離開", "謝謝"],
+  "想說話": ["請聽我說", "再說一次", "慢一點", "謝謝"],
   "我要": ["喝水", "吃飯", "休息", "翻身", "換尿布", "叫醫生"],
   "我需要幫忙": ["翻身", "拿水", "拍背", "開冷氣", "關燈", "叫家人"],
 
-  // 喝水之後
+  // 喝與飲品
+  "喝": ["喝水", "喝藥", "喝飲料", "喝湯", "喝牛奶", "喝茶"],
+  "喝藥": ["喝水", "現在", "等一下", "謝謝", "不舒服", "叫醫生"],
   "喝水": ["常溫", "一點", "多一點", "不要冰", "謝謝", "還要"],
+  "喝飲料": ["常溫", "一點", "多一點", "不要冰", "謝謝", "還要"],
+  "喝湯": ["一點", "多一點", "不要太燙", "慢一點", "謝謝", "還要"],
+  "喝牛奶": ["常溫", "一點", "多一點", "不要冰", "謝謝", "還要"],
+  "喝茶": ["溫的", "一點", "多一點", "不要太燙", "謝謝", "還要"],
+  "喝果汁": ["常溫", "一點", "多一點", "不要冰", "謝謝", "還要"],
+  "喝豆漿": ["溫的", "一點", "多一點", "不要太燙", "謝謝", "還要"],
+  "喝咖啡": ["溫的", "一點", "不要太燙", "謝謝", "還要"],
+  "喝溫水": ["一點", "多一點", "謝謝", "還要"],
+  "喝熱水": ["一點", "多一點", "不要太燙", "謝謝"],
+  "喝冷水": ["一點", "多一點", "不要冰", "謝謝"],
   "拿水": ["給我", "常溫", "不要冰", "謝謝", "還要"],
   "常溫": ["謝謝", "可以了", "還要", "不用了"],
   "不要冰": ["謝謝", "可以了", "還要"],
@@ -675,6 +2380,7 @@ function setInputMode(mode) {
   document.getElementById('mode-ninegrid').classList.toggle('active', mode === 'nineGrid');
 
   inputBuffer = "";
+  candidatePage = 0;
 
   if (mode === 'voice') {
     renderVoicePanel();
@@ -754,13 +2460,23 @@ function showNineGridWords(group) {
   kb.appendChild(backBtn);
 }
 
+function changeCandidatePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(currentCandidateItems.length / CANDIDATES_PER_PAGE));
+  candidatePage = Math.min(totalPages - 1, Math.max(0, candidatePage + delta));
+  renderPredictBar();
+}
+
 function renderPredictBar() {
   const bar = document.getElementById('predict-bar');
+  const controls = document.getElementById('candidate-controls');
+  const pageInfo = document.getElementById('candidate-page-info');
+  const prevButton = document.getElementById('candidate-prev');
+  const nextButton = document.getElementById('candidate-next');
   bar.innerHTML = '';
-  
+
   let items = [];
   let isContext = false;
-  
+
   if (inputBuffer) {
     items = getPrefixMatches(inputBuffer);
   } else {
@@ -768,22 +2484,661 @@ function renderPredictBar() {
     isContext = true;
   }
 
+  const queryKey = inputBuffer
+    ? `input:${inputBuffer}`
+    : `context:${lastSelectedWord}:${sentence}`;
+
+  if (candidateQueryKey !== queryKey) {
+    candidateQueryKey = queryKey;
+    candidatePage = 0;
+  }
+
+  currentCandidateItems = items;
+
   if (items.length === 0) {
+    controls.classList.remove('show');
     const empty = document.createElement('div');
     empty.className = 'predict-empty';
-    empty.textContent = inputBuffer.length > 2 ? '找不到詞彙，請確認是否只輸入聲母' : '無候選詞';
+    empty.textContent = '沒有符合的候選詞，可按「找不到？新增詞」並用語音說出詞彙。';
     bar.appendChild(empty);
     return;
   }
 
-  items.forEach(word => {
+  const totalPages = Math.max(1, Math.ceil(items.length / CANDIDATES_PER_PAGE));
+  candidatePage = Math.min(candidatePage, totalPages - 1);
+
+  const startIndex = candidatePage * CANDIDATES_PER_PAGE;
+  const visibleItems = items.slice(startIndex, startIndex + CANDIDATES_PER_PAGE);
+
+  visibleItems.forEach(word => {
     const el = document.createElement('div');
     el.className = 'predict-item' + (isContext ? ' context' : '');
     el.textContent = word;
     el.onclick = () => selectWord(word);
     bar.appendChild(el);
   });
+
+  if (items.length > CANDIDATES_PER_PAGE) {
+    controls.classList.add('show');
+    prevButton.disabled = candidatePage === 0;
+    nextButton.disabled = candidatePage >= totalPages - 1;
+    pageInfo.innerHTML = `<strong>第 ${candidatePage + 1}／${totalPages} 頁</strong><br>共 ${items.length} 個候選字詞${fullCharacterIndexBuilding ? '<span class="candidate-loading">・載入更多字中</span>' : ''}`;
+  } else {
+    controls.classList.remove('show');
+  }
 }
+
+
+
+// ════════════════════════════════════════
+// 智慧提醒、情緒確認、解決選項與對話摘要
+// ════════════════════════════════════════
+const conversationRules = Object.freeze({
+  emergency: {
+    label: '緊急求助',
+    tone: 'emergency',
+    icon: '🚨',
+    keywords: ['救命', '緊急', '呼吸困難', '喘不過氣', '快叫醫生', '快一點叫醫生']
+  },
+  health: {
+    label: '身體不適',
+    tone: 'health',
+    icon: '🩺',
+    keywords: ['很痛', '疼痛', '頭暈', '想吐', '噁心', '發燒', '不舒服', '呼吸不順', '肚子痛', '頭痛']
+  },
+  fatigue: {
+    label: '休息需求',
+    tone: 'rest',
+    icon: '☕',
+    keywords: ['很累', '累了', '想休息', '我要休息', '想睡覺', '不要說話', '先休息']
+  },
+  afraid: {
+    label: '害怕／不安',
+    tone: 'emotion',
+    icon: '💜',
+    keywords: ['害怕', '擔心', '緊張', '不安', '不要離開', '陪我']
+  },
+  sad: {
+    label: '難過／低落',
+    tone: 'emotion',
+    icon: '💜',
+    keywords: ['難過', '傷心', '想哭', '心情不好', '想回家', '孤單']
+  },
+  angry: {
+    label: '生氣／拒絕',
+    tone: 'emotion',
+    icon: '💜',
+    keywords: ['生氣', '不要碰我', '走開', '我不想要', '不要吵我']
+  }
+});
+
+function containsKeyword(text, keywords) {
+  return keywords.some(keyword => text.includes(keyword));
+}
+
+function classifyConversation(text) {
+  const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+
+  for (const id of ['emergency', 'health', 'fatigue', 'afraid', 'sad', 'angry']) {
+    const rule = conversationRules[id];
+    if (containsKeyword(cleanText, rule.keywords)) {
+      return { id, ...rule, matched: rule.keywords.filter(k => cleanText.includes(k)) };
+    }
+  }
+
+  if (/[？?]|為什麼|什麼時候|怎麼辦|可以嗎|幾點/.test(cleanText)) {
+    return { id: 'question', label: '詢問', tone: 'info', icon: '❓', matched: [] };
+  }
+  if (/我要|我想|我需要|幫我|請|不要|可以/.test(cleanText)) {
+    return { id: 'request', label: '需求表達', tone: 'info', icon: '💬', matched: [] };
+  }
+  if (/謝謝|你好|拜拜|對不起|沒關係/.test(cleanText)) {
+    return { id: 'social', label: '社交互動', tone: 'success', icon: '🙂', matched: [] };
+  }
+  return { id: 'general', label: '一般表達', tone: 'info', icon: '💬', matched: [] };
+}
+
+function canShowAgentTrigger(key, cooldownMs = 45000) {
+  const now = Date.now();
+  const previous = agentCooldowns.get(key) || 0;
+  if (now - previous < cooldownMs) return false;
+  agentCooldowns.set(key, now);
+  return true;
+}
+
+
+let agentAutoCloseTimer = null;
+let agentAutoCloseCountdownTimer = null;
+
+function clearAgentAutoCloseTimer() {
+  if (agentAutoCloseTimer) {
+    clearTimeout(agentAutoCloseTimer);
+    agentAutoCloseTimer = null;
+  }
+
+  if (agentAutoCloseCountdownTimer) {
+    clearInterval(agentAutoCloseCountdownTimer);
+    agentAutoCloseCountdownTimer = null;
+  }
+}
+
+function showAgentPanel(config = {}) {
+  const panel = document.getElementById('agent-panel');
+  const title = document.getElementById('agent-title');
+  const icon = document.getElementById('agent-icon');
+  const badge = document.getElementById('agent-badge');
+  const message = document.getElementById('agent-message');
+  const note = document.getElementById('agent-note');
+  const summary = document.getElementById('agent-summary');
+  const actionsBox = document.getElementById('agent-actions');
+
+  clearAgentAutoCloseTimer();
+
+  panel.className = `agent-panel show tone-${config.tone || 'info'}`;
+  title.textContent = config.title || '智慧陪伴';
+  icon.textContent = config.icon || '✦';
+  badge.textContent = config.badge || '規則式 Agent 雛形';
+  message.textContent = config.message || '';
+
+  const originalNote = config.note || '';
+  note.textContent = originalNote;
+
+  if (config.summary) {
+    summary.textContent = config.summary;
+    summary.classList.add('show');
+  } else {
+    summary.textContent = '';
+    summary.classList.remove('show');
+  }
+
+  actionsBox.innerHTML = '';
+  (config.actions || []).forEach(action => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `agent-action ${action.style || ''}`.trim();
+    button.textContent = action.label;
+    button.onclick = () => {
+      clearAgentAutoCloseTimer();
+      handleAgentAction(action);
+    };
+    actionsBox.appendChild(button);
+  });
+
+  const autoCloseMs = Number(config.autoCloseMs || 0);
+
+  if (autoCloseMs > 0) {
+    const startedAt = Date.now();
+
+    const updateCountdown = () => {
+      const elapsed = Date.now() - startedAt;
+      const secondsLeft = Math.max(0, Math.ceil((autoCloseMs - elapsed) / 1000));
+      const countdownText = `${secondsLeft} 秒後若未操作將自動關閉`;
+      note.textContent = originalNote
+        ? `${originalNote}｜${countdownText}`
+        : countdownText;
+    };
+
+    updateCountdown();
+    agentAutoCloseCountdownTimer = setInterval(updateCountdown, 1000);
+
+    agentAutoCloseTimer = setTimeout(() => {
+      dismissAgentPanel();
+    }, autoCloseMs);
+  }
+}
+
+function dismissAgentPanel() {
+  clearAgentAutoCloseTimer();
+  const panel = document.getElementById('agent-panel');
+  panel.className = 'agent-panel';
+}
+
+function handleAgentAction(action) {
+  switch (action.kind) {
+    case 'dismiss':
+      dismissAgentPanel();
+      break;
+    case 'append':
+      sentence += action.value || '';
+      lastSelectedWord = action.value || '';
+      inputBuffer = '';
+      updateUI();
+      showAgentPanel({
+        tone: 'success', icon: '✓', title: '已加入句子', badge: '使用者仍可修改',
+        message: `已加入「${action.value}」。請確認後再按傳送。`,
+        actions: [{ label: '繼續輸入', kind: 'dismiss', style: 'primary' }]
+      });
+      break;
+    case 'rest':
+      startRestBreak(action.minutes || 5);
+      break;
+    case 'mode':
+      setInputMode(action.value);
+      dismissAgentPanel();
+      break;
+    case 'emotionSolutions':
+      showEmotionSolutions(action.value);
+      break;
+    case 'uncertainEmotion':
+      showAgentPanel({
+        tone: 'emotion', icon: '💜', title: '慢慢確認也可以', badge: '情緒確認',
+        message: '不確定沒有關係，可以先選擇最需要的協助。',
+        actions: [
+          { label: '想找人陪', kind: 'append', value: '我想找人陪', style: 'primary' },
+          { label: '想休息', kind: 'append', value: '我想休息' },
+          { label: '再說明一次', kind: 'append', value: '請讓我再說明一次' },
+          { label: '先不用', kind: 'dismiss' }
+        ]
+      });
+      break;
+    case 'endRest':
+      endRestBreak();
+      break;
+    case 'showSummary':
+      showAgentPanel({
+        tone: 'success', icon: '📝', title: '本次對話摘要', badge: '本機產生',
+        message: '以下摘要可供使用者或照顧者回顧：',
+        summary: lastSentSummary || '目前尚無已傳送的對話摘要。',
+        actions: [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+      });
+      break;
+    case 'testRest':
+      showTimedRestReminder(true);
+      break;
+    case 'testEmotion':
+      showEmotionConfirmation('sad', true);
+      break;
+    case 'analyzeCurrent':
+      if (!sentence) {
+        showAgentPanel({
+          tone: 'info', icon: '✦', title: '目前沒有句子', badge: '等待輸入',
+          message: '請先組成一句話，系統會自動判斷是否需要提醒。',
+          actions: [{ label: '知道了', kind: 'dismiss', style: 'primary' }]
+        });
+      } else {
+        const result = classifyConversation(sentence);
+        showAgentPanel({
+          tone: result.tone, icon: result.icon, title: '目前句子判斷', badge: result.label,
+          message: `系統目前將這句話歸類為「${result.label}」。這只是輔助判斷，仍由使用者確認。`,
+          summary: `目前句子：${sentence}`,
+          actions: [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+        });
+      }
+      break;
+  }
+}
+
+function runSmartAssistant() {
+  const currentText = String(sentence || '').trim();
+
+  if (!currentText) {
+    showAgentPanel({
+      tone: 'info', icon: '✦', title: '尚未輸入句子', badge: '智慧分析',
+      message: '請先選擇詞彙組成句子。系統會自動分析休息、情緒、身體不適與緊急內容。',
+      actions: [{ label: '知道了', kind: 'dismiss', style: 'primary' }]
+    });
+    return;
+  }
+
+  const result = classifyConversation(currentText);
+
+  if (result.id === 'emergency') {
+    showAgentPanel({
+      tone: 'emergency', icon: '🚨', title: '偵測到緊急用語', badge: result.label,
+      message: '這句話可能正在表達緊急需求。請立即讓身旁的照顧者或醫護人員知道。',
+      note: '目前原型只提供表達選項，尚未自動撥號或真正傳送通知。',
+      summary: `目前句子：${currentText}`,
+      actions: [
+        { label: '加入：請通知照顧者', kind: 'append', value: '請通知照顧者', style: 'danger' },
+        { label: '加入：請叫醫生', kind: 'append', value: '請叫醫生', style: 'danger' },
+        { label: '加入：請叫家人', kind: 'append', value: '請叫家人' },
+        { label: '不是緊急', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (result.id === 'health') {
+    showAgentPanel({
+      tone: 'health', icon: result.icon, title: '身體狀況確認', badge: result.label,
+      message: '你似乎提到身體不舒服。需要補充位置、程度，或請人協助嗎？',
+      note: '系統只提供表達選項，不代替醫療判斷。',
+      summary: `目前句子：${currentText}`,
+      actions: [
+        { label: '加入：這裡很痛', kind: 'append', value: '這裡很痛', style: 'primary' },
+        { label: '加入：請通知照顧者', kind: 'append', value: '請通知照顧者' },
+        { label: '加入：請找醫護人員', kind: 'append', value: '請找醫護人員', style: 'warn' },
+        { label: '先不用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (result.id === 'fatigue') {
+    showAgentPanel({
+      tone: 'rest', icon: result.icon, title: '需要休息嗎？', badge: result.label,
+      message: '你似乎提到疲累或想休息。要先休息一下，還是繼續表達？',
+      summary: `目前句子：${currentText}`,
+      actions: [
+        { label: '休息 5 分鐘', kind: 'rest', minutes: 5, style: 'primary' },
+        { label: '加入：我想休息', kind: 'append', value: '我想休息' },
+        { label: '加入：請讓我休息', kind: 'append', value: '請讓我休息一下' },
+        { label: '繼續使用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (['afraid', 'sad', 'angry'].includes(result.id)) {
+    showEmotionConfirmation(result.id, false);
+    return;
+  }
+
+  showAgentPanel({
+    tone: result.tone, icon: result.icon, title: '目前句子分析', badge: result.label,
+    message: `系統目前將這句話歸類為「${result.label}」。目前沒有偵測到需要立即提醒的內容。`,
+    summary: `目前句子：${currentText}`,
+    actions: [
+      { label: '繼續輸入', kind: 'dismiss', style: 'primary' },
+      { label: '休息 5 分鐘', kind: 'rest', minutes: 5 }
+    ]
+  });
+}
+
+function showAgentOverview() {
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 60000));
+  showAgentPanel({
+    tone: 'info', icon: '✦', title: '智慧陪伴功能', badge: '前端規則式雛形',
+    message: `已連續使用約 ${elapsedMinutes} 分鐘。系統目前可偵測休息需求、情緒詞、身體不適、緊急詞及重複刪除。`,
+    note: '目前不會自行診斷或真的通知他人；「通知」選項只會先加入句子，未來串接後端才能送到照顧者端。',
+    actions: [
+      { label: '分析目前句子', kind: 'analyzeCurrent', style: 'primary' },
+      { label: '測試休息提醒', kind: 'testRest' },
+      { label: '測試心情提醒', kind: 'testEmotion' },
+      { label: '關閉', kind: 'dismiss' }
+    ]
+  });
+}
+
+function scheduleAutomaticSentenceAnalysis() {
+  const currentText = String(sentence || '').replace(/\s+/g, ' ').trim();
+
+  clearTimeout(automaticAnalysisTimer);
+
+  if (!currentText) {
+    lastAutomaticallyAnalyzedSentence = '';
+    return;
+  }
+
+  // 只在句子內容真正改變時分析，輸入注音緩衝時不重複觸發。
+  if (currentText === lastAutomaticallyAnalyzedSentence) return;
+
+  automaticAnalysisTimer = setTimeout(() => {
+    const latestText = String(sentence || '').replace(/\s+/g, ' ').trim();
+    if (!latestText || latestText !== currentText) return;
+
+    lastAutomaticallyAnalyzedSentence = latestText;
+    analyzeConversationAndPrompt(latestText);
+  }, AUTOMATIC_ANALYSIS_DELAY_MS);
+}
+
+function analyzeConversationAndPrompt(text) {
+  if (!text) return;
+  const result = classifyConversation(text);
+
+  if (result.id === 'emergency' && canShowAgentTrigger(`intent:${result.id}`, 15000)) {
+    showAgentPanel({
+      tone: 'emergency', icon: result.icon, title: '偵測到緊急用語', badge: result.label,
+      message: '偵測到「救命、緊急、呼吸困難」等緊急內容。請立即讓身旁照顧者或醫護人員知道。',
+      note: '此原型不會自動撥號或傳訊。',
+      actions: [
+        { label: '加入：請通知照顧者', kind: 'append', value: '請通知照顧者', style: 'danger' },
+        { label: '加入：請叫醫生', kind: 'append', value: '請叫醫生', style: 'danger' },
+        { label: '加入：請叫家人', kind: 'append', value: '請叫家人' },
+        { label: '不是緊急', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (result.id === 'health' && canShowAgentTrigger(`intent:${result.id}`)) {
+    showAgentPanel({
+      tone: 'health', icon: result.icon, title: '身體狀況確認', badge: result.label,
+      message: '你似乎提到身體不舒服。需要補充位置、程度，或請人協助嗎？',
+      note: '系統只提供表達選項，不代替醫療判斷。症狀嚴重或持續時，請告知照顧者或醫護人員。',
+      actions: [
+        { label: '加入：這裡很痛', kind: 'append', value: '這裡很痛', style: 'primary' },
+        { label: '加入：請通知照顧者', kind: 'append', value: '請通知照顧者' },
+        { label: '加入：請找醫護人員', kind: 'append', value: '請找醫護人員', style: 'warn' },
+        { label: '先不用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (result.id === 'fatigue' && canShowAgentTrigger(`intent:${result.id}`)) {
+    showAgentPanel({
+      tone: 'rest', icon: result.icon, title: '需要休息嗎？', badge: result.label,
+      message: '你似乎提到疲累或想休息。要先休息一下，還是繼續表達？',
+      actions: [
+        { label: '休息 5 分鐘', kind: 'rest', minutes: 5, style: 'primary' },
+        { label: '加入：我想休息', kind: 'append', value: '我想休息' },
+        { label: '通知照顧者', kind: 'append', value: '請讓我休息一下' },
+        { label: '繼續使用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (['afraid', 'sad', 'angry'].includes(result.id) && canShowAgentTrigger(`intent:${result.id}`)) {
+    showEmotionConfirmation(result.id, false);
+  }
+}
+
+function showEmotionConfirmation(emotionId, isTest = false) {
+  const prompts = {
+    afraid: '你現在是不是有一點害怕、緊張或不安？',
+    sad: '你現在是不是覺得難過、低落或想找人陪？',
+    angry: '你現在是不是有一點生氣，或希望別人先停下來？'
+  };
+  const labels = { afraid: '害怕／不安', sad: '難過／低落', angry: '生氣／拒絕' };
+
+  showAgentPanel({
+    tone: 'emotion', icon: '💜', title: '心情確認', badge: labels[emotionId] || '情緒提醒',
+    message: prompts[emotionId] || '你現在的心情需要被關心嗎？',
+    note: isTest ? '這是測試畫面。正式使用時會由對話中的情緒詞觸發。' : '系統不直接認定使用者的情緒，而是先詢問確認。',
+    actions: [
+      { label: '是，看看方法', kind: 'emotionSolutions', value: emotionId, style: 'primary' },
+      { label: '不確定', kind: 'uncertainEmotion' },
+      { label: '不是', kind: 'dismiss' },
+      { label: '先不用', kind: 'dismiss' }
+    ]
+  });
+}
+
+function showEmotionSolutions(emotionId) {
+  const options = {
+    afraid: [
+      { label: '加入：請陪我', kind: 'append', value: '請陪我', style: 'primary' },
+      { label: '加入：請找家人', kind: 'append', value: '請找家人' },
+      { label: '加入：去安靜的地方', kind: 'append', value: '我想去安靜的地方' },
+      { label: '先休息 5 分鐘', kind: 'rest', minutes: 5 }
+    ],
+    sad: [
+      { label: '加入：我想找人陪', kind: 'append', value: '我想找人陪', style: 'primary' },
+      { label: '加入：我想回家', kind: 'append', value: '我想回家' },
+      { label: '加入：我想休息', kind: 'append', value: '我想休息' },
+      { label: '先不用', kind: 'dismiss' }
+    ],
+    angry: [
+      { label: '加入：請先停一下', kind: 'append', value: '請先停一下', style: 'primary' },
+      { label: '加入：不要碰我', kind: 'append', value: '不要碰我' },
+      { label: '加入：讓我冷靜', kind: 'append', value: '請讓我自己冷靜一下' },
+      { label: '先休息 5 分鐘', kind: 'rest', minutes: 5 }
+    ]
+  };
+
+  showAgentPanel({
+    tone: 'emotion', icon: '💜', title: '可以選擇的下一步', badge: '由使用者決定',
+    message: '請選擇現在最需要的做法，系統只提供選項，不會替你決定。',
+    actions: options[emotionId] || [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+  });
+}
+
+function showTimedRestReminder(isTest = false) {
+  lastRestReminderAt = Date.now();
+  showAgentPanel({
+    tone: 'rest', icon: '☕', title: '休息提醒', badge: isTest ? '測試提醒' : '使用時間提醒',
+    message: isTest
+      ? '這是休息提醒的測試畫面。'
+      : `已經連續使用約 ${AGENT_REST_MINUTES} 分鐘，要讓眼睛和手休息一下嗎？`,
+    actions: [
+      { label: '休息 5 分鐘', kind: 'rest', minutes: 5, style: 'primary' },
+      { label: '加入：我想休息', kind: 'append', value: '我想休息' },
+      { label: '繼續使用', kind: 'dismiss' },
+      { label: '切換語音輸入', kind: 'mode', value: 'voice' }
+    ]
+  });
+}
+
+function checkSessionRestReminder() {
+  if (restEndsAt > Date.now()) return;
+  const now = Date.now();
+  const elapsed = now - sessionStartedAt;
+  const interval = AGENT_REST_MINUTES * 60 * 1000;
+  if (elapsed >= interval && now - lastRestReminderAt >= interval) {
+    showTimedRestReminder(false);
+  }
+}
+
+function startRestBreak(minutes) {
+  if (restCountdownTimer) clearInterval(restCountdownTimer);
+  restEndsAt = Date.now() + minutes * 60 * 1000;
+
+  const updateCountdown = () => {
+    const remaining = Math.max(0, restEndsAt - Date.now());
+    const totalSeconds = Math.ceil(remaining / 1000);
+    const minuteText = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const secondText = String(totalSeconds % 60).padStart(2, '0');
+
+    if (remaining <= 0) {
+      clearInterval(restCountdownTimer);
+      restCountdownTimer = null;
+      restEndsAt = 0;
+      sessionStartedAt = Date.now();
+      showAgentPanel({
+        tone: 'success', icon: '✓', title: '休息時間結束', badge: '可以繼續',
+        message: '休息時間到了。感覺可以繼續使用嗎？',
+        actions: [
+          { label: '繼續使用', kind: 'dismiss', style: 'primary' },
+          { label: '再休息 5 分鐘', kind: 'rest', minutes: 5 }
+        ]
+      });
+      return;
+    }
+
+    showAgentPanel({
+      tone: 'rest', icon: '☕', title: '休息中', badge: `${minuteText}:${secondText}`,
+      message: '請放鬆眼睛和手部；需要時也可以請照顧者協助調整姿勢。',
+      actions: [{ label: '提前結束休息', kind: 'endRest', style: 'primary' }]
+    });
+  };
+
+  updateCountdown();
+  restCountdownTimer = setInterval(updateCountdown, 1000);
+}
+
+function endRestBreak() {
+  if (restCountdownTimer) clearInterval(restCountdownTimer);
+  restCountdownTimer = null;
+  restEndsAt = 0;
+  sessionStartedAt = Date.now();
+  dismissAgentPanel();
+}
+
+function recordDeleteAction() {
+  const now = Date.now();
+  deleteActionTimes = deleteActionTimes.filter(time => now - time <= AGENT_DELETE_WINDOW_MS);
+  deleteActionTimes.push(now);
+
+  if (deleteActionTimes.length >= AGENT_DELETE_THRESHOLD && canShowAgentTrigger('repeated-delete', 120000)) {
+    deleteActionTimes = [];
+    showAgentPanel({
+      tone: 'rest', icon: '⌨️', title: '輸入好像有點困難', badge: '操作提醒',
+      message: '剛剛重複刪除了好幾次，需要換一種輸入方式或休息一下嗎？',
+      actions: [
+        { label: '改用語音', kind: 'mode', value: 'voice', style: 'primary' },
+        { label: '改用九宮格', kind: 'mode', value: 'nineGrid' },
+        { label: '休息 5 分鐘', kind: 'rest', minutes: 5 },
+        { label: '繼續輸入', kind: 'dismiss' }
+      ]
+    });
+  }
+}
+
+function buildConversationSummary(text, result) {
+  const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+  const clipped = cleanText.length > 55 ? `${cleanText.slice(0, 55)}…` : cleanText;
+  const followUps = {
+    emergency: '建議立即確認是否已通知照顧者或醫護人員。',
+    health: '建議確認不適位置、程度，以及是否已獲得協助。',
+    fatigue: '建議確認是否需要休息、調整姿勢或請人協助。',
+    afraid: '建議確認是否需要陪伴、找家人或到安靜處。',
+    sad: '建議確認是否需要陪伴、休息或繼續表達感受。',
+    angry: '建議讓使用者表達界線，並保留冷靜與休息的選擇。',
+    question: '建議確認問題是否已獲得回答。',
+    request: '建議確認需求是否已完成。',
+    social: '本次以社交互動為主，可繼續對話或結束。',
+    general: '可繼續補充，或確認本次表達是否完成。'
+  };
+  return `表達內容：「${clipped}」；系統分類：${result.label}。${followUps[result.id] || followUps.general}`;
+}
+
+function showPostSendAgent(sentText, result, summary, lineStatus = "submitted") {
+  const commonActions = [
+    { label: '繼續表達', kind: 'dismiss', style: 'primary' },
+    { label: '休息 5 分鐘', kind: 'rest', minutes: 5 },
+    { label: '查看摘要', kind: 'showSummary' }
+  ];
+
+  const wasSubmitted = lineStatus === "submitted";
+
+  showAgentPanel({
+    tone: wasSubmitted ? 'success' : 'emergency',
+    icon: wasSubmitted ? '📨' : '⚠️',
+    title: wasSubmitted ? '訊息已送交 LINE' : 'LINE 傳送暫時失敗',
+    badge: result.label,
+    message: wasSubmitted
+      ? '本次表達已送交綁定的 LINE 接收者，請查看接收端手機。'
+      : '訊息已存入本機紀錄，但目前無法送交 LINE。請確認網路、Apps Script 部署與綁定設定。',
+    note: wasSubmitted
+      ? '此畫面表示網頁已送出請求；是否已閱讀仍以接收端 LINE 畫面為準。'
+      : '本機紀錄仍會保留，待設定完成後可再次傳送。',
+    summary,
+    autoCloseMs: 30000,
+    actions: [...commonActions, { label: '關閉', kind: 'dismiss' }]
+  });
+}
+
+function createGeneralLinePayload(sentText, result, summary) {
+  return {
+    type: 'AAC_GENERAL_MESSAGE',
+    messageId: `AAC-MSG-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    createdAt: new Date().toISOString(),
+    sentence: String(sentText || '').trim(),
+    category: result && result.label ? result.label : '一般表達',
+    categoryId: result && result.id ? result.id : 'general',
+    summary: String(summary || ''),
+    source: 'AAC 聲母溝通系統'
+  };
+}
+
+async function sendGeneralLineMessage(sentText, result, summary) {
+  const payload = createGeneralLinePayload(sentText, result, summary);
+  await sendLineDemoAlert(payload);
+  return payload;
+}
+
 
 function selectWord(word) {
   let final = word;
@@ -798,6 +3153,7 @@ function selectWord(word) {
   sentence += final;
   lastSelectedWord = word;
   inputBuffer = "";
+  candidatePage = 0;
   updateUI();
 }
 
@@ -806,22 +3162,32 @@ function updateUI() {
   const predictSection = document.getElementById('predict-section');
   const keyboardWrap = document.querySelector('.keyboard-wrap');
   const historyWrap = document.querySelector('.history-wrap');
+  const typeLabel = document.getElementById('input-type-label');
 
   sb.textContent = sentence || "請開始輸入";
   sb.className = sentence ? '' : 'placeholder';
   document.getElementById('buffer-box').textContent = inputBuffer;
 
-  if (inputBuffer) {
-    predictSection.classList.add('fullscreen');
-    if (keyboardWrap) keyboardWrap.style.display = 'none';
-    if (historyWrap) historyWrap.style.display = 'none';
+  // 混合注音模式需要持續按鍵，因此輸入後不隱藏鍵盤
+  predictSection.classList.remove('fullscreen');
+  if (keyboardWrap) keyboardWrap.style.display = '';
+
+  // 傳送紀錄保持顯示，方便使用者隨時查看先前訊息
+  if (historyWrap) historyWrap.style.display = '';
+
+  if (!inputBuffer) {
+    typeLabel.textContent = '';
   } else {
-    predictSection.classList.remove('fullscreen');
-    if (keyboardWrap) keyboardWrap.style.display = '';
-    if (historyWrap) historyWrap.style.display = '';
+    const detectedType = detectInputType(inputBuffer);
+    typeLabel.textContent = detectedType === 'fullZhuyin'
+      ? '完整注音搜尋'
+      : detectedType === 'mixed'
+        ? '系統自動混合判斷'
+        : '聲母搜尋';
   }
 
   renderPredictBar();
+  scheduleAutomaticSentenceAnalysis();
 }
 
 function renderKeyboard() {
@@ -834,7 +3200,15 @@ function renderKeyboard() {
   (isNumMode ? numKeys : bpmfKeys).forEach(k => {
     const b = document.createElement('button');
     b.className = 'key'; b.textContent = k;
-    b.onclick = () => { isNumMode ? sentence += k : inputBuffer += k; updateUI(); };
+    b.onclick = () => {
+      if (isNumMode) {
+        sentence += k;
+        lastSelectedWord = "";
+      } else {
+        inputBuffer += k;
+      }
+      updateUI();
+    };
     kb.appendChild(b);
   });
 
@@ -847,44 +3221,525 @@ function renderKeyboard() {
   btnDel.className = 'key del'; btnDel.textContent = "⌫";
   btnDel.onclick = () => { 
     if (inputBuffer) inputBuffer = inputBuffer.slice(0, -1); 
-    else if (sentence) sentence = sentence.slice(0, -1); 
+    else if (sentence) {
+      sentence = sentence.slice(0, -1);
+      lastSelectedWord = "";
+    }
+    recordDeleteAction();
     updateUI(); 
   };
   kb.appendChild(btnDel);
 
   const btnSpace = document.createElement('button');
   btnSpace.className = 'key fn'; btnSpace.textContent = "空格";
-  btnSpace.onclick = () => { if (!isNumMode) sentence += " "; updateUI(); };
+  btnSpace.onclick = () => {
+    if (!isNumMode) {
+      sentence += " ";
+      lastSelectedWord = "";
+    }
+    updateUI();
+  };
   kb.appendChild(btnSpace);
 }
 
-function sendAndClear() {
+async function sendAndClear() {
   if (!sentence) return;
+
+  const sentText = sentence;
+  const result = classifyConversation(sentText);
+  const summary = buildConversationSummary(sentText, result);
+  lastSentSummary = summary;
+
   try {
     const hist = JSON.parse(localStorage.getItem('aac_hist') || '[]');
-    hist.unshift({ t: new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' }), s: sentence });
+    hist.unshift({
+      t: new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' }),
+      s: sentText,
+      category: result.label,
+      summary,
+      lineStatus: 'sending'
+    });
     localStorage.setItem('aac_hist', JSON.stringify(hist.slice(0, 20)));
   } catch(e) {}
-  sentence = "";
-inputBuffer = "";
-lastSelectedWord = "";
-updateUI();
-renderHistory();
+
+  sentence = '';
+  inputBuffer = '';
+  lastSelectedWord = '';
+  lastAutomaticallyAnalyzedSentence = '';
+  clearTimeout(automaticAnalysisTimer);
+  candidatePage = 0;
+  candidateQueryKey = '';
+  updateUI();
+  renderHistory();
+
+  showAgentPanel({
+    tone: 'info',
+    icon: '⏳',
+    title: '正在傳送 LINE 訊息',
+    badge: result.label,
+    message: '正在將本次表達送交已綁定的 LINE 接收者。',
+    summary,
+    note: '請稍候，完成後可查看接收端手機。',
+    actions: []
+  });
+
+  try {
+    const payload = await sendGeneralLineMessage(sentText, result, summary);
+
+    try {
+      const records = JSON.parse(localStorage.getItem('aac_general_line_messages') || '[]');
+      records.unshift({ payload, status: 'submitted', savedAt: new Date().toISOString() });
+      localStorage.setItem('aac_general_line_messages', JSON.stringify(records.slice(0, 50)));
+    } catch (error) {
+      console.warn('無法儲存一般 LINE 訊息紀錄：', error);
+    }
+
+    showPostSendAgent(sentText, result, summary, 'submitted');
+  } catch (error) {
+    console.error('一般訊息 LINE 傳送失敗：', error);
+    showPostSendAgent(sentText, result, summary, 'failed');
+  }
+}
+
+let customPronunciationTimer = null;
+let pendingCustomPronunciation = null;
+
+const PINYIN_INITIAL_TO_ZHUYIN = Object.freeze({
+  b: 'ㄅ', p: 'ㄆ', m: 'ㄇ', f: 'ㄈ',
+  d: 'ㄉ', t: 'ㄊ', n: 'ㄋ', l: 'ㄌ',
+  g: 'ㄍ', k: 'ㄎ', h: 'ㄏ',
+  j: 'ㄐ', q: 'ㄑ', x: 'ㄒ',
+  zh: 'ㄓ', ch: 'ㄔ', sh: 'ㄕ', r: 'ㄖ',
+  z: 'ㄗ', c: 'ㄘ', s: 'ㄙ'
+});
+
+const PINYIN_FINAL_TO_ZHUYIN = Object.freeze({
+  '': '',
+  a: 'ㄚ', o: 'ㄛ', e: 'ㄜ', 'ê': 'ㄝ',
+  ai: 'ㄞ', ei: 'ㄟ', ao: 'ㄠ', ou: 'ㄡ',
+  an: 'ㄢ', en: 'ㄣ', ang: 'ㄤ', eng: 'ㄥ', er: 'ㄦ',
+  i: 'ㄧ', ia: 'ㄧㄚ', io: 'ㄧㄛ', ie: 'ㄧㄝ', iao: 'ㄧㄠ',
+  iu: 'ㄧㄡ', iou: 'ㄧㄡ', ian: 'ㄧㄢ', in: 'ㄧㄣ',
+  iang: 'ㄧㄤ', ing: 'ㄧㄥ', iong: 'ㄩㄥ',
+  u: 'ㄨ', ua: 'ㄨㄚ', uo: 'ㄨㄛ', uai: 'ㄨㄞ',
+  ui: 'ㄨㄟ', uei: 'ㄨㄟ', uan: 'ㄨㄢ', un: 'ㄨㄣ',
+  uen: 'ㄨㄣ', uang: 'ㄨㄤ', ong: 'ㄨㄥ',
+  'ü': 'ㄩ', 'üe': 'ㄩㄝ', 'üan': 'ㄩㄢ', 'ün': 'ㄩㄣ'
+});
+
+const PINYIN_SPECIAL_TO_ZHUYIN = Object.freeze({
+  zhi: 'ㄓ', chi: 'ㄔ', shi: 'ㄕ', ri: 'ㄖ',
+  zi: 'ㄗ', ci: 'ㄘ', si: 'ㄙ',
+  yi: 'ㄧ', ya: 'ㄧㄚ', yo: 'ㄧㄛ', ye: 'ㄧㄝ',
+  yao: 'ㄧㄠ', you: 'ㄧㄡ', yan: 'ㄧㄢ', yin: 'ㄧㄣ',
+  yang: 'ㄧㄤ', ying: 'ㄧㄥ', yong: 'ㄩㄥ',
+  yu: 'ㄩ', yue: 'ㄩㄝ', yuan: 'ㄩㄢ', yun: 'ㄩㄣ',
+  wu: 'ㄨ', wa: 'ㄨㄚ', wo: 'ㄨㄛ', wai: 'ㄨㄞ',
+  wei: 'ㄨㄟ', wan: 'ㄨㄢ', wen: 'ㄨㄣ', wang: 'ㄨㄤ', weng: 'ㄨㄥ',
+  m: 'ㄇ', n: 'ㄋ', ng: 'ㄥ'
+});
+
+function pinyinSyllableToZhuyin(rawSyllable) {
+  let syllable = String(rawSyllable || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[1-5]/g, '')
+    .replace(/u:/g, 'ü')
+    .replace(/v/g, 'ü')
+    .replace(/[’']/g, '');
+
+  if (!syllable) return '';
+  if (PINYIN_SPECIAL_TO_ZHUYIN[syllable]) {
+    return PINYIN_SPECIAL_TO_ZHUYIN[syllable];
+  }
+
+  const initialKeys = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's'];
+  const initialKey = initialKeys.find(key => syllable.startsWith(key)) || '';
+  let finalKey = syllable.slice(initialKey.length);
+
+  // 拼音中的 j/q/x + u 實際對應注音 ㄩ。
+  if (['j', 'q', 'x'].includes(initialKey)) {
+    if (finalKey === 'u') finalKey = 'ü';
+    else if (finalKey === 'ue') finalKey = 'üe';
+    else if (finalKey === 'uan') finalKey = 'üan';
+    else if (finalKey === 'un') finalKey = 'ün';
+  }
+
+  const initialZhuyin = PINYIN_INITIAL_TO_ZHUYIN[initialKey] || '';
+  const finalZhuyin = PINYIN_FINAL_TO_ZHUYIN[finalKey];
+
+  if (finalZhuyin === undefined) return '';
+  return initialZhuyin + finalZhuyin;
+}
+
+function getPronunciationFromExistingDictionary(word) {
+  const exact = parsedDict.find(item => item.word === word && item.zhuyinNoTone);
+  if (exact) {
+    return {
+      word,
+      zhuyin: exact.zhuyinNoTone,
+      initials: exact.init || getInitialSymbolsFromZhuyin(exact.zhuyinNoTone),
+      source: '現有詞庫'
+    };
+  }
+
+  const parts = [];
+  const initials = [];
+  for (const char of Array.from(word)) {
+    const item = parsedDict.find(entry => entry.word === char && entry.zhuyinNoTone);
+    if (!item) return null;
+    parts.push(item.zhuyinNoTone);
+    initials.push(item.init || Array.from(item.zhuyinNoTone)[0] || '');
+  }
+
+  if (!parts.length) return null;
+  return {
+    word,
+    zhuyin: parts.join(''),
+    initials: initials.join(''),
+    source: '現有單字詞庫'
+  };
+}
+
+function shouldUseSurnameMode(word) {
+  return /(先生|小姐|老師|同學|醫師|醫生|護理師|主任|校長)$/.test(word);
+}
+
+function lookupWordPronunciation(word) {
+  const cleanWord = String(word || '').trim();
+  if (!cleanWord) throw new Error('請先輸入詞彙。');
+  if (!/[\u3400-\u9FFF\uF900-\uFAFF]/.test(cleanWord)) {
+    throw new Error('請輸入至少一個中文字。');
+  }
+
+  if (window.pinyinPro && typeof window.pinyinPro.pinyin === 'function') {
+    const options = {
+      type: 'array',
+      toneType: 'none',
+      nonZh: 'removed',
+      traditional: true,
+      segmentit: 2
+    };
+
+    if (shouldUseSurnameMode(cleanWord)) {
+      options.surname = 'head';
+    }
+
+    const syllables = window.pinyinPro.pinyin(cleanWord, options)
+      .map(item => String(item || '').trim())
+      .filter(Boolean);
+
+    const zhuyinParts = syllables.map(pinyinSyllableToZhuyin);
+    if (syllables.length && zhuyinParts.every(Boolean)) {
+      return {
+        word: cleanWord,
+        zhuyin: zhuyinParts.join(''),
+        initials: zhuyinParts.map(part => Array.from(part)[0] || '').join(''),
+        pinyin: syllables.join(' '),
+        source: '系統字音庫'
+      };
+    }
+  }
+
+  const fallback = getPronunciationFromExistingDictionary(cleanWord);
+  if (fallback) return fallback;
+
+  throw new Error('目前無法自動查到這個詞的讀音，請確認網路連線後再試一次。');
+}
+
+function setCustomLookupDisplay(state, result = null, message = '') {
+  const badge = document.getElementById('custom-lookup-badge');
+  const zhuyinBox = document.getElementById('custom-auto-zhuyin');
+  const initialsBox = document.getElementById('custom-auto-initials');
+  const status = document.getElementById('custom-word-status');
+
+  badge.className = 'custom-lookup-badge';
+  status.className = 'custom-status';
+
+  if (state === 'success' && result) {
+    badge.textContent = '已完成';
+    badge.classList.add('success');
+    zhuyinBox.textContent = result.zhuyin;
+    initialsBox.textContent = result.initials;
+    status.textContent = `已由${result.source}自動產生，不需要手動輸入注音。`;
+    status.classList.add('success');
+    return;
+  }
+
+  if (state === 'loading') {
+    badge.textContent = '查詢中';
+    zhuyinBox.textContent = '辨識中…';
+    initialsBox.textContent = '辨識中…';
+    status.textContent = '系統正在查詢這個詞的讀音。';
+    return;
+  }
+
+  if (state === 'error') {
+    badge.textContent = '查詢失敗';
+    badge.classList.add('error');
+    zhuyinBox.textContent = '—';
+    initialsBox.textContent = '—';
+    status.textContent = message;
+    return;
+  }
+
+  badge.textContent = '等待詞彙';
+  zhuyinBox.textContent = '—';
+  initialsBox.textContent = '—';
+  status.textContent = '';
+}
+
+function updateCustomPronunciationPreview() {
+  const word = document.getElementById('custom-word-text').value.trim();
+  pendingCustomPronunciation = null;
+
+  if (!word) {
+    setCustomLookupDisplay('empty');
+    return;
+  }
+
+  setCustomLookupDisplay('loading');
+  try {
+    const result = lookupWordPronunciation(word);
+    pendingCustomPronunciation = result;
+    setCustomLookupDisplay('success', result);
+  } catch (error) {
+    setCustomLookupDisplay('error', null, error.message || '自動查詢失敗。');
+  }
+}
+
+function scheduleCustomPronunciationLookup() {
+  window.clearTimeout(customPronunciationTimer);
+  customPronunciationTimer = window.setTimeout(updateCustomPronunciationPreview, 220);
+}
+
+function openCustomWordInput() {
+  const modal = document.getElementById('custom-word-modal');
+  const wordInput = document.getElementById('custom-word-text');
+
+  wordInput.value = '';
+  pendingCustomPronunciation = null;
+  setCustomLookupDisplay('empty');
+  modal.classList.add('open');
+
+  window.setTimeout(() => wordInput.focus(), 50);
+}
+
+function closeCustomWordInput() {
+  document.getElementById('custom-word-modal').classList.remove('open');
+}
+
+function clearCustomWordFields() {
+  document.getElementById('custom-word-text').value = '';
+  pendingCustomPronunciation = null;
+  setCustomLookupDisplay('empty');
+  document.getElementById('custom-word-text').focus();
+}
+
+function recognizeCustomWord() {
+  const status = document.getElementById('custom-word-status');
+  const button = document.getElementById('custom-voice-btn');
+
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    status.textContent = '此瀏覽器不支援語音辨識，請使用 Chrome 或直接輸入文字。';
+    return;
+  }
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new Recognition();
+  recognition.lang = 'zh-TW';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 3;
+
+  button.textContent = '⏳ 聆聽中…';
+  button.disabled = true;
+  status.textContent = '請說出要新增的詞彙，例如「劉貴璇」。';
+
+  recognition.onresult = event => {
+    const transcript = event.results[0][0].transcript.trim();
+    document.getElementById('custom-word-text').value = transcript;
+    if (transcript) {
+      updateCustomPronunciationPreview();
+    } else {
+      setCustomLookupDisplay('error', null, '沒有辨識到詞彙，請再試一次。');
+    }
+  };
+
+  recognition.onerror = () => {
+    setCustomLookupDisplay('error', null, '語音辨識失敗，請再試一次或直接輸入文字。');
+  };
+
+  recognition.onend = () => {
+    button.textContent = '🎙 語音辨識詞彙';
+    button.disabled = false;
+  };
+
+  recognition.start();
+}
+
+function getInitialSymbolsFromZhuyin(zhuyin) {
+  const value = stripToneMarks(zhuyin);
+  if (!value) return '';
+
+  const initials = new Set(Array.from('ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙ'));
+  const medialAndFinals = new Set(Array.from('ㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ'));
+  const chars = Array.from(value);
+  const result = [];
+  let atSyllableStart = true;
+
+  for (const ch of chars) {
+    if (atSyllableStart) {
+      result.push(ch);
+      atSyllableStart = false;
+      continue;
+    }
+
+    if (initials.has(ch)) {
+      result.push(ch);
+      atSyllableStart = false;
+    } else if (!medialAndFinals.has(ch)) {
+      atSyllableStart = true;
+    }
+  }
+
+  return result.join('');
+}
+
+function addPersonalDictionaryEntry(word, zhuyin, initOverride = '') {
+  const cleanWord = word.trim();
+  const cleanZhuyin = stripToneMarks(zhuyin);
+  const cleanInit = normalizeZhuyin(initOverride) || getInitialSymbolsFromZhuyin(cleanZhuyin) || Array.from(cleanZhuyin)[0] || '';
+  if (!cleanWord || !cleanZhuyin || !cleanInit) return false;
+
+  const existing = parsedDict.some(item =>
+    item.word === cleanWord && item.zhuyinNoTone === cleanZhuyin
+  );
+
+  if (existing) return true;
+
+  const entry = `${cleanWord}|${cleanInit}|${cleanZhuyin}`;
+
+  try {
+    const saved = loadPersonalDictionary();
+    if (!saved.includes(entry)) {
+      saved.push(entry);
+      localStorage.setItem('aac_personal_dictionary', JSON.stringify(saved));
+    }
+  } catch (error) {}
+
+  const item = {
+    word: cleanWord,
+    init: cleanInit,
+    zhuyin: normalizeZhuyin(cleanZhuyin),
+    zhuyinNoTone: cleanZhuyin
+  };
+
+  parsedDict.push(item);
+  knownWordSet.add(cleanWord);
+
+  if (Array.from(cleanWord).length === 1) {
+    if (!singleCharZhuyinMap.has(cleanZhuyin)) {
+      singleCharZhuyinMap.set(cleanZhuyin, []);
+      singleCharSyllables.push(cleanZhuyin);
+      singleCharSyllables.sort((a, b) => Array.from(b).length - Array.from(a).length);
+    }
+    const words = singleCharZhuyinMap.get(cleanZhuyin);
+    if (!words.includes(cleanWord)) words.push(cleanWord);
+  }
+
+  return true;
+}
+
+function saveCustomWord() {
+  const wordInput = document.getElementById('custom-word-text');
+  const cleanWord = wordInput.value.trim();
+
+  if (!cleanWord) {
+    setCustomLookupDisplay('error', null, '請輸入詞彙，或按語音辨識說出詞彙。');
+    wordInput.focus();
+    return;
+  }
+
+  try {
+    if (!pendingCustomPronunciation || pendingCustomPronunciation.word !== cleanWord) {
+      pendingCustomPronunciation = lookupWordPronunciation(cleanWord);
+    }
+
+    addPersonalDictionaryEntry(
+      cleanWord,
+      pendingCustomPronunciation.zhuyin,
+      pendingCustomPronunciation.initials
+    );
+
+    sentence += cleanWord;
+    lastSelectedWord = cleanWord;
+    inputBuffer = '';
+    closeCustomWordInput();
+    updateUI();
+    } catch (error) {
+    setCustomLookupDisplay('error', null, error.message || '目前無法自動查詢讀音。');
+  }
 }
 
 function clearAll() {
   sentence = "";
   inputBuffer = "";
   lastSelectedWord = "";
+  lastAutomaticallyAnalyzedSentence = "";
+  clearTimeout(automaticAnalysisTimer);
+  candidatePage = 0;
+  candidateQueryKey = "";
+  dismissAgentPanel();
   updateUI();
 }
 
 
+function clearHistory() {
+  const hasHistory = localStorage.getItem('aac_hist');
+  if (!hasHistory) {
+    renderHistory();
+    return;
+  }
+
+  if (!window.confirm('確定要清除全部傳送紀錄嗎？')) return;
+
+  try {
+    localStorage.removeItem('aac_hist');
+  } catch (e) {}
+
+  renderHistory();
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function renderHistory() {
-  let hist = []; try { hist = JSON.parse(localStorage.getItem('aac_hist') || '[]'); } catch {}
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem('aac_hist') || '[]'); } catch {}
   const box = document.getElementById('history-box');
-  if (!hist.length) { box.innerHTML = '<div class="history-empty">尚無紀錄</div>'; return; }
-  box.innerHTML = hist.slice(0, 10).map(h => `<div class="history-item"><span class="history-time">${h.t}</span><span class="history-text">${h.s}</span></div>`).join('');
+  if (!hist.length) {
+    box.innerHTML = '<div class="history-empty">尚無紀錄</div>';
+    return;
+  }
+
+  box.innerHTML = hist.slice(0, 10).map(item => {
+    const category = item.category
+      ? `<span class="history-category">${escapeHTML(item.category)}</span>`
+      : '';
+    return `<div class="history-item">
+      <span class="history-time">${escapeHTML(item.t)}</span>
+      <div class="history-content">
+        <div class="history-text">${escapeHTML(item.s)}</div>
+        ${category ? `<div class="history-meta">${category}已存入本機紀錄</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function toggleVoice() {
@@ -907,17 +3762,1882 @@ function toggleVoice() {
     inputBuffer = "";
     lastSelectedWord = "";
     updateUI();
-  };
+    };
 
   rec.onend = rec.onerror = () => {
     if (btn) btn.textContent = '🎙';
   };
 }
 
+
+// ════════════════════════════════════════
+// 實體鍵盤整合
+// ════════════════════════════════════════
+const physicalZhuyinMap = {
+  "1":"ㄅ", "q":"ㄆ", "a":"ㄇ", "z":"ㄈ",
+  "2":"ㄉ", "w":"ㄊ", "s":"ㄋ", "x":"ㄌ",
+  "e":"ㄍ", "d":"ㄎ", "c":"ㄏ", "r":"ㄐ",
+  "f":"ㄑ", "v":"ㄒ", "5":"ㄓ", "t":"ㄔ",
+  "g":"ㄕ", "b":"ㄖ", "y":"ㄗ", "h":"ㄘ",
+  "n":"ㄙ", "u":"ㄧ", "j":"ㄨ", "m":"ㄩ",
+  "8":"ㄚ", "i":"ㄛ", "k":"ㄜ", ",":"ㄝ",
+  "9":"ㄞ", "o":"ㄟ", "l":"ㄠ", ".":"ㄡ",
+  "0":"ㄢ", "p":"ㄣ", ";":"ㄤ", "/":"ㄥ",
+  "-":"ㄦ"
+};
+const physicalZhuyinSymbols = "ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ";
+
+function isTextEntryTarget(target) {
+  if (!target) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
+function getFirstVisibleCandidate() {
+  if (!Array.isArray(currentCandidateItems) || currentCandidateItems.length === 0) return "";
+  const index = candidatePage * CANDIDATES_PER_PAGE;
+  return currentCandidateItems[index] || currentCandidateItems[0] || "";
+}
+
+
+function handleGlobalPhysicalKeyboard(event) {
+  if (isTextEntryTarget(event.target)) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+  const modal = document.getElementById('custom-word-modal');
+  if (modal && modal.classList.contains('show')) return;
+
+  if (event.key === 'Backspace') {
+    event.preventDefault();
+    if (inputBuffer) {
+      inputBuffer = inputBuffer.slice(0, -1);
+    } else if (sentence) {
+      sentence = sentence.slice(0, -1);
+      lastSelectedWord = "";
+    }
+    recordDeleteAction();
+    updateUI();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    if (inputBuffer) {
+      event.preventDefault();
+      inputBuffer = "";
+      candidatePage = 0;
+      updateUI();
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowLeft') {
+    if (currentCandidateItems.length > CANDIDATES_PER_PAGE) {
+      event.preventDefault();
+      changeCandidatePage(-1);
+    }
+    return;
+  }
+
+  if (event.key === 'ArrowRight') {
+    if (currentCandidateItems.length > CANDIDATES_PER_PAGE) {
+      event.preventDefault();
+      changeCandidatePage(1);
+    }
+    return;
+  }
+
+  if (event.key === 'Enter' || event.key === ' ') {
+    if (inputBuffer) {
+      const firstCandidate = getFirstVisibleCandidate();
+      if (firstCandidate) {
+        event.preventDefault();
+        selectWord(firstCandidate);
+      }
+    } else if (event.key === ' ') {
+      event.preventDefault();
+      sentence += " ";
+      lastSelectedWord = "";
+      updateUI();
+    }
+    return;
+  }
+
+  if (isNumMode && /^[0-9.,，]$/.test(event.key)) {
+    event.preventDefault();
+    sentence += event.key;
+    lastSelectedWord = "";
+    updateUI();
+    return;
+  }
+
+  if (physicalZhuyinSymbols.includes(event.key)) {
+    event.preventDefault();
+    inputBuffer += event.key;
+    updateUI();
+    return;
+  }
+
+  const mappedSymbol = physicalZhuyinMap[event.key.toLowerCase()];
+  if (mappedSymbol) {
+    event.preventDefault();
+    inputBuffer += mappedSymbol;
+    updateUI();
+  }
+}
+
+document.getElementById('custom-word-text').addEventListener('input', scheduleCustomPronunciationLookup);
+
+document.getElementById('custom-word-modal').addEventListener('click', event => {
+  if (event.target.id === 'custom-word-modal') closeCustomWordInput();
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeCustomWordInput();
+});
+
+document.addEventListener('keydown', handleGlobalPhysicalKeyboard);
+
+setInterval(checkSessionRestReminder, 30 * 1000);
+
 setInputMode("keyboard");
 renderHistory();
 updateUI();
+// 背景建立較完整的同音字索引；完成後候選詞會自動增加。
+buildFullCharacterReverseIndex();
+
+
+// ════════════════════════════════════════
+// v7.4 疼痛部位確認、誤觸確認與同步通知
+// ════════════════════════════════════════
+
+// 管理者可將護理站與家屬的後端 Webhook URL 儲存在 localStorage：
+// localStorage.setItem('aac_nurse_station_webhook', 'https://你的護理站端點');
+// localStorage.setItem('aac_family_webhook', 'https://你的家屬端點');
+// 前端會同時 POST JSON；未設定或傳送失敗時，會先加入本機待送佇列。
+let healthAssessmentState = createEmptyHealthAssessment();
+
+function createEmptyHealthAssessment() {
+  return {
+    sourceText: '',
+    location: '',
+    severity: '',
+    severityLabel: '',
+    duration: '',
+    durationLabel: '',
+    createdAt: ''
+  };
+}
+
+const BODY_LOCATION_OPTIONS = Object.freeze([
+  { label: '頭部', value: '頭部' },
+  { label: '眼睛', value: '眼睛' },
+  { label: '耳朵', value: '耳朵' },
+  { label: '喉嚨／頸部', value: '喉嚨／頸部' },
+  { label: '胸口', value: '胸口' },
+  { label: '腹部／肚子', value: '腹部／肚子' },
+  { label: '背部', value: '背部' },
+  { label: '腰部', value: '腰部' },
+  { label: '左手／左手臂', value: '左手／左手臂' },
+  { label: '右手／右手臂', value: '右手／右手臂' },
+  { label: '左腳／左腿', value: '左腳／左腿' },
+  { label: '右腳／右腿', value: '右腳／右腿' },
+  { label: '全身', value: '全身' },
+  { label: '其他部位', value: '其他部位' }
+]);
+
+const PAIN_SEVERITY_OPTIONS = Object.freeze([
+  { label: '輕微（1–3）', value: 'mild', description: '輕微，仍可忍受' },
+  { label: '中度（4–6）', value: 'moderate', description: '中度，已影響活動' },
+  { label: '嚴重（7–10）', value: 'severe', description: '嚴重，需要立即協助' },
+  { label: '不確定', value: 'unknown', description: '目前無法判斷程度' }
+]);
+
+const PAIN_DURATION_OPTIONS = Object.freeze([
+  { label: '剛剛開始', value: 'just_started' },
+  { label: '持續一段時間', value: 'continuous' },
+  { label: '反覆出現', value: 'recurrent' },
+  { label: '不確定', value: 'unknown' }
+]);
+
+function isPainExpression(text) {
+  return /(很痛|疼痛|痛死|劇痛|刺痛|抽痛|頭痛|胸痛|肚子痛|腹痛|背痛|腰痛|手痛|腳痛|這裡痛|這裡很痛)/.test(
+    String(text || '')
+  );
+}
+
+function detectBodyLocation(text) {
+  const source = String(text || '');
+  const patterns = [
+    { value: '頭部', regex: /(頭部|頭痛|頭很痛)/ },
+    { value: '眼睛', regex: /(眼睛|眼睛痛|眼痛)/ },
+    { value: '耳朵', regex: /(耳朵|耳痛)/ },
+    { value: '喉嚨／頸部', regex: /(喉嚨|頸部|脖子|脖子痛)/ },
+    { value: '胸口', regex: /(胸口|胸痛|心口)/ },
+    { value: '腹部／肚子', regex: /(腹部|腹痛|肚子|肚子痛|胃痛)/ },
+    { value: '背部', regex: /(背部|背痛|後背)/ },
+    { value: '腰部', regex: /(腰部|腰痛)/ },
+    { value: '左手／左手臂', regex: /(左手|左手臂)/ },
+    { value: '右手／右手臂', regex: /(右手|右手臂)/ },
+    { value: '左腳／左腿', regex: /(左腳|左腿)/ },
+    { value: '右腳／右腿', regex: /(右腳|右腿)/ },
+    { value: '全身', regex: /(全身|到處都痛)/ }
+  ];
+  const found = patterns.find(item => item.regex.test(source));
+  return found ? found.value : '';
+}
+
+function beginPainAssessment(sourceText) {
+  healthAssessmentState = createEmptyHealthAssessment();
+  healthAssessmentState.sourceText = String(sourceText || sentence || '').trim();
+  healthAssessmentState.location = detectBodyLocation(healthAssessmentState.sourceText);
+  healthAssessmentState.createdAt = new Date().toISOString();
+  showPainLocationStep();
+}
+
+function showPainLocationStep() {
+  const detected = healthAssessmentState.location;
+  showAgentPanel({
+    tone: 'health',
+    icon: '🩺',
+    title: '請指出疼痛部位',
+    badge: '第 1 步／共 4 步',
+    message: detected
+      ? `系統從句子中推測部位可能是「${detected}」。請確認或改選其他部位。`
+      : '「這裡很痛」還無法讓護理人員知道是哪裡。請先選擇疼痛部位。',
+    note: '系統只協助表達與傳送資訊，不進行醫療診斷。',
+    summary: `目前句子：${healthAssessmentState.sourceText || sentence}`,
+    actions: BODY_LOCATION_OPTIONS.map(option => ({
+      label: option.label,
+      kind: 'healthLocation',
+      value: option.value,
+      style: option.value === detected ? 'primary selected' : ''
+    })).concat([
+      { label: '取消（可能是誤觸）', kind: 'cancelHealthAlert' }
+    ])
+  });
+}
+
+function showPainSeverityStep() {
+  showAgentPanel({
+    tone: 'health',
+    icon: '📊',
+    title: '疼痛程度',
+    badge: '第 2 步／共 4 步',
+    message: `疼痛部位：${healthAssessmentState.location}。請選擇目前疼痛程度。`,
+    note: '無法判斷時可以選「不確定」，仍可通知護理站與家屬。',
+    actions: PAIN_SEVERITY_OPTIONS.map(option => ({
+      label: option.label,
+      kind: 'healthSeverity',
+      value: option.value,
+      meta: option.description,
+      style: option.value === 'severe' ? 'danger' : (option.value === 'moderate' ? 'warn' : '')
+    })).concat([
+      { label: '← 修改部位', kind: 'healthBackLocation' },
+      { label: '取消（可能是誤觸）', kind: 'cancelHealthAlert' }
+    ])
+  });
+}
+
+function showPainDurationStep() {
+  showAgentPanel({
+    tone: healthAssessmentState.severity === 'severe' ? 'emergency' : 'health',
+    icon: '⏱️',
+    title: '疼痛持續狀況',
+    badge: '第 3 步／共 4 步',
+    message: `已選擇「${healthAssessmentState.location}、${healthAssessmentState.severityLabel}」。疼痛是何時開始或如何出現？`,
+    actions: PAIN_DURATION_OPTIONS.map(option => ({
+      label: option.label,
+      kind: 'healthDuration',
+      value: option.value
+    })).concat([
+      { label: '← 修改程度', kind: 'healthBackSeverity' },
+      { label: '取消（可能是誤觸）', kind: 'cancelHealthAlert' }
+    ])
+  });
+}
+
+function buildHealthAssessmentSummary() {
+  return [
+    `疼痛部位：${healthAssessmentState.location || '未選擇'}`,
+    `疼痛程度：${healthAssessmentState.severityLabel || '未選擇'}`,
+    `持續狀況：${healthAssessmentState.durationLabel || '未選擇'}`,
+    `原始句子：${healthAssessmentState.sourceText || sentence || '無'}`
+  ].join('\n');
+}
+
+function showPainReviewStep() {
+  const emergencyTone = healthAssessmentState.severity === 'severe';
+  showAgentPanel({
+    tone: emergencyTone ? 'emergency' : 'health',
+    icon: emergencyTone ? '🚨' : '🩺',
+    title: '確認疼痛資訊',
+    badge: '第 4 步／共 4 步',
+    message: '請確認以下內容正確。下一步還會再確認一次，避免誤觸。',
+    summary: buildHealthAssessmentSummary(),
+    note: '此時尚未對外傳送通知。',
+    actions: [
+      { label: '資料正確，下一步', kind: 'healthFinalCheck', style: emergencyTone ? 'danger' : 'primary' },
+      { label: '修改部位', kind: 'healthBackLocation' },
+      { label: '修改程度', kind: 'healthBackSeverity' },
+      { label: '修改持續狀況', kind: 'healthBackDuration' },
+      { label: '取消（這是誤觸）', kind: 'cancelHealthAlert' }
+    ]
+  });
+}
+
+function showHealthFinalCheck() {
+  const hasNurseEndpoint = Boolean(localStorage.getItem('aac_nurse_station_webhook'));
+  const hasFamilyEndpoint = Boolean(localStorage.getItem('aac_family_webhook'));
+  const connectionText = hasNurseEndpoint && hasFamilyEndpoint
+    ? '通知連線已設定，確認後將同時傳送。'
+    : '目前至少有一個通知端點尚未設定；確認後會先存入本機待送佇列。';
+
+  showAgentPanel({
+    tone: 'emergency',
+    icon: '⚠️',
+    title: '最後確認：不是誤觸嗎？',
+    badge: '雙重確認',
+    message: '按下紅色按鈕後，系統會同步通知「護理站」與「家屬」。請確認這不是誤觸。',
+    summary: buildHealthAssessmentSummary(),
+    note: connectionText,
+    actions: [
+      {
+        label: '確認不是誤觸，立即同步通知',
+        kind: 'confirmHealthAlert',
+        style: 'confirm-alert'
+      },
+      { label: '返回修改', kind: 'healthBackDuration' },
+      { label: '取消，不要通知', kind: 'cancelHealthAlert' }
+    ]
+  });
+}
+
+function getHealthAlertEndpoints() {
+  return [
+    {
+      key: 'nurseStation',
+      label: '護理站',
+      url: String(localStorage.getItem('aac_nurse_station_webhook') || '').trim()
+    },
+    {
+      key: 'family',
+      label: '家屬',
+      url: String(localStorage.getItem('aac_family_webhook') || '').trim()
+    }
+  ];
+}
+
+function createHealthAlertPayload() {
+  const alertId = `AAC-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  return {
+    type: 'AAC_HEALTH_ALERT',
+    alertId,
+    createdAt: healthAssessmentState.createdAt || new Date().toISOString(),
+    confirmedAt: new Date().toISOString(),
+    confirmedNotAccidental: true,
+    sentence: String(sentence || healthAssessmentState.sourceText || '').trim(),
+    sourceText: healthAssessmentState.sourceText,
+    bodyLocation: healthAssessmentState.location,
+    severity: healthAssessmentState.severity,
+    severityLabel: healthAssessmentState.severityLabel,
+    duration: healthAssessmentState.duration,
+    durationLabel: healthAssessmentState.durationLabel,
+    recipients: ['nurse_station', 'family'],
+    source: 'AAC 聲母溝通系統'
+  };
+}
+
+async function postHealthAlert(endpoint, payload) {
+  if (!endpoint.url) {
+    return {
+      key: endpoint.key,
+      label: endpoint.label,
+      status: 'pending',
+      message: '尚未設定通知端點'
+    };
+  }
+
+  try {
+    const response = await fetch(endpoint.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        recipient: endpoint.key,
+        recipientLabel: endpoint.label,
+        ...payload
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return {
+      key: endpoint.key,
+      label: endpoint.label,
+      status: 'sent',
+      message: '已送出'
+    };
+  } catch (error) {
+    return {
+      key: endpoint.key,
+      label: endpoint.label,
+      status: 'failed',
+      message: `傳送失敗：${error.message || '未知錯誤'}`
+    };
+  }
+}
+
+function saveHealthAlertLocally(payload, results) {
+  try {
+    const records = JSON.parse(localStorage.getItem('aac_health_alerts') || '[]');
+    records.unshift({
+      payload,
+      results,
+      savedAt: new Date().toISOString()
+    });
+    localStorage.setItem('aac_health_alerts', JSON.stringify(records.slice(0, 50)));
+
+    const requiresRetry = results.some(result => result.status !== 'sent');
+    if (requiresRetry) {
+      const queue = JSON.parse(localStorage.getItem('aac_health_alert_queue') || '[]');
+      queue.unshift({
+        payload,
+        pendingTargets: results
+          .filter(result => result.status !== 'sent')
+          .map(result => result.key),
+        queuedAt: new Date().toISOString()
+      });
+      localStorage.setItem('aac_health_alert_queue', JSON.stringify(queue.slice(0, 50)));
+    }
+  } catch (error) {
+    console.warn('無法儲存健康警示紀錄：', error);
+  }
+}
+
+function addHealthAlertToHistory(payload, results) {
+  try {
+    const hist = JSON.parse(localStorage.getItem('aac_hist') || '[]');
+    const statusText = results.map(item => `${item.label}：${item.message}`).join('；');
+    hist.unshift({
+      t: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+      s: `【疼痛警示】${payload.bodyLocation}／${payload.severityLabel}／${payload.durationLabel}`,
+      category: '身體警示',
+      summary: `${payload.sentence}｜${statusText}`
+    });
+    localStorage.setItem('aac_hist', JSON.stringify(hist.slice(0, 20)));
+    renderHistory();
+  } catch (error) {
+    console.warn('無法加入傳送紀錄：', error);
+  }
+}
+
+function updateSentenceWithPainDetails() {
+  const detail = `${healthAssessmentState.location}很痛，疼痛程度${healthAssessmentState.severityLabel}，${healthAssessmentState.durationLabel}`;
+
+  if (/這裡很痛/.test(sentence)) {
+    sentence = sentence.replace(/這裡很痛/g, detail);
+  } else if (!sentence.includes(healthAssessmentState.location)) {
+    sentence += sentence ? `，${detail}` : detail;
+  } else if (!sentence.includes(healthAssessmentState.severityLabel)) {
+    sentence += `，疼痛程度${healthAssessmentState.severityLabel}，${healthAssessmentState.durationLabel}`;
+  }
+
+  lastSelectedWord = '';
+  inputBuffer = '';
+  updateUI();
+}
+
+function formatAlertResultHTML(results) {
+  return `<div class="alert-status-list">${results.map(result => {
+    const statusClass =
+      result.status === 'sent'
+        ? 'alert-status-sent'
+        : result.status === 'failed'
+          ? 'alert-status-failed'
+          : 'alert-status-pending';
+
+    return `<div class="alert-status-item">
+      <strong>${escapeHTML(result.label)}</strong>
+      <span class="${statusClass}">${escapeHTML(result.message)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+async function confirmAndSendHealthAlert() {
+  updateSentenceWithPainDetails();
+  const payload = createHealthAlertPayload();
+
+  showAgentPanel({
+    tone: 'emergency',
+    icon: '⏳',
+    title: '正在同步通知',
+    badge: '請稍候',
+    message: '正在同時傳送給護理站與家屬，請不要關閉頁面。',
+    summary: buildHealthAssessmentSummary(),
+    actions: []
+  });
+
+  const endpoints = getHealthAlertEndpoints();
+  const results = await Promise.all(endpoints.map(endpoint => postHealthAlert(endpoint, payload)));
+
+  saveHealthAlertLocally(payload, results);
+  addHealthAlertToHistory(payload, results);
+
+  const allSent = results.every(result => result.status === 'sent');
+  const hasFailure = results.some(result => result.status === 'failed');
+
+  const panelTone = allSent ? 'success' : (hasFailure ? 'emergency' : 'health');
+  const title = allSent
+    ? '已同步通知護理站與家屬'
+    : hasFailure
+      ? '部分通知未成功'
+      : '已建立警示，等待設定通知連線';
+
+  showAgentPanel({
+    tone: panelTone,
+    icon: allSent ? '✓' : '📨',
+    title,
+    badge: payload.alertId,
+    message: allSent
+      ? '護理站與家屬均已收到通知請求。'
+      : '警示資料已安全保存在本機。未成功的對象已加入待送佇列。',
+    summary: buildHealthAssessmentSummary(),
+    note: '是否真正送達仍應由後端提供送達回執；緊急或症狀嚴重時，請同時以現場呼叫方式求助。',
+    actions: [
+      { label: '繼續使用', kind: 'dismiss', style: 'primary' },
+      ...(!allSent ? [{ label: '設定通知連線（管理者）', kind: 'notificationSettings' }] : [])
+    ]
+  });
+
+  // showAgentPanel 只接受純文字 summary，因此另外將傳送狀態插入摘要區。
+  const summaryBox = document.getElementById('agent-summary');
+  if (summaryBox) {
+    summaryBox.innerHTML = `${escapeHTML(buildHealthAssessmentSummary()).replace(/\n/g, '<br>')}${formatAlertResultHTML(results)}`;
+    summaryBox.classList.add('show');
+  }
+
+  healthAssessmentState = createEmptyHealthAssessment();
+}
+
+function cancelHealthAlertAssessment() {
+  healthAssessmentState = createEmptyHealthAssessment();
+  dismissAgentPanel();
+}
+
+function configureNotificationEndpoints() {
+  const currentNurse = localStorage.getItem('aac_nurse_station_webhook') || '';
+  const currentFamily = localStorage.getItem('aac_family_webhook') || '';
+
+  const nurse = window.prompt(
+    '管理者設定：請輸入護理站 Webhook URL。\n留空表示暫不設定。',
+    currentNurse
+  );
+  if (nurse === null) return;
+
+  const family = window.prompt(
+    '管理者設定：請輸入家屬 Webhook URL。\n留空表示暫不設定。',
+    currentFamily
+  );
+  if (family === null) return;
+
+  if (String(nurse).trim()) {
+    localStorage.setItem('aac_nurse_station_webhook', String(nurse).trim());
+  } else {
+    localStorage.removeItem('aac_nurse_station_webhook');
+  }
+
+  if (String(family).trim()) {
+    localStorage.setItem('aac_family_webhook', String(family).trim());
+  } else {
+    localStorage.removeItem('aac_family_webhook');
+  }
+
+  showAgentPanel({
+    tone: 'success',
+    icon: '⚙️',
+    title: '通知連線設定已更新',
+    badge: '管理者設定',
+    message: '護理站與家屬的通知端點已儲存在本機瀏覽器。',
+    note: '正式部署時，建議改由後端安全保存端點與驗證資訊。',
+    actions: [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+  });
+}
+
+// 覆寫 Agent 動作處理，保留原功能並加入疼痛評估流程。
+function handleAgentAction(action) {
+  switch (action.kind) {
+    case 'dismiss':
+      dismissAgentPanel();
+      break;
+
+    case 'append':
+      sentence += action.value || '';
+      lastSelectedWord = action.value || '';
+      inputBuffer = '';
+      updateUI();
+      showAgentPanel({
+        tone: 'success',
+        icon: '✓',
+        title: '已加入句子',
+        badge: '使用者仍可修改',
+        message: `已加入「${action.value}」。請確認後再按傳送。`,
+        actions: [{ label: '繼續輸入', kind: 'dismiss', style: 'primary' }]
+      });
+      break;
+
+    case 'rest':
+      startRestBreak(action.minutes || 5);
+      break;
+
+    case 'mode':
+      setInputMode(action.value);
+      dismissAgentPanel();
+      break;
+
+    case 'emotionSolutions':
+      showEmotionSolutions(action.value);
+      break;
+
+    case 'uncertainEmotion':
+      showAgentPanel({
+        tone: 'emotion',
+        icon: '💜',
+        title: '慢慢確認也可以',
+        badge: '情緒確認',
+        message: '不確定沒有關係，可以先選擇最需要的協助。',
+        actions: [
+          { label: '想找人陪', kind: 'append', value: '我想找人陪', style: 'primary' },
+          { label: '想休息', kind: 'append', value: '我想休息' },
+          { label: '再說明一次', kind: 'append', value: '請讓我再說明一次' },
+          { label: '先不用', kind: 'dismiss' }
+        ]
+      });
+      break;
+
+    case 'endRest':
+      endRestBreak();
+      break;
+
+    case 'showSummary':
+      showAgentPanel({
+        tone: 'success',
+        icon: '📝',
+        title: '本次對話摘要',
+        badge: '本機產生',
+        message: '以下摘要可供使用者或照顧者回顧：',
+        summary: lastSentSummary || '目前尚無已傳送的對話摘要。',
+        actions: [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+      });
+      break;
+
+    case 'testRest':
+      showTimedRestReminder(true);
+      break;
+
+    case 'testEmotion':
+      showEmotionConfirmation('sad', true);
+      break;
+
+    case 'analyzeCurrent':
+      if (!sentence) {
+        showAgentPanel({
+          tone: 'info',
+          icon: '✦',
+          title: '目前沒有句子',
+          badge: '等待輸入',
+          message: '請先組成一句話，系統會自動判斷是否需要提醒。',
+          actions: [{ label: '知道了', kind: 'dismiss', style: 'primary' }]
+        });
+      } else {
+        const result = classifyConversation(sentence);
+        if (result.id === 'health' && isPainExpression(sentence)) {
+          beginPainAssessment(sentence);
+        } else {
+          showAgentPanel({
+            tone: result.tone,
+            icon: result.icon,
+            title: '目前句子判斷',
+            badge: result.label,
+            message: `系統目前將這句話歸類為「${result.label}」。這只是輔助判斷，仍由使用者確認。`,
+            summary: `目前句子：${sentence}`,
+            actions: [{ label: '關閉', kind: 'dismiss', style: 'primary' }]
+          });
+        }
+      }
+      break;
+
+    case 'healthLocation':
+      healthAssessmentState.location = action.value || '';
+      showPainSeverityStep();
+      break;
+
+    case 'healthSeverity': {
+      const option = PAIN_SEVERITY_OPTIONS.find(item => item.value === action.value);
+      healthAssessmentState.severity = action.value || 'unknown';
+      healthAssessmentState.severityLabel = option ? option.label : '不確定';
+      showPainDurationStep();
+      break;
+    }
+
+    case 'healthDuration': {
+      const option = PAIN_DURATION_OPTIONS.find(item => item.value === action.value);
+      healthAssessmentState.duration = action.value || 'unknown';
+      healthAssessmentState.durationLabel = option ? option.label : '不確定';
+      showPainReviewStep();
+      break;
+    }
+
+    case 'healthBackLocation':
+      showPainLocationStep();
+      break;
+
+    case 'healthBackSeverity':
+      showPainSeverityStep();
+      break;
+
+    case 'healthBackDuration':
+      showPainDurationStep();
+      break;
+
+    case 'healthFinalCheck':
+      showHealthFinalCheck();
+      break;
+
+    case 'confirmHealthAlert':
+      confirmAndSendHealthAlert();
+      break;
+
+    case 'cancelHealthAlert':
+      cancelHealthAlertAssessment();
+      break;
+
+    case 'notificationSettings':
+      configureNotificationEndpoints();
+      break;
+  }
+}
+
+// 覆寫自動分析：疼痛詞彙改走「部位 → 程度 → 持續狀況 → 雙重確認」。
+function analyzeConversationAndPrompt(text) {
+  if (!text) return;
+  const result = classifyConversation(text);
+
+  if (result.id === 'emergency' && canShowAgentTrigger(`intent:${result.id}`, 15000)) {
+    showAgentPanel({
+      tone: 'emergency',
+      icon: result.icon,
+      title: '偵測到緊急用語',
+      badge: result.label,
+      message: '偵測到「救命、緊急、呼吸困難」等緊急內容。請立即讓身旁照顧者或醫護人員知道。',
+      note: '此原型不會自動撥號；可在確認後透過已設定的通知端點同步傳送。',
+      actions: [
+        { label: '立即進入身體狀況確認', kind: 'analyzeCurrent', style: 'danger' },
+        { label: '加入：請叫醫生', kind: 'append', value: '請叫醫生', style: 'danger' },
+        { label: '加入：請叫家人', kind: 'append', value: '請叫家人' },
+        { label: '不是緊急', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  // 疼痛表達優先處理，不受一般「身體不適」45 秒冷卻限制。
+  // 同一段完全相同的句子只短暫冷卻 3 秒，避免 updateUI 重複觸發，
+  // 但教授現場可以很快重新測試。
+  if (result.id === 'health' && isPainExpression(text)) {
+    const normalizedPainText = String(text || '').replace(/\s+/g, '').trim();
+    if (canShowAgentTrigger(`pain:${normalizedPainText}`, 3000)) {
+      beginPainAssessment(text);
+    }
+    return;
+  }
+
+  if (result.id === 'health' && canShowAgentTrigger(`intent:${result.id}`)) {
+    showAgentPanel({
+      tone: 'health',
+      icon: result.icon,
+      title: '身體狀況確認',
+      badge: result.label,
+      message: '你似乎提到身體不舒服。需要補充症狀或請人協助嗎？',
+      note: '系統只提供表達選項，不代替醫療判斷。',
+      actions: [
+        { label: '加入：請通知照顧者', kind: 'append', value: '請通知照顧者', style: 'primary' },
+        { label: '加入：請找醫護人員', kind: 'append', value: '請找醫護人員', style: 'warn' },
+        { label: '先不用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (result.id === 'fatigue' && canShowAgentTrigger(`intent:${result.id}`)) {
+    showAgentPanel({
+      tone: 'rest',
+      icon: result.icon,
+      title: '需要休息嗎？',
+      badge: result.label,
+      message: '你似乎提到疲累或想休息。要先休息一下，還是繼續表達？',
+      actions: [
+        { label: '休息 5 分鐘', kind: 'rest', minutes: 5, style: 'primary' },
+        { label: '加入：我想休息', kind: 'append', value: '我想休息' },
+        { label: '通知照顧者', kind: 'append', value: '請讓我休息一下' },
+        { label: '繼續使用', kind: 'dismiss' }
+      ]
+    });
+    return;
+  }
+
+  if (['afraid', 'sad', 'angry'].includes(result.id) && canShowAgentTrigger(`intent:${result.id}`)) {
+    showEmotionConfirmation(result.id, false);
+  }
+}
+
+// 手動分析也採用相同疼痛評估流程。
+function runSmartAssistant() {
+  const currentText = String(sentence || '').trim();
+
+  if (!currentText) {
+    showAgentPanel({
+      tone: 'info',
+      icon: '✦',
+      title: '尚未輸入句子',
+      badge: '智慧分析',
+      message: '請先選擇詞彙組成句子。系統會自動分析休息、情緒、身體不適與緊急內容。',
+      actions: [{ label: '知道了', kind: 'dismiss', style: 'primary' }]
+    });
+    return;
+  }
+
+  const result = classifyConversation(currentText);
+
+  if (result.id === 'health' && isPainExpression(currentText)) {
+    beginPainAssessment(currentText);
+    return;
+  }
+
+  // 其他類型沿用自動分析邏輯；先清除冷卻，讓手動分析能立即顯示。
+  agentCooldowns.delete(`intent:${result.id}`);
+  analyzeConversationAndPrompt(currentText);
+}
+
+
+// ════════════════════════════════════════
+// v7.5 LINE 教授演示版
+// Google Apps Script Webhook（僅用 POST）
+// ════════════════════════════════════════
+const LINE_DEMO_URL = 'https://script.google.com/macros/s/AKfycbwDtyMamJRuVMNmctr9seJ64rzyVHgsB1UYnhRzmPehavY6RUfnDmitGLfp0UbUMY7RLA/exec';
+
+async function sendLineDemoAlert(payload) {
+  if (!LINE_DEMO_URL.startsWith("https://script.google.com/")) {
+    throw new Error("LINE 示範網址格式不正確");
+  }
+
+  await fetch(LINE_DEMO_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "text/plain;charset=UTF-8"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  return {
+    accepted: true,
+    message: "警示已送交 LINE 後端"
+  };
+}
+
+// 覆寫原本雙 Webhook 傳送，改成單一 LINE 教授演示流程。
+async function confirmAndSendHealthAlert() {
+  updateSentenceWithPainDetails();
+  const payload = createHealthAlertPayload();
+
+  showAgentPanel({
+    tone: "emergency",
+    icon: "⏳",
+    title: "正在傳送 LINE 警示",
+    badge: "教授演示版",
+    message: "正在將疼痛資訊送交 AAC 護理站示範帳號。",
+    summary: buildHealthAssessmentSummary(),
+    note: "請稍候，完成後可查看接收端手機。",
+    actions: []
+  });
+
+  try {
+    await sendLineDemoAlert(payload);
+
+    // 保留本機紀錄
+    try {
+      const records = JSON.parse(localStorage.getItem("aac_health_alerts") || "[]");
+      records.unshift({
+        payload,
+        results: [{
+          key: "lineDemo",
+          label: "LINE 護理站示範",
+          status: "submitted",
+          message: "已送交後端"
+        }],
+        savedAt: new Date().toISOString()
+      });
+      localStorage.setItem("aac_health_alerts", JSON.stringify(records.slice(0, 50)));
+    } catch (error) {
+      console.warn("無法儲存 LINE 警示紀錄：", error);
+    }
+
+    addHealthAlertToHistory(payload, [{
+      key: "lineDemo",
+      label: "LINE 護理站示範",
+      status: "pending",
+      message: "已送交後端"
+    }]);
+
+    showAgentPanel({
+      tone: "success",
+      icon: "📨",
+      title: "LINE 通知已送出",
+      badge: payload.alertId,
+      message: "疼痛資訊已送交「AAC 護理站示範」LINE 官方帳號，請查看接收端手機。",
+      summary: buildHealthAssessmentSummary(),
+      note: "此畫面表示網頁已送出請求；是否已閱讀仍以接收端 LINE 畫面為準。緊急狀況仍應立即現場求助。",
+      actions: [
+        {
+          label: "繼續使用",
+          kind: "dismiss",
+          style: "primary"
+        }
+      ]
+    });
+  } catch (error) {
+    try {
+      const queue = JSON.parse(localStorage.getItem("aac_health_alert_queue") || "[]");
+      queue.unshift({
+        payload,
+        pendingTargets: ["lineDemo"],
+        queuedAt: new Date().toISOString()
+      });
+      localStorage.setItem("aac_health_alert_queue", JSON.stringify(queue.slice(0, 50)));
+    } catch (storageError) {
+      console.warn("無法儲存待送警示：", storageError);
+    }
+
+    showAgentPanel({
+      tone: "emergency",
+      icon: "⚠️",
+      title: "LINE 通知暫時無法送出",
+      badge: "已保存於本機",
+      message: "疼痛資訊已保存在本機待送紀錄，請確認網路與 Apps Script 部署設定。",
+      summary: buildHealthAssessmentSummary(),
+      note: error.message || String(error),
+      actions: [
+        {
+          label: "關閉",
+          kind: "dismiss",
+          style: "primary"
+        }
+      ]
+    });
+  }
+
+  healthAssessmentState = createEmptyHealthAssessment();
+}
+
+
+// ════════════════════════════════════════
+// v7.8：緊急狀況確認＋LINE 通知
+// ════════════════════════════════════════
+let emergencyAssessmentState = {
+  sourceText: "",
+  emergencyType: ""
+};
+
+const EMERGENCY_TYPE_OPTIONS = Object.freeze([
+  { label: "呼吸困難", value: "呼吸困難" },
+  { label: "胸口不舒服", value: "胸口不舒服" },
+  { label: "嚴重疼痛", value: "嚴重疼痛" },
+  { label: "跌倒或受傷", value: "跌倒或受傷" },
+  { label: "意識不清／無法回應", value: "意識不清／無法回應" },
+  { label: "其他緊急狀況", value: "其他緊急狀況" }
+]);
+
+function resetEmergencyAssessment() {
+  emergencyAssessmentState = {
+    sourceText: "",
+    emergencyType: ""
+  };
+}
+
+function showEmergencyTypeStep(sourceText = "") {
+  emergencyAssessmentState.sourceText =
+    String(sourceText || sentence || "緊急").trim();
+
+  showAgentPanel({
+    tone: "emergency",
+    icon: "🚨",
+    title: "請選擇緊急狀況",
+    badge: "第 1 步／共 2 步",
+    message: "系統偵測到緊急用語。請選擇目前最接近的狀況。",
+    summary: `目前句子：${emergencyAssessmentState.sourceText}`,
+    note: "若情況正在惡化，請同時直接呼叫身旁照顧者或醫護人員。",
+    actions: [
+      ...EMERGENCY_TYPE_OPTIONS.map(option => ({
+        label: option.label,
+        kind: "emergencyType",
+        value: option.value,
+        style: option.value === "呼吸困難" ||
+               option.value === "意識不清／無法回應"
+          ? "danger"
+          : ""
+      })),
+      {
+        label: "不是緊急／可能是誤觸",
+        kind: "cancelEmergencyAlert"
+      }
+    ]
+  });
+}
+
+function buildEmergencySummary() {
+  return [
+    `緊急類型：${emergencyAssessmentState.emergencyType || "尚未選擇"}`,
+    `原始句子：${emergencyAssessmentState.sourceText || sentence || "緊急"}`,
+    "通知對象：AAC 護理站示範 LINE 帳號"
+  ].join("\n");
+}
+
+function showEmergencyFinalCheck() {
+  showAgentPanel({
+    tone: "emergency",
+    icon: "⚠️",
+    title: "最後確認：不是誤觸嗎？",
+    badge: "第 2 步／共 2 步",
+    message:
+      "按下紅色按鈕後，系統會立即將緊急資訊送交 LINE 後端。",
+    summary: buildEmergencySummary(),
+    note:
+      "送出通知不等同於對方已讀；緊急狀況仍應同步現場求助。",
+    actions: [
+      {
+        label: "確認不是誤觸，立即傳送 LINE",
+        kind: "confirmEmergencyAlert",
+        style: "confirm-alert"
+      },
+      {
+        label: "← 重新選擇緊急狀況",
+        kind: "backEmergencyType"
+      },
+      {
+        label: "取消，不要通知",
+        kind: "cancelEmergencyAlert"
+      }
+    ]
+  });
+}
+
+function createEmergencyAlertPayload() {
+  const alertId =
+    `AAC-EMG-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)
+      .toUpperCase()}`;
+
+  const emergencyType =
+    emergencyAssessmentState.emergencyType || "其他緊急狀況";
+
+  return {
+    type: "AAC_EMERGENCY_ALERT",
+    alertId,
+    createdAt: new Date().toISOString(),
+    confirmedAt: new Date().toISOString(),
+    confirmedNotAccidental: true,
+
+    // 保留 Apps Script 現有欄位格式，讓教授展示版可直接接收
+    bodyLocation: emergencyType,
+    severity: "emergency",
+    severityLabel: "緊急狀況",
+    duration: "immediate",
+    durationLabel: "需要立即協助",
+
+    emergencyType,
+    sentence:
+      emergencyAssessmentState.sourceText ||
+      sentence ||
+      `緊急：${emergencyType}`,
+    recipients: ["line_demo"],
+    source: "AAC 聲母溝通系統"
+  };
+}
+
+function addEmergencyAlertToHistory(payload, statusText) {
+  try {
+    const hist = JSON.parse(localStorage.getItem("aac_hist") || "[]");
+    hist.unshift({
+      t: new Date().toLocaleTimeString("zh-TW", {
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
+      s: `【緊急警示】${payload.emergencyType}`,
+      category: "緊急警示",
+      summary: `${payload.sentence}｜${statusText}`
+    });
+
+    localStorage.setItem(
+      "aac_hist",
+      JSON.stringify(hist.slice(0, 20))
+    );
+    renderHistory();
+  } catch (error) {
+    console.warn("無法加入緊急警示紀錄：", error);
+  }
+}
+
+async function confirmAndSendEmergencyAlert() {
+  const payload = createEmergencyAlertPayload();
+
+  showAgentPanel({
+    tone: "emergency",
+    icon: "⏳",
+    title: "正在傳送緊急 LINE 通知",
+    badge: "教授演示版",
+    message: "正在將緊急資訊送交 AAC 護理站示範帳號。",
+    summary: buildEmergencySummary(),
+    note: "請稍候，完成後可查看接收端手機。",
+    actions: []
+  });
+
+  try {
+    await sendLineDemoAlert(payload);
+
+    try {
+      const records = JSON.parse(
+        localStorage.getItem("aac_health_alerts") || "[]"
+      );
+
+      records.unshift({
+        payload,
+        results: [
+          {
+            key: "lineDemo",
+            label: "LINE 護理站示範",
+            status: "submitted",
+            message: "已送交後端"
+          }
+        ],
+        savedAt: new Date().toISOString()
+      });
+
+      localStorage.setItem(
+        "aac_health_alerts",
+        JSON.stringify(records.slice(0, 50))
+      );
+    } catch (storageError) {
+      console.warn("無法儲存緊急通知紀錄：", storageError);
+    }
+
+    addEmergencyAlertToHistory(
+      payload,
+      "LINE 護理站示範：已送交後端"
+    );
+
+    showAgentPanel({
+      tone: "success",
+      icon: "📨",
+      title: "緊急 LINE 通知已送出",
+      badge: payload.alertId,
+      message:
+        "緊急資訊已送交「AAC 護理站示範」LINE 官方帳號，請查看接收端手機。",
+      summary: buildEmergencySummary(),
+      note:
+        "此畫面表示網頁已送出請求；是否已閱讀仍以接收端 LINE 畫面為準。",
+      autoCloseMs: 30000,
+      actions: [
+        {
+          label: "繼續使用",
+          kind: "dismiss",
+          style: "primary"
+        }
+      ]
+    });
+  } catch (error) {
+    try {
+      const queue = JSON.parse(
+        localStorage.getItem("aac_health_alert_queue") || "[]"
+      );
+
+      queue.unshift({
+        payload,
+        pendingTargets: ["lineDemo"],
+        queuedAt: new Date().toISOString()
+      });
+
+      localStorage.setItem(
+        "aac_health_alert_queue",
+        JSON.stringify(queue.slice(0, 50))
+      );
+    } catch (storageError) {
+      console.warn("無法儲存待送緊急警示：", storageError);
+    }
+
+    showAgentPanel({
+      tone: "emergency",
+      icon: "⚠️",
+      title: "緊急 LINE 通知暫時無法送出",
+      badge: "已保存於本機",
+      message:
+        "緊急資訊已保存在本機待送紀錄。請確認網路與 Apps Script 設定，並立即現場求助。",
+      summary: buildEmergencySummary(),
+      note: error.message || String(error),
+      actions: [
+        {
+          label: "關閉",
+          kind: "dismiss",
+          style: "primary"
+        }
+      ]
+    });
+  }
+
+  resetEmergencyAssessment();
+}
+
+// 保留 v7.7 原本動作，再加入緊急流程。
+const handleAgentActionV77 = handleAgentAction;
+handleAgentAction = function(action) {
+  switch (action.kind) {
+    case "emergencyType":
+      emergencyAssessmentState.emergencyType =
+        action.value || "其他緊急狀況";
+      showEmergencyFinalCheck();
+      return;
+
+    case "backEmergencyType":
+      showEmergencyTypeStep(
+        emergencyAssessmentState.sourceText || sentence
+      );
+      return;
+
+    case "confirmEmergencyAlert":
+      confirmAndSendEmergencyAlert();
+      return;
+
+    case "cancelEmergencyAlert":
+      resetEmergencyAssessment();
+      dismissAgentPanel();
+      return;
+
+    default:
+      handleAgentActionV77(action);
+  }
+};
+
+// 保留原分析功能，但緊急類型改成有實際選項的流程。
+const analyzeConversationAndPromptV77 =
+  analyzeConversationAndPrompt;
+
+analyzeConversationAndPrompt = function(text) {
+  if (!text) return;
+
+  const result = classifyConversation(text);
+
+  if (result.id === "emergency") {
+    const normalizedText =
+      String(text).replace(/\s+/g, "").trim();
+
+    if (
+      canShowAgentTrigger(
+        `emergency:${normalizedText}`,
+        3000
+      )
+    ) {
+      showEmergencyTypeStep(text);
+    }
+    return;
+  }
+
+  analyzeConversationAndPromptV77(text);
+};
+
+// 點選「緊急、救命、呼吸困難」時立即開啟大提示窗，
+// 不必等待自動分析計時。
+const selectWordV77 = selectWord;
+selectWord = function(word) {
+  selectWordV77(word);
+
+  if (
+    ["緊急", "救命", "呼吸困難"].includes(word)
+  ) {
+    clearTimeout(automaticAnalysisTimer);
+    lastAutomaticallyAnalyzedSentence =
+      String(sentence || "").trim();
+
+    agentCooldowns.set(
+      `emergency:${lastAutomaticallyAnalyzedSentence
+        .replace(/\s+/g, "")}`,
+      Date.now()
+    );
+
+    setTimeout(() => {
+      showEmergencyTypeStep(sentence);
+    }, 50);
+  }
+};
+
+// 手動分析時也使用相同緊急流程。
+const runSmartAssistantV77 = runSmartAssistant;
+runSmartAssistant = function() {
+  const currentText = String(sentence || "").trim();
+
+  if (currentText) {
+    const result = classifyConversation(currentText);
+    if (result.id === "emergency") {
+      showEmergencyTypeStep(currentText);
+      return;
+    }
+  }
+
+  runSmartAssistantV77();
+};
+
+
+
+// ════════════════════════════════════════
+// v8.2：多使用者姓名／代號＋專屬 LINE 綁定碼
+// ════════════════════════════════════════
+const AAC_PROFILE_STORAGE_KEY = "aac_active_user_profile_v82";
+const AAC_CLIENT_VERSION = "8.4";
+
+function cleanAacUserName(value) {
+  return normalizeTaiwanTraditionalText(value)
+    .replace(/\s+/g, "")
+    .replace(/[^\u3400-\u9FFFA-Za-z0-9_-]/g, "")
+    .slice(0, 20);
+}
+
+const AAC_USED_BINDING_CODES_KEY =
+  "aac_used_binding_codes_v84";
+
+function getUsedAacBindingCodes() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(
+        AAC_USED_BINDING_CODES_KEY
+      ) || "[]"
+    );
+
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.map(value => String(value))
+        : []
+    );
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function rememberAacBindingCode(code) {
+  const usedCodes =
+    getUsedAacBindingCodes();
+
+  usedCodes.add(String(code));
+
+  localStorage.setItem(
+    AAC_USED_BINDING_CODES_KEY,
+    JSON.stringify(
+      Array.from(usedCodes).slice(-5000)
+    )
+  );
+}
+
+function createUniqueFourDigitCode(baseName) {
+  const usedCodes =
+    getUsedAacBindingCodes();
+
+  // 先隨機尋找未使用的 0000～9999。
+  for (let attempt = 0; attempt < 12000; attempt += 1) {
+    const suffix = String(
+      Math.floor(Math.random() * 10000)
+    ).padStart(4, "0");
+
+    const candidate =
+      `${baseName}-${suffix}`;
+
+    if (!usedCodes.has(candidate)) {
+      return suffix;
+    }
+  }
+
+  throw new Error(
+    "無法建立不重複的四位數綁定碼，請輸入房號"
+  );
+}
+
+function splitUserNameAndRoomNumber(value) {
+  const cleanValue =
+    cleanAacUserName(value);
+
+  if (!cleanValue) {
+    throw new Error(
+      "請輸入使用者姓名、稱謂或房號"
+    );
+  }
+
+  /*
+   * 支援：
+   * 陳先生-1   → 姓名：陳先生，房號：0001
+   * 陳先生-12  → 姓名：陳先生，房號：0012
+   * 陳先生0123 → 姓名：陳先生，房號：0123
+   * 陳先生     → 自動產生四位數
+   *
+   * 僅將字串最後連續的 1～4 位數視為房號。
+   */
+  const match =
+    cleanValue.match(
+      /^(.*?)[-_]?([0-9]{1,4})$/
+    );
+
+  if (match && match[1]) {
+    const baseName =
+      match[1].replace(/[-_]+$/g, "");
+
+    const roomNumber =
+      match[2].padStart(4, "0");
+
+    return {
+      baseName,
+      roomNumber,
+      roomWasProvided: true
+    };
+  }
+
+  return {
+    baseName: cleanValue.replace(/[-_]+$/g, ""),
+    roomNumber: "",
+    roomWasProvided: false
+  };
+}
+
+function generateAacBindingCode(userName) {
+  const parts =
+    splitUserNameAndRoomNumber(userName);
+
+  if (!parts.baseName) {
+    throw new Error(
+      "請輸入有效的姓名、稱謂或房號"
+    );
+  }
+
+  const suffix =
+    parts.roomWasProvided
+      ? parts.roomNumber
+      : createUniqueFourDigitCode(
+          parts.baseName
+        );
+
+  const bindingCode =
+    `${parts.baseName}-${suffix}`;
+
+  rememberAacBindingCode(bindingCode);
+
+  return bindingCode;
+}
+
+function getActiveAacProfile() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(AAC_PROFILE_STORAGE_KEY) || "null"
+    );
+
+    if (
+      parsed &&
+      parsed.userName &&
+      parsed.bindingCode
+    ) {
+      return parsed;
+    }
+  } catch (error) {}
+
+  return null;
+}
+
+function saveActiveAacProfile(profile) {
+  localStorage.setItem(
+    AAC_PROFILE_STORAGE_KEY,
+    JSON.stringify(profile)
+  );
+
+  if (profile && profile.bindingCode) {
+    rememberAacBindingCode(
+      profile.bindingCode
+    );
+  }
+}
+
+function requireActiveAacProfile() {
+  const profile = getActiveAacProfile();
+
+  if (!profile) {
+    openAacUserSetup(true);
+    throw new Error("尚未設定 AAC 使用者");
+  }
+
+  return profile;
+}
+
+function openAacUserSetup(forceNewCode = false) {
+  const overlay =
+    document.getElementById("aac-user-setup-overlay");
+
+  const input =
+    document.getElementById("aac-user-name-input");
+
+  const existing =
+    getActiveAacProfile();
+
+  overlay.dataset.forceNewCode =
+    forceNewCode ? "true" : "false";
+
+  input.value =
+    existing && !forceNewCode
+      ? existing.userName
+      : "";
+
+  overlay.classList.add("show");
+  overlay.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => input.focus(), 50);
+}
+
+function closeAacUserSetup() {
+  const overlay =
+    document.getElementById("aac-user-setup-overlay");
+
+  const profile =
+    getActiveAacProfile();
+
+  if (!profile) return;
+
+  overlay.classList.remove("show");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+function saveAacUserFromModal() {
+  const overlay =
+    document.getElementById("aac-user-setup-overlay");
+
+  const input =
+    document.getElementById("aac-user-name-input");
+
+  const userName =
+    cleanAacUserName(input.value);
+
+  if (!userName) {
+    window.alert("請輸入使用者姓名、稱謂或房號");
+    input.focus();
+    return;
+  }
+
+  const existing =
+    getActiveAacProfile();
+
+  const forceNewCode =
+    overlay.dataset.forceNewCode === "true";
+
+  const bindingCode =
+    existing && !forceNewCode
+      ? existing.bindingCode
+      : generateAacBindingCode(userName);
+
+  saveActiveAacProfile({
+    userName,
+    bindingCode,
+    createdAt:
+      existing && !forceNewCode
+        ? existing.createdAt
+        : new Date().toISOString()
+  });
+
+  overlay.classList.remove("show");
+  overlay.setAttribute("aria-hidden", "true");
+
+  renderAacProfileToolbar();
+  openAacBindingPanel();
+}
+
+function getAacBindingEntryUrl(profile) {
+  const query = new URLSearchParams({
+    action: "bind",
+    code: profile.bindingCode,
+    name: profile.userName
+  });
+
+  return `${LINE_DEMO_URL}?${query.toString()}`;
+}
+
+function openAacBindingPanel() {
+  const profile =
+    requireActiveAacProfile();
+
+  const overlay =
+    document.getElementById("aac-binding-overlay");
+
+  document.getElementById(
+    "aac-binding-user-name"
+  ).textContent = profile.userName;
+
+  document.getElementById(
+    "aac-binding-code"
+  ).textContent = profile.bindingCode;
+
+  const bindingUrl =
+    getAacBindingEntryUrl(profile);
+
+  const qrBox =
+    document.getElementById("aac-binding-qrcode");
+
+  qrBox.innerHTML = "";
+
+  if (window.QRCode) {
+    new QRCode(qrBox, {
+      text: bindingUrl,
+      width: 230,
+      height: 230,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } else {
+    qrBox.textContent =
+      "QR Code 元件尚未載入，請使用下方按鈕開啟綁定。";
+  }
+
+  const openButton =
+    document.getElementById("aac-open-binding-link");
+
+  openButton.onclick = () => {
+    window.open(bindingUrl, "_blank", "noopener");
+  };
+
+  overlay.classList.add("show");
+  overlay.setAttribute("aria-hidden", "false");
+}
+
+function closeAacBindingPanel() {
+  const overlay =
+    document.getElementById("aac-binding-overlay");
+
+  overlay.classList.remove("show");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+function renderAacProfileToolbar() {
+  const banner =
+    document.querySelector(".hint-banner");
+
+  if (!banner) return;
+
+  let toolbar =
+    document.getElementById("aac-profile-toolbar");
+
+  if (!toolbar) {
+    toolbar =
+      document.createElement("div");
+
+    toolbar.id = "aac-profile-toolbar";
+    toolbar.className = "aac-profile-toolbar";
+    banner.appendChild(toolbar);
+  }
+
+  const profile =
+    getActiveAacProfile();
+
+  if (!profile) {
+    toolbar.innerHTML = `
+      <button type="button" class="primary" id="aac-create-profile-button">
+        設定 AAC 使用者
+      </button>
+    `;
+
+    document.getElementById(
+      "aac-create-profile-button"
+    ).onclick = () => openAacUserSetup(true);
+
+    return;
+  }
+
+  toolbar.innerHTML = `
+    <span class="aac-profile-chip">
+      使用者：${escapeHTML(profile.userName)}
+    </span>
+    <span class="aac-profile-chip">
+      綁定碼：${escapeHTML(profile.bindingCode)}
+    </span>
+    <button type="button" class="primary" id="aac-bind-line-button">
+      綁定 LINE 接收者
+    </button>
+    <button type="button" id="aac-edit-profile-button">
+      修改名稱
+    </button>
+    <button type="button" id="aac-new-profile-button">
+      切換／新增使用者
+    </button>
+  `;
+
+  document.getElementById(
+    "aac-bind-line-button"
+  ).onclick = openAacBindingPanel;
+
+  document.getElementById(
+    "aac-edit-profile-button"
+  ).onclick = () => openAacUserSetup(false);
+
+  document.getElementById(
+    "aac-new-profile-button"
+  ).onclick = () => openAacUserSetup(true);
+}
+
+function addProfileToLinePayload(payload) {
+  const profile =
+    requireActiveAacProfile();
+
+  return {
+    ...payload,
+    userName: profile.userName,
+    bindingCode: profile.bindingCode,
+    clientVersion: AAC_CLIENT_VERSION
+  };
+}
+
+// 一般表達加入使用者與綁定碼。
+const createGeneralLinePayloadV81 =
+  createGeneralLinePayload;
+
+createGeneralLinePayload = function(
+  sentText,
+  result,
+  summary
+) {
+  return addProfileToLinePayload(
+    createGeneralLinePayloadV81(
+      sentText,
+      result,
+      summary
+    )
+  );
+};
+
+// 疼痛通知加入使用者與綁定碼。
+const createHealthAlertPayloadV81 =
+  createHealthAlertPayload;
+
+createHealthAlertPayload = function() {
+  return addProfileToLinePayload(
+    createHealthAlertPayloadV81()
+  );
+};
+
+// 緊急通知加入使用者與綁定碼。
+const createEmergencyAlertPayloadV81 =
+  createEmergencyAlertPayload;
+
+createEmergencyAlertPayload = function() {
+  return addProfileToLinePayload(
+    createEmergencyAlertPayloadV81()
+  );
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById(
+    "aac-save-user-button"
+  ).addEventListener(
+    "click",
+    saveAacUserFromModal
+  );
+
+  document.getElementById(
+    "aac-cancel-user-button"
+  ).addEventListener(
+    "click",
+    closeAacUserSetup
+  );
+
+  document.getElementById(
+    "aac-close-binding-button"
+  ).addEventListener(
+    "click",
+    closeAacBindingPanel
+  );
+
+  document.getElementById(
+    "aac-user-name-input"
+  ).addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      saveAacUserFromModal();
+    }
+  });
+
+  renderAacProfileToolbar();
+
+  if (!getActiveAacProfile()) {
+    openAacUserSetup(true);
+  }
+});
 
 </script>
+
+<div id="aac-user-setup-overlay" class="aac-profile-overlay" aria-hidden="true">
+  <section class="aac-profile-modal" role="dialog" aria-modal="true" aria-labelledby="aac-user-setup-title">
+    <h2 id="aac-user-setup-title">建立 AAC 使用者</h2>
+    <p>
+      請輸入使用者的姓名、稱謂或房號。系統會自動建立專屬綁定碼，
+      之後每一則一般、疼痛與緊急訊息，都只會送給這位使用者已綁定的 LINE 接收者。
+    </p>
+
+    <label for="aac-user-name-input">使用者姓名、稱謂或房號</label>
+    <input
+      id="aac-user-name-input"
+      type="text"
+      maxlength="20"
+      autocomplete="off"
+      placeholder="例如：陳先生-1、陳先生-0123"
+    >
+
+    <p class="aac-profile-note">
+      若輸入的房號不足 4 位，系統會自動在前方補零，例如「陳先生-1」會變成「陳先生-0001」；若沒有輸入房號，系統會自動產生不重複的 4 位數編碼。
+      涉及健康資料時，也可以使用化名或代號。
+    </p>
+
+    <div class="aac-profile-actions">
+      <button id="aac-save-user-button" type="button" class="primary">儲存並開始使用</button>
+      <button id="aac-cancel-user-button" type="button">取消</button>
+    </div>
+  </section>
+</div>
+
+<div id="aac-binding-overlay" class="aac-profile-overlay" aria-hidden="true">
+  <section class="aac-profile-modal" role="dialog" aria-modal="true" aria-labelledby="aac-binding-title">
+    <h2 id="aac-binding-title">綁定 LINE 接收者</h2>
+
+    <div class="aac-profile-summary">
+      使用者：<strong id="aac-binding-user-name"></strong><br>
+      綁定碼：<span id="aac-binding-code" class="aac-profile-code"></span>
+    </div>
+
+    <div id="aac-binding-qrcode" aria-label="LINE 綁定 QR Code"></div>
+
+    <p>
+      照顧者用手機掃描 QR Code，加入 LINE 官方帳號後，
+      按下傳送「綁定＋綁定碼」，就會成為這位 AAC 使用者的接收者。
+    </p>
+
+    <div class="aac-profile-actions">
+      <button id="aac-open-binding-link" type="button" class="primary">在這台裝置開啟 LINE 綁定</button>
+      <button id="aac-close-binding-button" type="button">關閉</button>
+    </div>
+
+    <p class="aac-profile-note">
+      同一位使用者可以綁定家屬、老師及護理人員等多個 LINE 帳號。
+      解除綁定可在官方帳號輸入「解除綁定 綁定碼」。
+    </p>
+  </section>
+</div>
+
 </body>
 </html>
