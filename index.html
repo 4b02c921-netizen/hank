@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC 混合注音溝通系統－歷史紀錄側邊抽屜版 v8.7.1</title>
+<title>AAC 混合注音溝通系統－歷史紀錄側邊抽屜版 v8.7.2</title>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -1438,6 +1438,20 @@ body.aac-history-open {
   .aac-history-text {
     font-size: 16px;
   }
+}
+</style>
+
+
+<style>
+/* v8.7.2：建立 AAC 使用者視窗只保留「開始使用」 */
+.aac-profile-actions.aac-profile-actions-single {
+  grid-template-columns: 1fr;
+}
+
+.aac-profile-actions.aac-profile-actions-single .primary {
+  width: 100%;
+  min-height: 54px;
+  font-size: 18px;
 }
 </style>
 
@@ -5814,7 +5828,7 @@ runSmartAssistant = function() {
 // v8.2：多使用者姓名／代號＋專屬 LINE 綁定碼
 // ════════════════════════════════════════
 const AAC_PROFILE_STORAGE_KEY = "aac_active_user_profile_v82";
-const AAC_CLIENT_VERSION = "8.7.1";
+const AAC_CLIENT_VERSION = "8.7.2";
 
 function cleanAacUserName(value) {
   return normalizeTaiwanTraditionalText(value)
@@ -6283,13 +6297,6 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   document.getElementById(
-    "aac-cancel-user-button"
-  ).addEventListener(
-    "click",
-    closeAacUserSetup
-  );
-
-  document.getElementById(
     "aac-close-binding-button"
   ).addEventListener(
     "click",
@@ -6335,9 +6342,8 @@ document.addEventListener("DOMContentLoaded", () => {
       涉及健康資料時，也可以使用化名或代號。
     </p>
 
-    <div class="aac-profile-actions">
-      <button id="aac-save-user-button" type="button" class="primary">儲存並開始使用</button>
-      <button id="aac-cancel-user-button" type="button">取消</button>
+    <div class="aac-profile-actions aac-profile-actions-single">
+      <button id="aac-save-user-button" type="button" class="primary">開始使用</button>
     </div>
   </section>
 </div>
