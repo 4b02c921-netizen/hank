@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC 混合注音溝通系統－智慧提醒 Agent v7.1</title>
+<title>AAC 混合注音溝通系統－歷史紀錄側邊抽屜版 v8.7.1</title>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -1017,6 +1017,430 @@ body {
   }
 </style>
 
+
+<style>
+/* ── v8.6：圖像溝通與點選發聲 ── */
+.aac-speech-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: min(520px, 100%);
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.aac-speech-button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid rgba(24,95,165,.28);
+  border-radius: 11px;
+  background: #fff;
+  color: var(--accent-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.aac-speech-button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.aac-speech-button:active {
+  transform: scale(.97);
+}
+
+.aac-speech-status {
+  grid-column: 1 / -1;
+  min-height: 15px;
+  text-align: center;
+  color: var(--text2);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.keyboard.pictogram-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pictogram-category,
+.pictogram-word {
+  position: relative;
+  min-height: 94px !important;
+  height: auto !important;
+  padding: 8px 6px !important;
+  border: 2px solid rgba(24,95,165,.20) !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  overflow: hidden;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.15;
+  box-shadow: 0 3px 9px rgba(0,0,0,.05);
+}
+
+.pictogram-category {
+  grid-column: span 2;
+}
+
+.pictogram-word {
+  grid-column: span 3;
+}
+
+.pictogram-category:active,
+.pictogram-word:active {
+  transform: scale(.96);
+  background: var(--accent-bg) !important;
+}
+
+.pictogram-icon {
+  display: block;
+  font-size: 35px;
+  line-height: 1;
+  filter: saturate(.92);
+}
+
+.pictogram-title {
+  display: block;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.pictogram-example {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pictogram-sound-mark {
+  position: absolute;
+  right: 7px;
+  top: 6px;
+  color: var(--accent);
+  font-size: 14px;
+  opacity: .82;
+}
+
+.pictogram-back {
+  grid-column: span 6 !important;
+  min-height: 46px !important;
+  height: auto !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+@media (max-width: 560px) {
+  .aac-speech-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .aac-speech-button {
+    min-height: 44px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .pictogram-category {
+    min-height: 86px !important;
+  }
+
+  .pictogram-word {
+    min-height: 88px !important;
+  }
+
+  .pictogram-icon {
+    font-size: 31px;
+  }
+
+  .pictogram-title {
+    font-size: 15px;
+  }
+}
+
+@media (max-height: 700px) {
+  .aac-speech-controls {
+    gap: 4px;
+  }
+
+  .aac-speech-button {
+    min-height: 34px;
+  }
+
+  .aac-speech-status {
+    display: none;
+  }
+
+  .pictogram-category,
+  .pictogram-word {
+    min-height: 72px !important;
+  }
+
+  .pictogram-icon {
+    font-size: 27px;
+  }
+}
+</style>
+
+
+<style>
+/* ════════════════════════════════════════
+ * v8.7：歷史紀錄側邊抽屜
+ * 主畫面保留給溝通操作，紀錄需要時再叫出。
+ * ════════════════════════════════════════ */
+
+.aac-profile-toolbar {
+  justify-content: flex-start;
+}
+
+#aac-history-button {
+  margin-left: auto;
+  border-color: #9fc7df;
+  background: #eef7ff;
+  color: #0f4c81;
+  white-space: nowrap;
+}
+
+#aac-history-button .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1f69ad;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.aac-history-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10110;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(15, 23, 42, .42);
+  transition: opacity .22s ease;
+}
+
+.aac-history-backdrop.show {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.aac-history-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10120;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 92vw);
+  padding: 20px;
+  border-left: 1px solid #cbd5e1;
+  background: #f8fbfe;
+  box-shadow: -18px 0 54px rgba(15, 23, 42, .22);
+  transform: translateX(105%);
+  transition: transform .24s ease;
+}
+
+.aac-history-drawer.open {
+  transform: translateX(0);
+}
+
+.aac-history-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #dbe5ee;
+}
+
+.aac-history-eyebrow {
+  margin-bottom: 3px;
+  color: #557083;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.aac-history-drawer-head h2 {
+  margin: 0;
+  color: #0f4c81;
+  font-size: 25px;
+  line-height: 1.25;
+}
+
+.aac-history-drawer-head p {
+  margin: 6px 0 0;
+  color: #5f6f7f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.aac-history-close {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aac-history-drawer-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.aac-history-count {
+  color: #5f6f7f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.aac-history-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+
+.aac-history-item {
+  width: 100%;
+  margin-bottom: 9px;
+  padding: 12px;
+  border: 1px solid #d8e5ef;
+  border-radius: 14px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+}
+
+.aac-history-item:hover {
+  border-color: #8eb9dc;
+  background: #fbfdff;
+}
+
+.aac-history-item:active {
+  transform: scale(.985);
+}
+
+.aac-history-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.aac-history-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eaf3fb;
+  color: #0f4c81;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.aac-history-time {
+  color: #7b8794;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aac-history-text {
+  color: #172033;
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.aac-history-replay-hint {
+  margin-top: 8px;
+  color: #557083;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.aac-history-empty {
+  margin-top: 24px;
+  padding: 24px 16px;
+  border: 1px dashed #b9cbd9;
+  border-radius: 16px;
+  background: #fff;
+  color: #6b7b88;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.aac-history-replay-status {
+  min-height: 22px;
+  padding-top: 8px;
+  color: #0f4c81;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+body.aac-history-open {
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .aac-profile-toolbar {
+    justify-content: center;
+  }
+
+  #aac-history-button {
+    margin-left: 0;
+  }
+
+  .aac-history-drawer {
+    width: min(420px, 96vw);
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .aac-history-drawer {
+    width: 100vw;
+  }
+
+  .aac-history-text {
+    font-size: 16px;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -1046,7 +1470,7 @@ body {
 <div class="mode-row">
   <button class="mode-tab active" id="mode-keyboard" onclick="setInputMode('keyboard')">混合注音鍵盤</button>
   <button class="mode-tab" id="mode-voice" onclick="setInputMode('voice')">語音輸入</button>
-  <button class="mode-tab" id="mode-ninegrid" onclick="setInputMode('nineGrid')">九宮格</button>
+  <button class="mode-tab" id="mode-ninegrid" onclick="setInputMode('nineGrid')">圖像溝通</button>
 </div>
 
 <div class="keyboard-wrap">
@@ -1057,6 +1481,27 @@ body {
   <button id="mic-btn" class="btn btn-mic" onclick="toggleVoice()" title="語音輸入">🎙</button>
   <button class="btn btn-clear" onclick="clearAll()">🗑 全部清除</button>
   <button class="btn btn-send" onclick="sendAndClear()">✓ 傳送並清空</button>
+</div>
+
+<div class="aac-speech-controls" aria-label="語音播放控制">
+  <button
+    id="aac-read-sentence-button"
+    class="aac-speech-button"
+    type="button"
+    onclick="speakCurrentAacSentence()"
+  >
+    🔊 朗讀目前句子
+  </button>
+  <button
+    id="aac-auto-speak-button"
+    class="aac-speech-button active"
+    type="button"
+    onclick="toggleAacAutoSpeak()"
+    aria-pressed="true"
+  >
+    🗣 點選發聲：開
+  </button>
+  <span id="aac-speech-status" class="aac-speech-status" aria-live="polite"></span>
 </div>
 
 
@@ -1076,13 +1521,59 @@ body {
   <div id="agent-actions" class="agent-actions"></div>
 </div>
 
-<div class="history-wrap">
-  <div class="history-header">
-    <div class="label" style="margin:0">傳送紀錄</div>
-    <button class="history-clear-btn" type="button" onclick="clearHistory()">🗑 清除紀錄</button>
+<!-- v8.7：右側歷史紀錄抽屜 -->
+<div
+  id="aac-history-backdrop"
+  class="aac-history-backdrop"
+  aria-hidden="true"
+  onclick="closeAacHistoryDrawer()"
+></div>
+
+<aside
+  id="aac-history-drawer"
+  class="aac-history-drawer"
+  aria-hidden="true"
+  aria-labelledby="aac-history-title"
+>
+  <div class="aac-history-drawer-head">
+    <div>
+      <div class="aac-history-eyebrow">AAC 本機紀錄</div>
+      <h2 id="aac-history-title">📜 歷史紀錄</h2>
+      <p>點一下舊訊息即可重新朗讀，不會重新傳送 LINE。</p>
+    </div>
+    <button
+      class="aac-history-close"
+      type="button"
+      onclick="closeAacHistoryDrawer()"
+      aria-label="關閉歷史紀錄"
+    >
+      ✕
+    </button>
   </div>
-  <div class="history-scroll" id="history-box"></div>
-</div>
+
+  <div class="aac-history-drawer-tools">
+    <span id="aac-history-count" class="aac-history-count">0 筆紀錄</span>
+    <button
+      class="history-clear-btn"
+      type="button"
+      onclick="clearHistory()"
+    >
+      🗑 清除全部
+    </button>
+  </div>
+
+  <div
+    class="aac-history-scroll"
+    id="history-box"
+    aria-live="polite"
+  ></div>
+
+  <div
+    id="aac-history-replay-status"
+    class="aac-history-replay-status"
+    aria-live="polite"
+  ></div>
+</aside>
 
 
 <div id="custom-word-modal" class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="custom-word-title">
@@ -3712,6 +4203,90 @@ function clearAll() {
 }
 
 
+
+function openAacHistoryDrawer() {
+  const drawer =
+    document.getElementById(
+      "aac-history-drawer"
+    );
+
+  const backdrop =
+    document.getElementById(
+      "aac-history-backdrop"
+    );
+
+  renderHistory();
+
+  drawer?.classList.add("open");
+  drawer?.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+  backdrop?.classList.add("show");
+  backdrop?.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+  document.body.classList.add(
+    "aac-history-open"
+  );
+
+  window.setTimeout(() => {
+    drawer
+      ?.querySelector(".aac-history-close")
+      ?.focus();
+  }, 80);
+}
+
+function closeAacHistoryDrawer() {
+  const drawer =
+    document.getElementById(
+      "aac-history-drawer"
+    );
+
+  const backdrop =
+    document.getElementById(
+      "aac-history-backdrop"
+    );
+
+  drawer?.classList.remove("open");
+  drawer?.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  backdrop?.classList.remove("show");
+  backdrop?.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  document.body.classList.remove(
+    "aac-history-open"
+  );
+}
+
+document.addEventListener(
+  "keydown",
+  event => {
+    if (event.key === "Escape") {
+      const drawer =
+        document.getElementById(
+          "aac-history-drawer"
+        );
+
+      if (
+        drawer &&
+        drawer.classList.contains("open")
+      ) {
+        closeAacHistoryDrawer();
+      }
+    }
+  }
+);
+
 function clearHistory() {
   const hasHistory = localStorage.getItem('aac_hist');
   if (!hasHistory) {
@@ -3726,6 +4301,16 @@ function clearHistory() {
   } catch (e) {}
 
   renderHistory();
+
+  const status =
+    document.getElementById(
+      "aac-history-replay-status"
+    );
+
+  if (status) {
+    status.textContent =
+      "已清除全部本機傳送紀錄";
+  }
 }
 
 function escapeHTML(value) {
@@ -3737,27 +4322,135 @@ function escapeHTML(value) {
     .replace(/'/g, '&#039;');
 }
 
+function getHistoryCategoryIcon(category) {
+  const label = String(category || "");
+
+  if (/緊急|求救/.test(label)) return "🚨";
+  if (/疼痛|健康|身體|不適/.test(label)) return "🩺";
+  if (/需求|請求/.test(label)) return "🙋";
+  if (/情緒|心情/.test(label)) return "😊";
+  if (/社交|問候/.test(label)) return "💬";
+
+  return "💬";
+}
+
+function replayHistoryMessage(index) {
+  let hist = [];
+
+  try {
+    hist = JSON.parse(
+      localStorage.getItem("aac_hist") || "[]"
+    );
+  } catch (error) {
+    hist = [];
+  }
+
+  const item = hist[index];
+  const text = String(item?.s || "").trim();
+
+  if (!text) return;
+
+  const status =
+    document.getElementById(
+      "aac-history-replay-status"
+    );
+
+  if (status) {
+    status.textContent =
+      "🔊 重新朗讀：" + text;
+  }
+
+  speakAacText(text);
+}
+
+function updateHistoryToolbarCount(count) {
+  const toolbarCount =
+    document.getElementById(
+      "aac-history-toolbar-count"
+    );
+
+  if (toolbarCount) {
+    toolbarCount.textContent =
+      String(count);
+  }
+
+  const drawerCount =
+    document.getElementById(
+      "aac-history-count"
+    );
+
+  if (drawerCount) {
+    drawerCount.textContent =
+      `${count} 筆紀錄`;
+  }
+}
+
 function renderHistory() {
   let hist = [];
-  try { hist = JSON.parse(localStorage.getItem('aac_hist') || '[]'); } catch {}
-  const box = document.getElementById('history-box');
+
+  try {
+    hist = JSON.parse(
+      localStorage.getItem("aac_hist") || "[]"
+    );
+  } catch (error) {
+    hist = [];
+  }
+
+  const box =
+    document.getElementById("history-box");
+
+  updateHistoryToolbarCount(hist.length);
+
+  if (!box) return;
+
   if (!hist.length) {
-    box.innerHTML = '<div class="history-empty">尚無紀錄</div>';
+    box.innerHTML = `
+      <div class="aac-history-empty">
+        <strong>目前沒有傳送紀錄</strong><br>
+        完成並傳送句子後，紀錄會顯示在這裡。
+      </div>
+    `;
     return;
   }
 
-  box.innerHTML = hist.slice(0, 10).map(item => {
-    const category = item.category
-      ? `<span class="history-category">${escapeHTML(item.category)}</span>`
-      : '';
-    return `<div class="history-item">
-      <span class="history-time">${escapeHTML(item.t)}</span>
-      <div class="history-content">
-        <div class="history-text">${escapeHTML(item.s)}</div>
-        ${category ? `<div class="history-meta">${category}已存入本機紀錄</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  box.innerHTML = hist
+    .slice(0, 20)
+    .map((item, index) => {
+      const category =
+        String(item.category || "一般表達");
+
+      const icon =
+        getHistoryCategoryIcon(category);
+
+      const text =
+        escapeHTML(item.s || "");
+
+      const time =
+        escapeHTML(item.t || "");
+
+      return `
+        <button
+          class="aac-history-item"
+          type="button"
+          onclick="replayHistoryMessage(${index})"
+          aria-label="重新朗讀：${text}"
+        >
+          <div class="aac-history-item-head">
+            <span class="aac-history-category">
+              ${icon} ${escapeHTML(category)}
+            </span>
+            <span class="aac-history-time">${time}</span>
+          </div>
+
+          <div class="aac-history-text">${text}</div>
+
+          <div class="aac-history-replay-hint">
+            🔊 點一下即可重新朗讀，不會重新傳送
+          </div>
+        </button>
+      `;
+    })
+    .join("");
 }
 
 function toggleVoice() {
@@ -5121,7 +5814,7 @@ runSmartAssistant = function() {
 // v8.2：多使用者姓名／代號＋專屬 LINE 綁定碼
 // ════════════════════════════════════════
 const AAC_PROFILE_STORAGE_KEY = "aac_active_user_profile_v82";
-const AAC_CLIENT_VERSION = "8.4";
+const AAC_CLIENT_VERSION = "8.7.1";
 
 function cleanAacUserName(value) {
   return normalizeTaiwanTraditionalText(value)
@@ -5470,12 +6163,21 @@ function renderAacProfileToolbar() {
       <button type="button" class="primary" id="aac-create-profile-button">
         設定 AAC 使用者
       </button>
+      <button type="button" id="aac-history-button">
+        📜 歷史紀錄
+        <span class="count" id="aac-history-toolbar-count">0</span>
+      </button>
     `;
 
     document.getElementById(
       "aac-create-profile-button"
     ).onclick = () => openAacUserSetup(true);
 
+    document.getElementById(
+      "aac-history-button"
+    ).onclick = openAacHistoryDrawer;
+
+    renderHistory();
     return;
   }
 
@@ -5495,6 +6197,10 @@ function renderAacProfileToolbar() {
     <button type="button" id="aac-new-profile-button">
       切換／新增使用者
     </button>
+    <button type="button" id="aac-history-button">
+      📜 歷史紀錄
+      <span class="count" id="aac-history-toolbar-count">0</span>
+    </button>
   `;
 
   document.getElementById(
@@ -5508,6 +6214,12 @@ function renderAacProfileToolbar() {
   document.getElementById(
     "aac-new-profile-button"
   ).onclick = () => openAacUserSetup(true);
+
+  document.getElementById(
+    "aac-history-button"
+  ).onclick = openAacHistoryDrawer;
+
+  renderHistory();
 }
 
 function addProfileToLinePayload(payload) {
@@ -5561,6 +6273,8 @@ createEmergencyAlertPayload = function() {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  renderHistory();
+
   document.getElementById(
     "aac-save-user-button"
   ).addEventListener(
@@ -5655,6 +6369,338 @@ document.addEventListener("DOMContentLoaded", () => {
     </p>
   </section>
 </div>
+
+
+<script>
+/* ════════════════════════════════════════
+ * v8.6 圖像溝通＋點選發聲
+ * 使用瀏覽器內建 SpeechSynthesis，不上傳語音資料。
+ * ════════════════════════════════════════ */
+
+const AAC_AUTO_SPEAK_KEY = "aac_auto_speak_v86";
+let aacAutoSpeakEnabled =
+  localStorage.getItem(AAC_AUTO_SPEAK_KEY) !== "false";
+
+const AAC_CATEGORY_ICONS = {
+  "我想要": "🙋",
+  "身體": "🩺",
+  "情緒": "😊",
+  "幫助": "🤝",
+  "環境": "🏠",
+  "社交": "💬",
+  "詢問": "❓",
+  "緊急": "🆘",
+  "常用": "⭐"
+};
+
+const AAC_WORD_ICONS = {
+  "喝水": "🥤",
+  "吃飯": "🍚",
+  "休息": "🛏️",
+  "上廁所": "🚻",
+  "很痛": "🤕",
+  "不舒服": "😣",
+  "頭暈": "💫",
+  "很累": "😴",
+  "開心": "😊",
+  "害怕": "😨",
+  "生氣": "😠",
+  "難過": "😢",
+  "翻身": "↩️",
+  "拍背": "🫳",
+  "叫家人": "👪",
+  "叫醫生": "👩‍⚕️",
+  "開冷氣": "❄️",
+  "關燈": "💡",
+  "開電視": "📺",
+  "小聲一點": "🤫",
+  "謝謝": "🙏",
+  "你好": "👋",
+  "拜拜": "🙋‍♂️",
+  "對不起": "🙇",
+  "為什麼": "❔",
+  "什麼時候": "🕒",
+  "可以嗎": "👌",
+  "再說一次": "🔁",
+  "救命": "🆘",
+  "緊急": "🚨",
+  "我不知道": "🤷",
+  "我懂了": "💡",
+  "不要": "✋",
+  "好的": "👍"
+};
+
+function getAacTaiwanVoice() {
+  const voices =
+    window.speechSynthesis
+      ? window.speechSynthesis.getVoices()
+      : [];
+
+  return (
+    voices.find(voice =>
+      /^zh[-_]TW$/i.test(voice.lang)
+    ) ||
+    voices.find(voice =>
+      /^zh/i.test(voice.lang)
+    ) ||
+    null
+  );
+}
+
+function setAacSpeechStatus(text) {
+  const status =
+    document.getElementById("aac-speech-status");
+
+  if (status) {
+    status.textContent = String(text || "");
+  }
+}
+
+function speakAacText(text, options = {}) {
+  const content =
+    String(text || "").trim();
+
+  if (!content) {
+    setAacSpeechStatus("目前沒有可朗讀的內容");
+    return false;
+  }
+
+  if (
+    !("speechSynthesis" in window) ||
+    typeof SpeechSynthesisUtterance === "undefined"
+  ) {
+    setAacSpeechStatus("此瀏覽器不支援文字轉語音");
+    return false;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance =
+    new SpeechSynthesisUtterance(content);
+
+  utterance.lang = "zh-TW";
+  utterance.rate = Number(options.rate || 0.88);
+  utterance.pitch = Number(options.pitch || 1);
+  utterance.volume = 1;
+
+  const voice = getAacTaiwanVoice();
+  if (voice) utterance.voice = voice;
+
+  utterance.onstart = () => {
+    setAacSpeechStatus("正在朗讀：" + content);
+  };
+
+  utterance.onend = () => {
+    setAacSpeechStatus("");
+  };
+
+  utterance.onerror = () => {
+    setAacSpeechStatus("朗讀未完成，請再點一次");
+  };
+
+  window.speechSynthesis.speak(utterance);
+  return true;
+}
+
+function speakCurrentAacSentence() {
+  const current =
+    String(sentence || "").trim();
+
+  speakAacText(current);
+}
+
+function updateAacAutoSpeakButton() {
+  const button =
+    document.getElementById("aac-auto-speak-button");
+
+  if (!button) return;
+
+  button.classList.toggle(
+    "active",
+    aacAutoSpeakEnabled
+  );
+
+  button.setAttribute(
+    "aria-pressed",
+    aacAutoSpeakEnabled ? "true" : "false"
+  );
+
+  button.textContent =
+    aacAutoSpeakEnabled
+      ? "🗣 點選發聲：開"
+      : "🔇 點選發聲：關";
+}
+
+function toggleAacAutoSpeak() {
+  aacAutoSpeakEnabled =
+    !aacAutoSpeakEnabled;
+
+  localStorage.setItem(
+    AAC_AUTO_SPEAK_KEY,
+    String(aacAutoSpeakEnabled)
+  );
+
+  updateAacAutoSpeakButton();
+
+  if (aacAutoSpeakEnabled) {
+    speakAacText("點選發聲已開啟");
+  } else {
+    window.speechSynthesis?.cancel();
+    setAacSpeechStatus("點選發聲已關閉");
+  }
+}
+
+function makeAacPictogramButton({
+  icon,
+  title,
+  example = "",
+  className,
+  onClick,
+  soundMark = false
+}) {
+  const button =
+    document.createElement("button");
+
+  button.type = "button";
+  button.className =
+    "key " + className;
+
+  button.setAttribute(
+    "aria-label",
+    title + (soundMark ? "，點選後朗讀" : "")
+  );
+
+  button.innerHTML = `
+    ${soundMark
+      ? '<span class="pictogram-sound-mark" aria-hidden="true">🔊</span>'
+      : ""}
+    <span class="pictogram-icon" aria-hidden="true">${icon}</span>
+    <span class="pictogram-title">${title}</span>
+    ${example
+      ? `<span class="pictogram-example">${example}</span>`
+      : ""}
+  `;
+
+  button.onclick = onClick;
+  return button;
+}
+
+renderNineGrid = function() {
+  const kb =
+    document.getElementById("keyboard");
+
+  kb.innerHTML = "";
+  kb.classList.add("pictogram-grid");
+
+  nineGridGroups.forEach(group => {
+    const button =
+      makeAacPictogramButton({
+        icon:
+          AAC_CATEGORY_ICONS[group.title] || "🗂️",
+        title: group.title,
+        example: group.words.slice(0, 2).join("、"),
+        className: "pictogram-category",
+        onClick: () => showNineGridWords(group)
+      });
+
+    kb.appendChild(button);
+  });
+};
+
+showNineGridWords = function(group) {
+  const kb =
+    document.getElementById("keyboard");
+
+  kb.innerHTML = "";
+  kb.classList.add("pictogram-grid");
+
+  group.words.forEach(word => {
+    const button =
+      makeAacPictogramButton({
+        icon:
+          AAC_WORD_ICONS[word] || "💬",
+        title: word,
+        className: "pictogram-word",
+        soundMark: true,
+        onClick: () => selectWord(word)
+      });
+
+    kb.appendChild(button);
+  });
+
+  const backButton =
+    document.createElement("button");
+
+  backButton.type = "button";
+  backButton.className =
+    "key fn pictogram-back";
+
+  backButton.textContent =
+    "← 回到圖像分類";
+
+  backButton.onclick = renderNineGrid;
+  kb.appendChild(backButton);
+};
+
+/*
+ * 所有候選詞、圖像詞與九宮格詞在選取後都可發聲；
+ * 使用者可用「點選發聲」按鈕隨時關閉。
+ */
+const selectWordBeforeAacSpeech =
+  selectWord;
+
+selectWord = function(word) {
+  selectWordBeforeAacSpeech(word);
+
+  if (aacAutoSpeakEnabled) {
+    let spokenText = String(word || "");
+
+    if (word === "現在幾點") {
+      const now = new Date();
+      spokenText =
+        `現在${now.getHours()}點` +
+        `${String(now.getMinutes()).padStart(2, "0")}分`;
+    } else if (word === "緊急") {
+      spokenText = "緊急";
+    }
+
+    speakAacText(spokenText);
+  }
+};
+
+const renderKeyboardBeforePictogram =
+  renderKeyboard;
+
+renderKeyboard = function() {
+  const kb =
+    document.getElementById("keyboard");
+
+  kb?.classList.remove("pictogram-grid");
+  renderKeyboardBeforePictogram();
+};
+
+const renderVoicePanelBeforePictogram =
+  renderVoicePanel;
+
+renderVoicePanel = function() {
+  const kb =
+    document.getElementById("keyboard");
+
+  kb?.classList.remove("pictogram-grid");
+  renderVoicePanelBeforePictogram();
+};
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    updateAacAutoSpeakButton();
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
+  }
+);
+</script>
 
 </body>
 </html>
