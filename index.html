@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC溝通系統-0819更</title>
+<title>AAC溝通系統－雲端個人化推薦版-0819更</title>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -3254,7 +3254,7 @@ function recordAacPersonalUsageV88(word, previousWord = "", meta = {}) {
       : Array.from(inputBufferSnapshot).length,
     period,
     clientTimestamp: now.toISOString(),
-    clientVersion: "8.8.1"
+    clientVersion: AAC_CLIENT_VERSION
   };
 
   postAacCloudEventV88(payload);
@@ -3276,10 +3276,164 @@ function syncAacPersonalWordV88(word, initials, zhuyin) {
     initials: String(initials || "").trim(),
     zhuyin: String(zhuyin || "").trim(),
     clientTimestamp: new Date().toISOString(),
-    clientVersion: "8.8.1"
+    clientVersion: AAC_CLIENT_VERSION
   });
 }
 
+
+
+// ════════════════════════════════════════
+// v8.8.2：雲端個人化資料同步
+// Google Sheets → AAC 本機個人化排序
+// ════════════════════════════════════════
+function mergeAacCloudPersonalizationV88(data) {
+  if (!data || data.ok !== true) return false;
+
+  const stats = loadAacPersonalStatsV88();
+  stats.words = stats.words || {};
+  stats.bigrams = stats.bigrams || {};
+
+  (Array.isArray(data.wordStats) ? data.wordStats : []).forEach(item => {
+    const word = String(item.word || "").trim();
+    if (!word) return;
+
+    const local = stats.words[word] || {
+      count: 0,
+      lastUsed: null,
+      periods: {
+        morning: 0,
+        afternoon: 0,
+        evening: 0,
+        night: 0
+      }
+    };
+
+    local.count = Math.max(
+      Number(local.count || 0),
+      Number(item.count || 0)
+    );
+
+    const cloudLast = item.lastUsed
+      ? new Date(item.lastUsed).getTime()
+      : 0;
+    const localLast = local.lastUsed
+      ? new Date(local.lastUsed).getTime()
+      : 0;
+
+    if (cloudLast > localLast) {
+      local.lastUsed = item.lastUsed;
+    }
+
+    local.periods = local.periods || {};
+    ["morning", "afternoon", "evening", "night"].forEach(period => {
+      local.periods[period] = Math.max(
+        Number(local.periods[period] || 0),
+        Number(item.periods?.[period] || 0)
+      );
+    });
+
+    stats.words[word] = local;
+  });
+
+  (Array.isArray(data.bigrams) ? data.bigrams : []).forEach(item => {
+    const previousWord = String(item.previousWord || "").trim();
+    const word = String(item.word || "").trim();
+    if (!previousWord || !word) return;
+
+    const key = `${previousWord}|${word}`;
+    stats.bigrams[key] = Math.max(
+      Number(stats.bigrams[key] || 0),
+      Number(item.count || 0)
+    );
+  });
+
+  const cloudTotal = (Array.isArray(data.wordStats) ? data.wordStats : [])
+    .reduce((sum, item) => sum + Number(item.count || 0), 0);
+
+  stats.totalSelections = Math.max(
+    Number(stats.totalSelections || 0),
+    cloudTotal
+  );
+  stats.updatedAt = data.fetchedAt || new Date().toISOString();
+
+  saveAacPersonalStatsV88(stats);
+
+  // 把雲端建立的個人詞彙加入目前 AAC 詞庫。
+  (Array.isArray(data.personalWords) ? data.personalWords : []).forEach(item => {
+    const word = String(item.word || "").trim();
+    const initials = String(item.initials || "").trim();
+    const zhuyin = String(item.zhuyin || "").trim();
+
+    if (!word || !zhuyin) return;
+
+    try {
+      addPersonalDictionaryEntry(word, zhuyin, initials);
+    } catch (error) {
+      console.warn("加入雲端個人詞彙失敗：", error);
+    }
+  });
+
+  return true;
+}
+
+function loadAacCloudPersonalizationV88() {
+  const researchUserId = getAacResearchIdentityV88();
+  if (!researchUserId || !LINE_DEMO_URL) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise(resolve => {
+    const callbackName =
+      `aacPersonalSync_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      try {
+        delete window[callbackName];
+      } catch (error) {
+        window[callbackName] = undefined;
+      }
+    };
+
+    const finish = result => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      resolve(Boolean(result));
+    };
+
+    window[callbackName] = data => {
+      try {
+        finish(mergeAacCloudPersonalizationV88(data));
+      } catch (error) {
+        console.warn("AAC 雲端個人化同步失敗：", error);
+        finish(false);
+      }
+    };
+
+    script.onerror = () => finish(false);
+
+    const timeout = setTimeout(() => finish(false), 8000);
+
+    script.onload = () => {
+      clearTimeout(timeout);
+    };
+
+    const params = new URLSearchParams({
+      action: "personalization",
+      researchUserId,
+      callback: callbackName,
+      limit: "500"
+    });
+
+    script.src = `${LINE_DEMO_URL}?${params.toString()}`;
+    script.async = true;
+    document.head.appendChild(script);
+  });
+}
 
 function renderPredictBar() {
   const bar = document.getElementById('predict-bar');
@@ -5670,6 +5824,7 @@ function runSmartAssistant() {
 
 
 // ════════════════════════════════════════
+// v7.5 LINE 教授演示版
 // Google Apps Script Webhook（僅用 POST）
 // ════════════════════════════════════════
 const LINE_DEMO_URL = 'https://script.google.com/macros/s/AKfycbxox1MnEc-5eMxoE1RyRwMT8plm9-R0WB3UV4Bx9EaibbgCx0AEa9izSwpnZanHG1bRSw/exec';
@@ -6149,7 +6304,7 @@ runSmartAssistant = function() {
 // v8.2：多使用者姓名／代號＋專屬 LINE 綁定碼
 // ════════════════════════════════════════
 const AAC_PROFILE_STORAGE_KEY = "aac_active_user_profile_v82";
-const AAC_CLIENT_VERSION = "8.8.1";
+const AAC_CLIENT_VERSION = "8.8.2";
 
 function createAacResearchIdV88() {
   if (window.crypto && crypto.randomUUID) {
@@ -7078,13 +7233,24 @@ document.addEventListener(
     updateAacAutoSpeakButton();
     flushAacCloudQueueV88();
 
+    // 載入此 AAC 使用者過去的雲端詞彙統計，
+    // 讓不同裝置也能使用相同的個人化候選排序。
+    loadAacCloudPersonalizationV88().then(ok => {
+      if (ok) {
+        renderPredictBar();
+      }
+    });
+
     if ("speechSynthesis" in window) {
       window.speechSynthesis.getVoices();
     }
   }
 );
 
-window.addEventListener("online", flushAacCloudQueueV88);
+window.addEventListener("online", () => {
+  flushAacCloudQueueV88();
+  loadAacCloudPersonalizationV88();
+});
 </script>
 
 </body>
