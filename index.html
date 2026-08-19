@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC 混合注音溝通系統－歷史紀錄側邊抽屜版 v8.7.2</title>
+<title>AAC溝通系統-0819更</title>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -2971,6 +2971,316 @@ function changeCandidatePage(delta) {
   renderPredictBar();
 }
 
+
+// ════════════════════════════════════════
+// v8.8.1：個人化詞彙學習與候選排序
+// 本機即時排序；Google Sheets 作為雲端研究紀錄層。
+// ════════════════════════════════════════
+const AAC_PERSONAL_STATS_PREFIX_V88 = "aac_personal_stats_v88_";
+const AAC_USAGE_QUEUE_KEY_V88 = "aac_usage_sync_queue_v88";
+const AAC_PERSONALIZATION_MIN_SELECTIONS_V88 = 5;
+
+function getAacProfileSnapshotV88() {
+  try {
+    return JSON.parse(
+      localStorage.getItem("aac_active_user_profile_v82") || "null"
+    );
+  } catch (error) {
+    return null;
+  }
+}
+
+function getAacResearchIdentityV88() {
+  const profile = getAacProfileSnapshotV88();
+  if (!profile) return "";
+  return String(profile.researchId || "").trim();
+}
+
+function getAacPersonalStatsKeyV88() {
+  const researchId = getAacResearchIdentityV88();
+  return researchId
+    ? AAC_PERSONAL_STATS_PREFIX_V88 + researchId
+    : "";
+}
+
+function createEmptyAacPersonalStatsV88() {
+  return {
+    totalSelections: 0,
+    words: {},
+    bigrams: {},
+    updatedAt: null
+  };
+}
+
+function loadAacPersonalStatsV88() {
+  const key = getAacPersonalStatsKeyV88();
+  if (!key) return createEmptyAacPersonalStatsV88();
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    if (!parsed || typeof parsed !== "object") {
+      return createEmptyAacPersonalStatsV88();
+    }
+    parsed.words = parsed.words && typeof parsed.words === "object"
+      ? parsed.words
+      : {};
+    parsed.bigrams = parsed.bigrams && typeof parsed.bigrams === "object"
+      ? parsed.bigrams
+      : {};
+    parsed.totalSelections = Number(parsed.totalSelections || 0);
+    return parsed;
+  } catch (error) {
+    return createEmptyAacPersonalStatsV88();
+  }
+}
+
+function saveAacPersonalStatsV88(stats) {
+  const key = getAacPersonalStatsKeyV88();
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(stats));
+}
+
+function getAacTimePeriodV88(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 22) return "evening";
+  return "night";
+}
+
+function getAacInputModeLabelV88(bufferSnapshot, modeSnapshot) {
+  if (modeSnapshot === "nineGrid") return "pictogram";
+  if (modeSnapshot === "voice") return "voice";
+
+  const buffer = String(bufferSnapshot || "");
+  if (!buffer) return "context";
+
+  try {
+    const detected = detectInputType(buffer);
+    if (detected === "fullZhuyin") return "full_zhuyin";
+    if (detected === "mixed") return "mixed_zhuyin";
+  } catch (error) {}
+
+  return "initial";
+}
+
+function rankAacCandidatesV88(candidates, previousWord = "") {
+  if (!Array.isArray(candidates) || candidates.length < 2) {
+    return Array.isArray(candidates) ? candidates : [];
+  }
+
+  const stats = loadAacPersonalStatsV88();
+  if (stats.totalSelections < AAC_PERSONALIZATION_MIN_SELECTIONS_V88) {
+    return candidates;
+  }
+
+  const period = getAacTimePeriodV88();
+  const maxCount = Math.max(
+    1,
+    ...candidates.map(word => Number(stats.words?.[word]?.count || 0))
+  );
+  const maxPairCount = Math.max(
+    1,
+    ...candidates.map(word =>
+      Number(stats.bigrams?.[`${previousWord}|${word}`] || 0)
+    )
+  );
+  const maxPeriodCount = Math.max(
+    1,
+    ...candidates.map(word =>
+      Number(stats.words?.[word]?.periods?.[period] || 0)
+    )
+  );
+
+  return candidates
+    .map((word, index) => {
+      const data = stats.words?.[word] || {};
+      const count = Number(data.count || 0);
+      const pairCount = Number(
+        stats.bigrams?.[`${previousWord}|${word}`] || 0
+      );
+      const periodCount = Number(data.periods?.[period] || 0);
+
+      // F：使用頻率（對數正規化，避免高頻詞完全壓過其他候選）
+      const F = Math.log1p(count) / Math.log1p(maxCount);
+
+      // C：上一詞與目前候選詞的個人上下文關聯
+      const C = pairCount / maxPairCount;
+
+      // R：近期使用，七天為一個自然衰減尺度
+      let R = 0;
+      if (data.lastUsed) {
+        const elapsedDays = Math.max(
+          0,
+          (Date.now() - new Date(data.lastUsed).getTime()) / 86400000
+        );
+        if (Number.isFinite(elapsedDays)) {
+          R = Math.exp(-elapsedDays / 7);
+        }
+      }
+
+      // T：目前時段的個人使用偏好
+      const T = periodCount / maxPeriodCount;
+
+      // 論文原型初始權重：頻率 40%、上下文 30%、近期 20%、時段 10%。
+      const score = 0.40 * F + 0.30 * C + 0.20 * R + 0.10 * T;
+
+      return { word, index, score };
+    })
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+    .map(item => item.word);
+}
+
+function queueAacCloudEventV88(payload) {
+  let queue = [];
+  try {
+    queue = JSON.parse(localStorage.getItem(AAC_USAGE_QUEUE_KEY_V88) || "[]");
+    if (!Array.isArray(queue)) queue = [];
+  } catch (error) {
+    queue = [];
+  }
+
+  queue.push(payload);
+  localStorage.setItem(
+    AAC_USAGE_QUEUE_KEY_V88,
+    JSON.stringify(queue.slice(-300))
+  );
+}
+
+async function postAacCloudEventV88(payload, allowQueue = true) {
+  try {
+    await fetch(LINE_DEMO_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8"
+      },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  } catch (error) {
+    if (allowQueue) queueAacCloudEventV88(payload);
+    return false;
+  }
+}
+
+async function flushAacCloudQueueV88() {
+  let queue = [];
+  try {
+    queue = JSON.parse(localStorage.getItem(AAC_USAGE_QUEUE_KEY_V88) || "[]");
+    if (!Array.isArray(queue) || !queue.length) return;
+  } catch (error) {
+    return;
+  }
+
+  const remaining = [];
+  for (const payload of queue.slice(0, 40)) {
+    const ok = await postAacCloudEventV88(payload, false);
+    if (!ok) remaining.push(payload);
+  }
+
+  remaining.push(...queue.slice(40));
+  localStorage.setItem(
+    AAC_USAGE_QUEUE_KEY_V88,
+    JSON.stringify(remaining.slice(-300))
+  );
+}
+
+function recordAacPersonalUsageV88(word, previousWord = "", meta = {}) {
+  const profile = getAacProfileSnapshotV88();
+  const researchUserId = String(profile?.researchId || "").trim();
+  const cleanWord = String(word || "").trim();
+
+  if (!researchUserId || !cleanWord) return;
+
+  const now = new Date();
+  const period = getAacTimePeriodV88(now);
+  const stats = loadAacPersonalStatsV88();
+
+  if (!stats.words[cleanWord]) {
+    stats.words[cleanWord] = {
+      count: 0,
+      lastUsed: null,
+      periods: {
+        morning: 0,
+        afternoon: 0,
+        evening: 0,
+        night: 0
+      }
+    };
+  }
+
+  const wordStats = stats.words[cleanWord];
+  wordStats.count = Number(wordStats.count || 0) + 1;
+  wordStats.lastUsed = now.toISOString();
+  wordStats.periods = wordStats.periods || {
+    morning: 0,
+    afternoon: 0,
+    evening: 0,
+    night: 0
+  };
+  wordStats.periods[period] = Number(wordStats.periods[period] || 0) + 1;
+
+  const cleanPrevious = String(previousWord || "").trim();
+  if (cleanPrevious) {
+    const key = `${cleanPrevious}|${cleanWord}`;
+    stats.bigrams[key] = Number(stats.bigrams[key] || 0) + 1;
+  }
+
+  stats.totalSelections = Number(stats.totalSelections || 0) + 1;
+  stats.updatedAt = now.toISOString();
+  saveAacPersonalStatsV88(stats);
+
+  const inputBufferSnapshot = String(meta.inputBuffer || "");
+  const inputModeLabel = meta.inputMode || getAacInputModeLabelV88(
+    inputBufferSnapshot,
+    meta.modeSnapshot || "keyboard"
+  );
+
+  const eventId =
+    (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `EV-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const payload = {
+    type: "AAC_USAGE_EVENT",
+    eventId,
+    researchUserId,
+    word: cleanWord,
+    previousWord: cleanPrevious,
+    inputMode: inputModeLabel,
+    inputKeyCount: Number.isFinite(Number(meta.inputKeyCount))
+      ? Number(meta.inputKeyCount)
+      : Array.from(inputBufferSnapshot).length,
+    period,
+    clientTimestamp: now.toISOString(),
+    clientVersion: "8.8.1"
+  };
+
+  postAacCloudEventV88(payload);
+}
+
+function syncAacPersonalWordV88(word, initials, zhuyin) {
+  const profile = getAacProfileSnapshotV88();
+  const researchUserId = String(profile?.researchId || "").trim();
+  if (!researchUserId) return;
+
+  postAacCloudEventV88({
+    type: "AAC_PERSONAL_WORD",
+    eventId:
+      (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `PW-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    researchUserId,
+    word: String(word || "").trim(),
+    initials: String(initials || "").trim(),
+    zhuyin: String(zhuyin || "").trim(),
+    clientTimestamp: new Date().toISOString(),
+    clientVersion: "8.8.1"
+  });
+}
+
+
 function renderPredictBar() {
   const bar = document.getElementById('predict-bar');
   const controls = document.getElementById('candidate-controls');
@@ -2983,9 +3293,9 @@ function renderPredictBar() {
   let isContext = false;
 
   if (inputBuffer) {
-    items = getPrefixMatches(inputBuffer);
+    items = rankAacCandidatesV88(getPrefixMatches(inputBuffer), lastSelectedWord);
   } else {
-    items = getContextSuggestions();
+    items = rankAacCandidatesV88(getContextSuggestions(), lastSelectedWord);
     isContext = true;
   }
 
@@ -4194,6 +4504,18 @@ function saveCustomWord() {
       pendingCustomPronunciation.initials
     );
 
+    syncAacPersonalWordV88(
+      cleanWord,
+      pendingCustomPronunciation.initials,
+      pendingCustomPronunciation.zhuyin
+    );
+
+    recordAacPersonalUsageV88(
+      cleanWord,
+      lastSelectedWord,
+      { inputMode: "personal_word", inputKeyCount: 0 }
+    );
+
     sentence += cleanWord;
     lastSelectedWord = cleanWord;
     inputBuffer = '';
@@ -5348,7 +5670,6 @@ function runSmartAssistant() {
 
 
 // ════════════════════════════════════════
-// v7.5 LINE 教授演示版
 // Google Apps Script Webhook（僅用 POST）
 // ════════════════════════════════════════
 const LINE_DEMO_URL = 'https://script.google.com/macros/s/AKfycbxox1MnEc-5eMxoE1RyRwMT8plm9-R0WB3UV4Bx9EaibbgCx0AEa9izSwpnZanHG1bRSw/exec';
@@ -5828,7 +6149,21 @@ runSmartAssistant = function() {
 // v8.2：多使用者姓名／代號＋專屬 LINE 綁定碼
 // ════════════════════════════════════════
 const AAC_PROFILE_STORAGE_KEY = "aac_active_user_profile_v82";
-const AAC_CLIENT_VERSION = "8.7.2";
+const AAC_CLIENT_VERSION = "8.8.1";
+
+function createAacResearchIdV88() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return (
+    "U-" +
+    Date.now().toString(36) +
+    "-" +
+    Math.random().toString(36).slice(2, 10)
+  );
+}
+
 
 function cleanAacUserName(value) {
   return normalizeTaiwanTraditionalText(value)
@@ -5976,6 +6311,13 @@ function getActiveAacProfile() {
       parsed.userName &&
       parsed.bindingCode
     ) {
+      if (!parsed.researchId) {
+        parsed.researchId = createAacResearchIdV88();
+        localStorage.setItem(
+          AAC_PROFILE_STORAGE_KEY,
+          JSON.stringify(parsed)
+        );
+      }
       return parsed;
     }
   } catch (error) {}
@@ -6074,6 +6416,10 @@ function saveAacUserFromModal() {
   saveActiveAacProfile({
     userName,
     bindingCode,
+    researchId:
+      existing && !forceNewCode && existing.researchId
+        ? existing.researchId
+        : createAacResearchIdV88(),
     createdAt:
       existing && !forceNewCode
         ? existing.createdAt
@@ -6674,6 +7020,34 @@ selectWord = function(word) {
   }
 };
 
+
+/*
+ * v8.8：最後一層 selectWord 包裝。
+ * 在原有選詞、緊急流程與點選發聲完成後，記錄個人化使用資料。
+ */
+const selectWordBeforePersonalLearningV88 =
+  selectWord;
+
+selectWord = function(word) {
+  const previousWordSnapshot =
+    String(lastSelectedWord || "").trim();
+  const inputBufferSnapshot =
+    String(inputBuffer || "");
+  const modeSnapshot = inputMode;
+
+  selectWordBeforePersonalLearningV88(word);
+
+  recordAacPersonalUsageV88(
+    word,
+    previousWordSnapshot,
+    {
+      inputBuffer: inputBufferSnapshot,
+      modeSnapshot,
+      inputKeyCount: Array.from(inputBufferSnapshot).length
+    }
+  );
+};
+
 const renderKeyboardBeforePictogram =
   renderKeyboard;
 
@@ -6699,13 +7073,18 @@ renderVoicePanel = function() {
 document.addEventListener(
   "DOMContentLoaded",
   () => {
+    // 舊版既有使用者第一次開啟 v8.8 時，自動補上匿名 researchId。
+    getActiveAacProfile();
     updateAacAutoSpeakButton();
+    flushAacCloudQueueV88();
 
     if ("speechSynthesis" in window) {
       window.speechSynthesis.getVoices();
     }
   }
 );
+
+window.addEventListener("online", flushAacCloudQueueV88);
 </script>
 
 </body>
