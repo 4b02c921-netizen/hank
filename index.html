@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AAC溝通系統－雲端個人化推薦版-0819更</title>
+<title>AAC溝通系統－下一詞預測-1151030更</title>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.1/dist/umd/full.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -1455,6 +1455,26 @@ body.aac-history-open {
 }
 </style>
 
+
+<style>
+/* v8.9：意圖預測研究原型狀態列 */
+.intent-hint {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin:4px 0 8px; padding:8px 10px; border:1px solid #D7E3F4;
+  border-radius:10px; background:#F5F8FC; color:#23415F; font-size:14px;
+}
+.intent-toggle {
+  flex:0 0 auto; border:1px solid #8BA8C8; border-radius:8px;
+  padding:6px 10px; min-height:32px; background:#FFFFFF; color:#23415F;
+  font-size:13px; cursor:pointer;
+}
+.intent-toggle:active { transform:scale(.98); }
+@media (max-width:600px) {
+  .intent-hint { font-size:12px; padding:7px 8px; align-items:flex-start; }
+  .intent-toggle { font-size:12px; padding:6px 7px; }
+}
+</style>
+
 </head>
 <body>
 
@@ -1472,6 +1492,10 @@ body.aac-history-open {
 </div>
 
 <div id="predict-section" class="predict-section">
+  <div class="intent-hint" aria-live="polite">
+    <span id="intent-prediction-text">情境預測：尚未分析</span>
+    <button id="intent-rank-toggle" class="intent-toggle" type="button" onclick="toggleAacIntentRankingV89()">意圖排序：開啟</button>
+  </div>
   <div id="predict-bar" class="predict-bar"></div>
   <div id="candidate-controls" class="candidate-controls">
     <button id="candidate-prev" class="candidate-nav-btn" type="button" onclick="changeCandidatePage(-1)">← 上一頁</button>
@@ -1567,6 +1591,13 @@ body.aac-history-open {
 
   <div class="aac-history-drawer-tools">
     <span id="aac-history-count" class="aac-history-count">0 筆紀錄</span>
+    <button
+      class="history-clear-btn"
+      type="button"
+      onclick="window.aacV90OpenSettings && window.aacV90OpenSettings()"
+    >
+      ⏰ 日常／用藥提醒設定
+    </button>
     <button
       class="history-clear-btn"
       type="button"
@@ -3447,9 +3478,9 @@ function renderPredictBar() {
   let isContext = false;
 
   if (inputBuffer) {
-    items = rankAacCandidatesV88(getPrefixMatches(inputBuffer), lastSelectedWord);
+    items = rankAacCandidatesWithIntentV89(getPrefixMatches(inputBuffer), lastSelectedWord);
   } else {
-    items = rankAacCandidatesV88(getContextSuggestions(), lastSelectedWord);
+    items = rankAacCandidatesWithIntentV89(getContextSuggestions(), lastSelectedWord);
     isContext = true;
   }
 
@@ -3565,6 +3596,160 @@ function classifyConversation(text) {
     return { id: 'social', label: '社交互動', tone: 'success', icon: '🙂', matched: [] };
   }
   return { id: 'general', label: '一般表達', tone: 'info', icon: '💬', matched: [] };
+}
+
+// ════════════════════════════════════════
+// v8.9/v92：F＋C＋R＋T＋I 統一候選詞評分（研究原型）
+// 只調整候選詞排序，不會自動執行求救、傳訊或其他外部動作。
+// 初始權重為 F=.25、C=.25、R=.15、T=.10、I=.25，需由驗證資料調整。
+// ════════════════════════════════════════
+let AAC_INTENT_RANKING_ENABLED_V89 = true;
+const AAC_INTENT_WEIGHT_V89 = 0.25;
+const AAC_BASE_RANK_DECAY_V89 = 0.20;
+
+const AAC_INTENT_RULES_V89 = [
+  {
+    id: 'emergency', label: '緊急求助', confidence: 0.98,
+    keywords: ['救命','救護車','急救','昏倒','不能呼吸','呼吸非常困難','劇痛','有危險','被困住','流血','燙傷','割傷','快叫醫生','快叫救護車','站不起來','不能動','很急','胸口劇痛']
+  },
+  {
+    id: 'health', label: '身體不適', confidence: 0.88,
+    keywords: ['頭痛','頭暈','肚子痛','胃不舒服','牙齒痛','喉嚨痛','胸口痛','背痛','腰痛','腿痛','手痛','肩膀痛','眼睛痛','耳朵痛','發燒','想吐','噁心','呼吸不順','喘不過氣','全身痠痛','很冷','很熱','很癢','睡不著','不舒服','很累','痛']
+  },
+  {
+    id: 'emotion', label: '情緒感受', confidence: 0.86,
+    keywords: ['害怕','緊張','難過','生氣','開心','孤單','擔心','委屈','想哭','焦慮','失望','煩躁','無聊','安心','放鬆','幸福','興奮','寂寞','挫折','沮喪','被忽略','不耐煩','不高興','沒信心','不安','陪我','不要離開']
+  },
+  {
+    id: 'question', label: '詢問與資訊', confidence: 0.82,
+    keywords: ['幾點','星期幾','幾月幾號','天氣如何','在哪裡','水在哪裡','誰在','什麼','怎麼用','為什麼','什麼時候','還要等多久','多少錢','到了嗎','輪到我嗎','可以去哪裡','做得對嗎','聽得懂嗎']
+  },
+  {
+    id: 'social', label: '社交互動', confidence: 0.80,
+    keywords: ['你好','早安','午安','晚安','謝謝','不好意思','對不起','沒關係','再見','拜拜','辛苦了','很高興見到你','我想聊天','請聽我說','我了解了','我不太懂','認識你']
+  },
+  {
+    id: 'daily', label: '日常活動與偏好', confidence: 0.78,
+    keywords: ['看電視','聽音樂','看電影','看書','玩遊戲','散步','出門','去公園','去市場','看新聞','聽廣播','用手機','打電話','上網','看照片','看影片','畫畫','唱歌','打球','去餐廳','去便利商店','去超市','吃點心','喝果汁']
+  },
+  {
+    id: 'request', label: '需求與協助', confidence: 0.70,
+    keywords: ['我要','我想','我需要','請幫我','幫我','喝水','吃飯','喝湯','喝牛奶','吃藥','上廁所','休息','睡覺','翻身','起身','坐起來','躺下','蓋被子','拿枕頭','拿衛生紙','換衣服','洗澡','擦臉','開冷氣','關冷氣','開燈','關燈','拿手機','找家人','回家']
+  }
+];
+
+function predictAacIntentV89(text) {
+  const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!cleanText) {
+    return { id: 'general', label: '一般表達', confidence: 0, matched: [] };
+  }
+  for (const rule of AAC_INTENT_RULES_V89) {
+    const matched = rule.keywords.filter(keyword => cleanText.includes(keyword));
+    if (matched.length > 0) {
+      const confidence = Math.min(0.99, rule.confidence + Math.min(0.06, (matched.length - 1) * 0.02));
+      return { id: rule.id, label: rule.label, confidence, matched };
+    }
+  }
+  if (/我要|我想|我需要|幫我|請/.test(cleanText)) {
+    return { id: 'request', label: '需求與協助', confidence: 0.58, matched: [] };
+  }
+  if (/好的|不可以|不是|我知道|我不知道|等一下|停止|先不要/.test(cleanText)) {
+    return { id: 'general', label: '一般表達與選擇', confidence: 0.55, matched: [] };
+  }
+  return { id: 'general', label: '一般表達', confidence: 0.25, matched: [] };
+}
+
+const AAC_CANDIDATE_INTENT_WORDS_V89 = {
+  emergency: ['緊急','救命','叫醫生','叫救護車','快一點','需要急救','需要氧氣','找護理師','通知家人','很痛','喘不過氣','請幫我','請幫幫我'],
+  health: ['不舒服','很痛','頭痛','頭暈','肚子痛','想吐','噁心','發燒','很冷','很熱','癢','休息','睡覺','躺下','叫醫生','喝水'],
+  emotion: ['害怕','緊張','難過','生氣','開心','陪我','不要離開','不要碰我','我想休息','我想回家','不要吵我','我不高興','謝謝'],
+  question: ['為什麼','什麼時候','幾點','多少錢','在哪裡','再說一次','可以嗎','什麼','怎麼辦','請問','誰','多久'],
+  social: ['你好','早安','午安','晚安','謝謝','拜拜','對不起','沒關係','再見','辛苦了','請慢慢說','請再說一次','我了解了'],
+  daily: ['看電視','聽音樂','看電影','看書','玩遊戲','散步','出門','去公園','看新聞','聽廣播','打電話','上網','看照片','看影片','唱歌','打球','吃點心','喝果汁'],
+  request: ['喝水','吃飯','喝湯','喝牛奶','吃藥','上廁所','休息','睡覺','翻身','起身','坐起來','躺下','蓋被子','拿枕頭','拿衛生紙','換衣服','洗澡','擦臉','開冷氣','關冷氣','開燈','關燈','拿手機','找家人','回家','請幫我','幫我','我要','我想']
+};
+
+function getAacCandidateIntentAffinityV89(word, intentId) {
+  const candidate = String(word || '').trim();
+  const targetWords = AAC_CANDIDATE_INTENT_WORDS_V89[intentId] || [];
+  const isRelated = keyword => candidate === keyword || (Array.from(candidate).length >= 2 && (candidate.includes(keyword) || keyword.includes(candidate)));
+  if (targetWords.some(isRelated)) {
+    return 1.0;
+  }
+  const allOtherWords = Object.entries(AAC_CANDIDATE_INTENT_WORDS_V89)
+    .filter(([id]) => id !== intentId)
+    .flatMap(([, words]) => words);
+  if (allOtherWords.some(isRelated)) {
+    return 0.25;
+  }
+  return 0.55; // 中性候選詞保留部分分數，不直接視為不相關。
+}
+
+function getAacIntentContextTextV89() {
+  // inputBuffer 通常是注音/聲母符號，不直接當成中文語意；使用已選詞和目前句子判斷。
+  return [String(sentence || '').trim(), String(lastSelectedWord || '').trim()]
+    .filter(Boolean).join(' ');
+}
+
+function rankAacCandidatesWithIntentV89(candidates, previousWord = '') {
+  if (!Array.isArray(candidates) || candidates.length < 2) {
+    return Array.isArray(candidates) ? candidates : [];
+  }
+
+  // F＋C＋R＋T＋I 統一評分：權重總和為 1；目前是待驗證的原型初始值。
+  // F：個人使用頻率；C：前後詞關聯；R：近期使用；T：時段偏好；I：意圖符合度。
+  const W = { F: 0.25, C: 0.25, R: 0.15, T: 0.10, I: 0.25 };
+  const stats = loadAacPersonalStatsV88();
+  const period = getAacTimePeriodV88();
+  const contextText = getAacIntentContextTextV89();
+  const intent = predictAacIntentV89(contextText);
+  const hasReliableIntent = Boolean(
+    AAC_INTENT_RANKING_ENABLED_V89 && contextText &&
+    intent && intent.confidence >= 0.40 && intent.id !== 'general'
+  );
+
+  const hint = document.getElementById('intent-prediction-text');
+  const toggle = document.getElementById('intent-rank-toggle');
+  if (toggle) toggle.textContent = `意圖排序：${AAC_INTENT_RANKING_ENABLED_V89 ? '開啟' : '關閉'}`;
+  if (hint) {
+    if (!contextText || !intent || intent.confidence < 0.40) {
+      hint.textContent = `情境預測：尚無足夠語境｜${AAC_INTENT_RANKING_ENABLED_V89 ? 'I 採中性分數' : '意圖排序已關閉'}`;
+    } else {
+      const matches = intent.matched && intent.matched.length ? `（線索：${intent.matched.slice(0, 2).join('、')}）` : '';
+      hint.textContent = `情境預測：${intent.label}${matches}｜${AAC_INTENT_RANKING_ENABLED_V89 ? 'F＋C＋R＋T＋I 融合排序' : 'F＋C＋R＋T 排序'}`;
+    }
+  }
+
+  const maxCount = Math.max(1, ...candidates.map(word => Number(stats.words?.[word]?.count || 0)));
+  const maxPairCount = Math.max(1, ...candidates.map(word => Number(stats.bigrams?.[`${previousWord}|${word}`] || 0)));
+  const maxPeriodCount = Math.max(1, ...candidates.map(word => Number(stats.words?.[word]?.periods?.[period] || 0)));
+
+  return candidates.map((word, index) => {
+    const data = stats.words?.[word] || {};
+    const count = Number(data.count || 0);
+    const pairCount = Number(stats.bigrams?.[`${previousWord}|${word}`] || 0);
+    const periodCount = Number(data.periods?.[period] || 0);
+
+    const F = Math.log1p(count) / Math.log1p(maxCount);
+    const C = pairCount / maxPairCount;
+    let R = 0;
+    if (data.lastUsed) {
+      const elapsedDays = Math.max(0, (Date.now() - new Date(data.lastUsed).getTime()) / 86400000);
+      if (Number.isFinite(elapsedDays)) R = Math.exp(-elapsedDays / 7);
+    }
+    const T = periodCount / maxPeriodCount;
+    // I 採 0–1 分數；若意圖不明確或使用者關閉意圖排序，給中性分數 0.5。
+    const I = hasReliableIntent
+      ? getAacCandidateIntentAffinityV89(word, intent.id)
+      : 0.5;
+    const score = W.F * F + W.C * C + W.R * R + W.T * T + W.I * I;
+    return { word, index, score, features: { F, C, R, T, I } };
+  }).sort((a, b) => (b.score - a.score) || (a.index - b.index)).map(item => item.word);
+}
+
+function toggleAacIntentRankingV89() {
+  AAC_INTENT_RANKING_ENABLED_V89 = !AAC_INTENT_RANKING_ENABLED_V89;
+  renderPredictBar();
 }
 
 function canShowAgentTrigger(key, cooldownMs = 45000) {
@@ -7252,6 +7437,5648 @@ window.addEventListener("online", () => {
   loadAacCloudPersonalizationV88();
 });
 </script>
+
+<!-- v8.9 意圖預測研究原型：新增規則式意圖線索、候選詞排序切換，原功能保留。 -->
+<style id="aac-v90-style">
+.aac-v90-panel{max-width:1100px;margin:12px auto;padding:14px 16px;border:1px solid #d5dbe3;border-radius:14px;background:#fff;color:#1f2937;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.aac-v90-panel h3{margin:0 0 6px;font-size:18px}.aac-v90-note{font-size:13px;color:#5b6472;line-height:1.55;margin:6px 0 10px}
+.aac-v90-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.aac-v90-panel button,.aac-v90-modal button{border:1px solid #cbd5e1;background:#f8fafc;border-radius:9px;padding:9px 12px;font-size:14px;cursor:pointer;color:#111827}.aac-v90-primary{background:#1d4ed8!important;color:#fff!important;border-color:#1d4ed8!important}
+.aac-v90-field{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.aac-v90-field input,.aac-v90-field select{padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;min-height:38px}.aac-v90-field input[type=text]{flex:1;min-width:180px}.aac-v90-reminder-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.aac-v90-reminder-item{border:1px solid #dbe2ea;border-radius:10px;padding:8px 10px;background:#f8fafc;display:flex;align-items:center;gap:8px;font-size:13px}
+.aac-v90-overlay{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:18px}.aac-v90-overlay.show{display:flex}.aac-v90-modal{width:min(640px,100%);background:#fff;color:#111827;border-radius:18px;padding:24px;box-shadow:0 25px 80px rgba(0,0,0,.25)}.aac-v90-modal h2{font-size:25px;margin:0 0 10px}.aac-v90-modal p{font-size:16px;line-height:1.65;margin:8px 0 16px}.aac-v90-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.aac-v90-chips button{font-size:16px;padding:12px 15px}.aac-v90-foot{font-size:12px;color:#64748b;margin-top:14px;line-height:1.55}.aac-v90-status{font-size:13px;color:#334155;margin-top:8px}
+.aac-v90-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:100001;max-width:min(92vw,640px);padding:11px 16px;background:#1f2937;color:#fff;border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:14px;line-height:1.5}
+/* 僅在提示視窗內使用圖像優先卡片；主畫面 AAC 版面維持原樣。 */
+.aac-v90-modal:has(.aac-v90-suggestion-grid){width:min(780px,100%);padding:22px}
+.aac-v90-suggestion-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 16px}
+.aac-v90-suggestion-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:112px;padding:12px 8px!important;background:#fff!important;border:1px solid #cbd5e1!important;border-radius:13px!important;box-shadow:0 1px 2px rgba(15,23,42,.04);white-space:normal}
+.aac-v90-suggestion-card:hover{background:#eff6ff!important;border-color:#93c5fd!important}
+.aac-v90-suggestion-picture{font-size:43px;line-height:1.15;display:block}
+.aac-v90-suggestion-label{font-size:15px;font-weight:650;line-height:1.3;color:#1e3a5f}
+@media(max-width:560px){.aac-v90-modal:has(.aac-v90-suggestion-grid){padding:16px}.aac-v90-suggestion-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.aac-v90-suggestion-card{min-height:100px}.aac-v90-suggestion-picture{font-size:38px}}
+.aac-v90-settings-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.aac-v90-settings-grid label{display:block;font-size:14px;color:#334155;margin-bottom:4px}
+.aac-v90-settings-grid input[type=text],.aac-v90-settings-grid input[type=time]{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;font-size:16px;min-height:42px}
+.aac-v90-settings-check{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:2px}
+.aac-v90-saved-reminder{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #e2e8f0;border-radius:9px;padding:9px 10px;margin-top:7px;font-size:14px}
+@media(min-width:560px){.aac-v90-settings-grid{grid-template-columns:1fr 150px}}
+</style>
+
+<style id="aac-v90-ui-cleanup">
+/* 主畫面不常駐顯示情境／提醒管理區；需要時改用彈出視窗。 */
+#predict-section > .intent-hint { display: none !important; }
+</style>
+<div id="aac-v90-overlay" class="aac-v90-overlay" role="dialog" aria-modal="true" aria-labelledby="aac-v90-modal-title">
+  <div class="aac-v90-modal">
+    <h2 id="aac-v90-modal-title">日常情境建議</h2>
+    <div id="aac-v90-modal-body"></div>
+    <div id="aac-v90-modal-actions" class="aac-v90-row"></div>
+    <div class="aac-v90-foot">這是溝通候選詞與提醒，不代表系統確定知道你的需求；請由使用者確認後再選擇。</div>
+  </div>
+</div>
+<script id="aac-v90-extension">
+(function(){
+  'use strict';
+  const HISTORY_KEY='aac_nextword_history_v90';
+  const REMINDER_KEY='aac_user_reminders_v90';
+  const REMINDER_LOG_KEY='aac_reminder_log_v90';
+  const PROMPT_KEY='aac_period_prompt_v90';
+  let suppressPromptToday=false;
+  let reminderTimer=null;
+  let suggestionPromptOpen=false;
+  let suppressGreetingPromptOnce=false;
+  const GREETING_PERIODS_V92={'早安':'清晨','早上好':'早上','午安':'中午','晚安':'晚上'};
+  const timeSuggestionMap={
+    '清晨':['早安','早上好','上廁所','喝水','吃早餐','刷牙'],
+    '早上':['早上好','早安','上廁所','喝水','吃早餐','洗臉'],
+    '上午':['喝水','上廁所','休息','散步','洗手','找家人'],
+    '中午':['午安','吃午餐','喝水','上廁所','休息','吃藥'],
+    '下午':['喝水','吃點心','上廁所','休息','聽音樂','找家人'],
+    '傍晚':['吃晚餐','喝水','上廁所','回家','休息','洗澡'],
+    '晚上':['晚安','吃晚餐','洗澡','喝水','上廁所','準備睡覺'],
+    '夜間':['晚安','睡覺','上廁所','不舒服','找家人','需要幫忙']
+  };
+  function getPeriod(){
+    const h=new Date().getHours();
+    if(h>=5&&h<8)return '清晨';
+    if(h>=8&&h<11)return '早上';
+    if(h>=11&&h<12)return '上午';
+    if(h>=12&&h<14)return '中午';
+    if(h>=14&&h<17)return '下午';
+    if(h>=17&&h<19)return '傍晚';
+    if(h>=19&&h<22)return '晚上';
+    return '夜間';
+  }
+  function todayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+  function safeRead(key,fallback){try{const v=JSON.parse(localStorage.getItem(key)||'null');return v==null?fallback:v;}catch(e){return fallback;}}
+  let toastTimer=null;
+  function setStatus(msg){
+    let toast=document.getElementById('aac-v90-toast');
+    if(!toast){toast=document.createElement('div');toast.id='aac-v90-toast';toast.className='aac-v90-toast';toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');document.body.appendChild(toast);}
+    toast.textContent=String(msg||'');toast.style.display='block';
+    if(toastTimer)clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>{if(toast)toast.style.display='none';},3200);
+  }
+  function loadHistory(){const a=safeRead(HISTORY_KEY,[]);return Array.isArray(a)?a:[];}
+  function periodForDate(date){const h=new Date(date).getHours();if(h>=5&&h<8)return '清晨';if(h>=8&&h<11)return '早上';if(h>=11&&h<12)return '上午';if(h>=12&&h<14)return '中午';if(h>=14&&h<17)return '下午';if(h>=17&&h<19)return '傍晚';if(h>=19&&h<22)return '晚上';return '夜間';}
+  function historyCounts(periodOverride=''){
+    const nowPeriod=periodOverride||getPeriod(), hist=loadHistory(), byPeriod={},all={};
+    hist.forEach(x=>{if(!x||!x.word)return;all[x.word]=(all[x.word]||0)+1;if(x.period===nowPeriod)byPeriod[x.word]=(byPeriod[x.word]||0)+1;});
+    return {byPeriod,all};
+  }
+  function rankByHistory(items,periodOverride=''){
+    const unique=[...new Set((Array.isArray(items)?items:[]).map(x=>String(x||'').trim()).filter(Boolean))];
+    const {byPeriod,all}=historyCounts(periodOverride);
+    const maxPeriod=Math.max(1,...Object.values(byPeriod));
+    const maxAll=Math.max(1,...Object.values(all));
+    return unique.map((word,index)=>{
+      const base=1/(index+1);
+      const timeScore=(byPeriod[word]||0)/maxPeriod;
+      const usageScore=(all[word]||0)/maxAll;
+      return {word,index,score:0.50*base+0.35*timeScore+0.15*usageScore};
+    }).sort((a,b)=>b.score-a.score||a.index-b.index).map(x=>x.word);
+  }
+  function timeSuggestions(periodOverride=''){
+    const p=periodOverride||getPeriod();
+    let items=[...(timeSuggestionMap[p]||[])];
+    const {byPeriod}=historyCounts(p);
+    const frequent=Object.entries(byPeriod).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([w])=>w);
+    items=[...items,...frequent];
+    return rankByHistory(items,p);
+  }
+  function storeUsage(word,previous,sentenceSnapshot){
+    const hist=loadHistory();
+    hist.push({word:String(word||''),previousWord:String(previous||''),period:getPeriod(),timestamp:new Date().toISOString(),context:String(sentenceSnapshot||'').slice(-80)});
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist.slice(-1500)));
+  }
+  // v91：全面補強常用詞語接續。此表結合既有規則、日常溝通用語與缺漏詞的備援對應。
+  // 注音詞庫負責「找到詞」，接續表負責「選完後下一步推薦什麼」；兩者功能不同。
+  const AAC_CONTEXT_CONTINUATIONS_V90 = Object.freeze({
+    "我想要": [
+        "喝水",
+        "吃飯",
+        "休息",
+        "上廁所",
+        "睡覺",
+        "回家",
+        "找家人"
+    ],
+    "門": [
+        "打開",
+        "關上",
+        "關起來",
+        "鎖起來",
+        "沒關好",
+        "請幫我開",
+        "請幫我關",
+        "不要開"
+    ],
+    "門打開": [
+        "我要出去",
+        "請幫我",
+        "謝謝",
+        "好了"
+    ],
+    "門關上": [
+        "這樣可以",
+        "謝謝",
+        "好了"
+    ],
+    "門關起來": [
+        "這樣可以",
+        "謝謝",
+        "好了"
+    ],
+    "門鎖起來": [
+        "我出不去",
+        "好了",
+        "謝謝"
+    ],
+    "窗戶": [
+        "打開",
+        "關上",
+        "關起來",
+        "不要打開",
+        "太冷",
+        "太熱",
+        "外面太吵"
+    ],
+    "窗戶打開": [
+        "太冷",
+        "太熱",
+        "外面太吵",
+        "謝謝",
+        "好了"
+    ],
+    "窗戶關上": [
+        "太悶了",
+        "謝謝",
+        "好了"
+    ],
+    "窗簾": [
+        "拉開",
+        "拉起來",
+        "太亮",
+        "太暗",
+        "謝謝"
+    ],
+    "燈": [
+        "開燈",
+        "關燈",
+        "太亮",
+        "太暗"
+    ],
+    "電燈": [
+        "打開",
+        "關掉",
+        "太亮",
+        "太暗"
+    ],
+    "電燈打開": [
+        "太亮",
+        "關掉",
+        "謝謝"
+    ],
+    "電燈關掉": [
+        "太暗",
+        "打開",
+        "謝謝"
+    ],
+    "冷氣": [
+        "打開",
+        "關掉",
+        "太冷",
+        "太熱",
+        "調高一點",
+        "調低一點"
+    ],
+    "冰箱": [
+        "打開",
+        "關上",
+        "拿水",
+        "拿食物",
+        "找東西"
+    ],
+    "水龍頭": [
+        "打開",
+        "關掉",
+        "水太冷",
+        "水太熱",
+        "請幫我"
+    ],
+    "桌子": [
+        "移過來",
+        "移開一點",
+        "上面有東西",
+        "幫我拿東西"
+    ],
+    "椅子": [
+        "拉過來",
+        "移開一點",
+        "坐下",
+        "幫我調整位置"
+    ],
+    "床": [
+        "躺下",
+        "坐起來",
+        "翻身",
+        "調整姿勢",
+        "我想休息"
+    ],
+    "衣服": [
+        "太冷",
+        "太熱",
+        "幫我換衣服",
+        "穿暖一點"
+    ],
+    "鞋子": [
+        "幫我穿鞋",
+        "脫掉",
+        "我要出門",
+        "謝謝"
+    ],
+    "手機": [
+        "幫我拿",
+        "打電話",
+        "找家人",
+        "幫我充電",
+        "謝謝"
+    ],
+    "電話": [
+        "打給家人",
+        "打給醫生",
+        "幫我接電話",
+        "謝謝"
+    ],
+    "電視": [
+        "打開",
+        "關掉",
+        "轉台",
+        "小聲一點",
+        "大聲一點"
+    ],
+    "電視打開": [
+        "轉台",
+        "小聲一點",
+        "大聲一點",
+        "謝謝"
+    ],
+    "打開": [
+        "門",
+        "窗戶",
+        "電燈",
+        "冷氣",
+        "電視",
+        "冰箱",
+        "抽屜"
+    ],
+    "關上": [
+        "門",
+        "窗戶",
+        "冰箱",
+        "抽屜",
+        "謝謝",
+        "好了"
+    ],
+    "關起來": [
+        "門",
+        "窗戶",
+        "冰箱",
+        "抽屜",
+        "謝謝",
+        "好了"
+    ],
+    "鎖起來": [
+        "門",
+        "謝謝",
+        "好了"
+    ],
+    "拉開": [
+        "窗簾",
+        "抽屜",
+        "門",
+        "謝謝"
+    ],
+    "拉起來": [
+        "窗簾",
+        "衣服",
+        "被子",
+        "謝謝"
+    ],
+    "幫我開": [
+        "門",
+        "窗戶",
+        "電燈",
+        "冷氣"
+    ],
+    "幫我關": [
+        "門",
+        "窗戶",
+        "電燈",
+        "冷氣"
+    ],
+    "抽屜": [
+        "打開",
+        "關起來",
+        "拿東西",
+        "幫我找東西"
+    ],
+    "浴室": [
+        "開燈",
+        "關門",
+        "我要洗澡",
+        "我要上廁所",
+        "幫我"
+    ],
+    "廁所": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "好了",
+        "謝謝"
+    ],
+    "藥": [
+        "幫我拿藥",
+        "我要確認藥袋",
+        "我已經吃了",
+        "稍後再提醒我"
+    ],
+    "吃藥": [
+        "已經吃了",
+        "還沒吃",
+        "請再確認藥袋",
+        "謝謝"
+    ],
+    "我想": [
+        "喝水",
+        "吃飯",
+        "休息",
+        "上廁所",
+        "睡覺",
+        "出去走走",
+        "找家人"
+    ],
+    "我需要": [
+        "幫忙",
+        "喝水",
+        "上廁所",
+        "休息",
+        "叫家人",
+        "叫醫生"
+    ],
+    "我需要幫忙": [
+        "翻身",
+        "拿水",
+        "上廁所",
+        "穿衣服",
+        "叫家人",
+        "叫醫生"
+    ],
+    "我要喝水": [
+        "常溫",
+        "溫水",
+        "一點",
+        "多一點",
+        "不要冰",
+        "謝謝"
+    ],
+    "我要吃飯": [
+        "吃早餐",
+        "吃午餐",
+        "吃晚餐",
+        "吃一點",
+        "不要太燙",
+        "謝謝"
+    ],
+    "我要上廁所": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "我要休息": [
+        "一下",
+        "想睡覺",
+        "關燈",
+        "不要吵我",
+        "謝謝"
+    ],
+    "我想休息": [
+        "一下",
+        "躺下",
+        "關燈",
+        "不要吵我",
+        "謝謝"
+    ],
+    "我想睡覺": [
+        "關燈",
+        "蓋被子",
+        "不要吵我",
+        "謝謝"
+    ],
+    "我想回家": [
+        "找家人",
+        "現在",
+        "等一下",
+        "請幫我",
+        "謝謝"
+    ],
+    "我想出去": [
+        "散步",
+        "坐輪椅",
+        "請陪我",
+        "現在",
+        "謝謝"
+    ],
+    "我想洗澡": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "我想喝水": [
+        "常溫",
+        "溫水",
+        "一點",
+        "多一點",
+        "不要冰",
+        "謝謝"
+    ],
+    "我想吃飯": [
+        "吃一點",
+        "多一點",
+        "不要太燙",
+        "慢一點",
+        "謝謝"
+    ],
+    "我不舒服": [
+        "哪裡不舒服",
+        "很痛",
+        "頭暈",
+        "想吐",
+        "叫醫生",
+        "找家人"
+    ],
+    "我很痛": [
+        "這裡",
+        "一點點",
+        "叫醫生",
+        "找家人",
+        "不要碰我"
+    ],
+    "我不知道": [
+        "請再說一次",
+        "慢一點",
+        "請幫我",
+        "謝謝"
+    ],
+    "我知道了": [
+        "謝謝",
+        "好的",
+        "可以了",
+        "還有問題"
+    ],
+    "我好多了": [
+        "謝謝",
+        "可以了",
+        "還要休息",
+        "叫家人"
+    ],
+    "我還是不懂": [
+        "請再說一次",
+        "慢一點",
+        "用簡單一點的話",
+        "謝謝"
+    ],
+    "我想一下": [
+        "等一下",
+        "好的",
+        "不要",
+        "謝謝"
+    ],
+    "我不想要": [
+        "不要",
+        "換一個",
+        "等一下",
+        "謝謝"
+    ],
+    "我要出去": [
+        "開門",
+        "請幫我",
+        "找家人",
+        "謝謝"
+    ],
+    "我要出門": [
+        "幫我穿鞋",
+        "拿手機",
+        "找家人",
+        "謝謝"
+    ],
+    "我要洗澡": [
+        "請幫我",
+        "開熱水",
+        "準備衣服",
+        "謝謝"
+    ],
+    "我要確認藥袋": [
+        "請幫我看",
+        "確認藥名",
+        "確認時間",
+        "謝謝"
+    ],
+    "請幫我": [
+        "翻身",
+        "拿水",
+        "上廁所",
+        "穿衣服",
+        "開門",
+        "叫家人",
+        "叫醫生"
+    ],
+    "可以幫我嗎": [
+        "拿水",
+        "開門",
+        "翻身",
+        "找家人",
+        "謝謝"
+    ],
+    "幫我嗎": [
+        "拿水",
+        "開門",
+        "翻身",
+        "叫家人",
+        "謝謝"
+    ],
+    "幫忙": [
+        "拿水",
+        "翻身",
+        "上廁所",
+        "找家人",
+        "謝謝"
+    ],
+    "請幫我開": [
+        "門",
+        "窗戶",
+        "電燈",
+        "冷氣"
+    ],
+    "請幫我關": [
+        "門",
+        "窗戶",
+        "電燈",
+        "冷氣"
+    ],
+    "請陪我": [
+        "一下",
+        "不要離開",
+        "我害怕",
+        "謝謝"
+    ],
+    "陪我": [
+        "一下",
+        "不要離開",
+        "我害怕",
+        "謝謝"
+    ],
+    "找家人": [
+        "叫家人",
+        "打電話",
+        "我不舒服",
+        "我想回家",
+        "謝謝"
+    ],
+    "找朋友": [
+        "打電話",
+        "請陪我",
+        "謝謝"
+    ],
+    "叫家人": [
+        "我不舒服",
+        "我很痛",
+        "我想回家",
+        "請幫我",
+        "謝謝"
+    ],
+    "叫醫生": [
+        "我很痛",
+        "我不舒服",
+        "頭暈",
+        "呼吸困難",
+        "請快一點"
+    ],
+    "救命": [
+        "叫醫生",
+        "叫家人",
+        "我很痛",
+        "我喘不過氣"
+    ],
+    "緊急": [
+        "叫醫生",
+        "叫家人",
+        "救命",
+        "很痛",
+        "不舒服"
+    ],
+    "房門": [
+        "打開",
+        "關上",
+        "關起來",
+        "鎖起來",
+        "請幫我開",
+        "請幫我關"
+    ],
+    "浴室門": [
+        "打開",
+        "關上",
+        "關起來",
+        "請幫我開",
+        "請幫我關"
+    ],
+    "房間門": [
+        "打開",
+        "關上",
+        "關起來",
+        "請幫我開",
+        "請幫我關"
+    ],
+    "門把": [
+        "轉開",
+        "打不開",
+        "請幫我",
+        "謝謝"
+    ],
+    "門鎖": [
+        "鎖起來",
+        "打開",
+        "打不開",
+        "請幫我"
+    ],
+    "燈光": [
+        "太亮",
+        "太暗",
+        "開燈",
+        "關燈"
+    ],
+    "電風扇": [
+        "打開",
+        "關掉",
+        "太冷",
+        "太熱",
+        "調快一點",
+        "調慢一點"
+    ],
+    "風扇": [
+        "打開",
+        "關掉",
+        "太冷",
+        "太熱",
+        "調快一點",
+        "調慢一點"
+    ],
+    "暖氣": [
+        "打開",
+        "關掉",
+        "太冷",
+        "調高一點",
+        "謝謝"
+    ],
+    "洗手台": [
+        "開水",
+        "關水",
+        "洗手",
+        "刷牙",
+        "請幫我"
+    ],
+    "馬桶": [
+        "沖水",
+        "請幫我",
+        "好了",
+        "謝謝"
+    ],
+    "浴缸": [
+        "放水",
+        "水太熱",
+        "水太冷",
+        "請幫我"
+    ],
+    "淋浴": [
+        "水太熱",
+        "水太冷",
+        "幫我洗澡",
+        "謝謝"
+    ],
+    "枕頭": [
+        "墊高一點",
+        "放低一點",
+        "幫我調整",
+        "謝謝"
+    ],
+    "被子": [
+        "蓋起來",
+        "拿開",
+        "太熱",
+        "太冷",
+        "謝謝"
+    ],
+    "棉被": [
+        "蓋起來",
+        "拿開",
+        "太熱",
+        "太冷",
+        "謝謝"
+    ],
+    "褲子": [
+        "幫我穿褲子",
+        "幫我換褲子",
+        "太緊",
+        "謝謝"
+    ],
+    "襪子": [
+        "幫我穿襪子",
+        "脫掉",
+        "太緊",
+        "謝謝"
+    ],
+    "眼鏡": [
+        "幫我拿眼鏡",
+        "幫我戴上",
+        "幫我擦一下",
+        "謝謝"
+    ],
+    "遙控器": [
+        "幫我拿",
+        "開電視",
+        "關電視",
+        "調大聲",
+        "調小聲"
+    ],
+    "輪椅": [
+        "推我過去",
+        "停一下",
+        "往前",
+        "往後",
+        "謝謝"
+    ],
+    "助行器": [
+        "幫我拿",
+        "我要走路",
+        "請扶我",
+        "謝謝"
+    ],
+    "垃圾桶": [
+        "拿過來",
+        "放這裡",
+        "我想吐",
+        "謝謝"
+    ],
+    "水杯": [
+        "拿給我",
+        "裝滿一點",
+        "少一點",
+        "謝謝"
+    ],
+    "杯子": [
+        "拿給我",
+        "裝水",
+        "小心燙",
+        "謝謝"
+    ],
+    "關掉": [
+        "電燈",
+        "電視",
+        "冷氣",
+        "風扇",
+        "水龍頭",
+        "謝謝"
+    ],
+    "關門": [
+        "謝謝",
+        "好了",
+        "太悶了",
+        "我要出去"
+    ],
+    "開門": [
+        "謝謝",
+        "我要出去",
+        "請小心",
+        "好了"
+    ],
+    "打不開": [
+        "請幫我",
+        "叫家人",
+        "再試一次",
+        "謝謝"
+    ],
+    "沒關好": [
+        "請幫我關",
+        "再關一次",
+        "謝謝"
+    ],
+    "不要打開": [
+        "謝謝",
+        "請關起來",
+        "我不想要"
+    ],
+    "不要開": [
+        "謝謝",
+        "請關起來",
+        "我不想要"
+    ],
+    "轉開": [
+        "門",
+        "水龍頭",
+        "打不開",
+        "謝謝"
+    ],
+    "房間": [
+        "開燈",
+        "關燈",
+        "休息",
+        "睡覺",
+        "找家人"
+    ],
+    "客廳": [
+        "開電視",
+        "關電視",
+        "坐下",
+        "休息",
+        "找家人"
+    ],
+    "廚房": [
+        "拿水",
+        "拿食物",
+        "吃飯",
+        "請幫我"
+    ],
+    "餐廳": [
+        "吃早餐",
+        "吃午餐",
+        "吃晚餐",
+        "喝水",
+        "謝謝"
+    ],
+    "醫院": [
+        "找醫生",
+        "看診",
+        "我不舒服",
+        "我很痛",
+        "謝謝"
+    ],
+    "診間": [
+        "找醫生",
+        "我不舒服",
+        "我很痛",
+        "請再說一次"
+    ],
+    "外面": [
+        "太熱",
+        "太冷",
+        "太吵",
+        "我要回家",
+        "請陪我"
+    ],
+    "家裡": [
+        "找家人",
+        "休息",
+        "喝水",
+        "謝謝"
+    ],
+    "水": [
+        "喝水",
+        "拿水",
+        "太冷",
+        "太熱",
+        "謝謝"
+    ],
+    "飲料": [
+        "常溫",
+        "不要冰",
+        "一點",
+        "多一點",
+        "謝謝"
+    ],
+    "食物": [
+        "拿給我",
+        "吃一點",
+        "我不想吃",
+        "謝謝"
+    ],
+    "飯": [
+        "吃一點",
+        "多一點",
+        "不要太燙",
+        "慢一點",
+        "謝謝"
+    ],
+    "粥": [
+        "吃一點",
+        "多一點",
+        "不要太燙",
+        "謝謝"
+    ],
+    "麵": [
+        "吃一點",
+        "不要太燙",
+        "少一點",
+        "謝謝"
+    ],
+    "水果": [
+        "切小塊",
+        "拿給我",
+        "吃一點",
+        "謝謝"
+    ],
+    "餅乾": [
+        "拿給我",
+        "吃一點",
+        "還要",
+        "謝謝"
+    ],
+    "點心": [
+        "吃一點",
+        "還要",
+        "喝水",
+        "謝謝"
+    ],
+    "牛奶": [
+        "常溫",
+        "溫熱一點",
+        "不要冰",
+        "謝謝"
+    ],
+    "果汁": [
+        "常溫",
+        "不要冰",
+        "一點",
+        "多一點",
+        "謝謝"
+    ],
+    "豆漿": [
+        "常溫",
+        "溫熱一點",
+        "不要冰",
+        "謝謝"
+    ],
+    "湯": [
+        "小心燙",
+        "不要太燙",
+        "一點",
+        "多一點",
+        "謝謝"
+    ],
+    "咖啡": [
+        "溫的",
+        "不要太燙",
+        "一點",
+        "謝謝"
+    ],
+    "茶": [
+        "溫的",
+        "不要太燙",
+        "一點",
+        "謝謝"
+    ],
+    "吃飯": [
+        "一點",
+        "多一點",
+        "不要太燙",
+        "慢一點",
+        "謝謝",
+        "不要了"
+    ],
+    "吃早餐": [
+        "謝謝",
+        "還要",
+        "不要了",
+        "喝水"
+    ],
+    "吃午餐": [
+        "謝謝",
+        "還要",
+        "不要了",
+        "喝水"
+    ],
+    "吃晚餐": [
+        "謝謝",
+        "還要",
+        "不要了",
+        "喝水"
+    ],
+    "吃點心": [
+        "拿給我",
+        "吃一點",
+        "還要",
+        "謝謝"
+    ],
+    "不想吃": [
+        "換一個",
+        "等一下",
+        "謝謝",
+        "我吃飽了"
+    ],
+    "吃飽了": [
+        "謝謝",
+        "喝水",
+        "可以了",
+        "不用了"
+    ],
+    "餓": [
+        "想吃飯",
+        "想吃點心",
+        "拿食物",
+        "謝謝"
+    ],
+    "渴": [
+        "想喝水",
+        "拿水",
+        "謝謝"
+    ],
+    "尿布": [
+        "幫我換尿布",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "換尿布": [
+        "謝謝",
+        "可以了",
+        "等一下"
+    ],
+    "洗澡": [
+        "請幫我",
+        "水太熱",
+        "水太冷",
+        "拿毛巾",
+        "謝謝"
+    ],
+    "洗手": [
+        "拿毛巾",
+        "關水",
+        "謝謝"
+    ],
+    "刷牙": [
+        "拿牙刷",
+        "拿水",
+        "漱口",
+        "謝謝"
+    ],
+    "漱口": [
+        "拿毛巾",
+        "謝謝",
+        "好了"
+    ],
+    "穿衣服": [
+        "幫我拿衣服",
+        "太緊",
+        "太冷",
+        "謝謝"
+    ],
+    "換衣服": [
+        "幫我拿衣服",
+        "太冷",
+        "太熱",
+        "謝謝"
+    ],
+    "穿鞋": [
+        "幫我拿鞋子",
+        "我要出門",
+        "謝謝"
+    ],
+    "上廁所": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好了"
+    ],
+    "去廁所": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好了"
+    ],
+    "尿尿": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "大便": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "頭": [
+        "痛",
+        "暈",
+        "不舒服",
+        "幫我按摩",
+        "叫醫生"
+    ],
+    "頭痛": [
+        "很痛",
+        "一點點",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "頭暈": [
+        "想躺下",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "肚子": [
+        "痛",
+        "餓",
+        "不舒服",
+        "想吐",
+        "叫醫生"
+    ],
+    "肚子痛": [
+        "很痛",
+        "想吐",
+        "叫醫生",
+        "找家人"
+    ],
+    "胸口": [
+        "痛",
+        "悶",
+        "喘不過氣",
+        "叫醫生"
+    ],
+    "胸口痛": [
+        "叫醫生",
+        "叫家人",
+        "很痛",
+        "喘不過氣"
+    ],
+    "背": [
+        "痛",
+        "癢",
+        "請幫我按摩",
+        "翻身"
+    ],
+    "腰": [
+        "痛",
+        "請幫我調整姿勢",
+        "翻身",
+        "叫醫生"
+    ],
+    "手": [
+        "痛",
+        "麻",
+        "癢",
+        "幫我拿東西"
+    ],
+    "腳": [
+        "痛",
+        "麻",
+        "抽筋",
+        "幫我按摩"
+    ],
+    "肩膀": [
+        "痛",
+        "痠",
+        "幫我按摩",
+        "調整姿勢"
+    ],
+    "喉嚨": [
+        "痛",
+        "乾",
+        "想喝水",
+        "叫醫生"
+    ],
+    "牙齒": [
+        "痛",
+        "很痛",
+        "叫醫生",
+        "謝謝"
+    ],
+    "眼睛": [
+        "痛",
+        "癢",
+        "看不清楚",
+        "幫我拿眼鏡"
+    ],
+    "耳朵": [
+        "痛",
+        "聽不清楚",
+        "叫醫生"
+    ],
+    "皮膚": [
+        "癢",
+        "痛",
+        "紅紅的",
+        "叫醫生"
+    ],
+    "發燒": [
+        "很不舒服",
+        "量體溫",
+        "叫醫生",
+        "找家人"
+    ],
+    "咳嗽": [
+        "拿水",
+        "拿衛生紙",
+        "叫醫生",
+        "休息"
+    ],
+    "喘不過氣": [
+        "叫醫生",
+        "叫家人",
+        "救命",
+        "快一點"
+    ],
+    "呼吸困難": [
+        "叫醫生",
+        "叫家人",
+        "救命",
+        "快一點"
+    ],
+    "麻": [
+        "手",
+        "腳",
+        "很不舒服",
+        "叫醫生"
+    ],
+    "麻木": [
+        "手",
+        "腳",
+        "很不舒服",
+        "叫醫生"
+    ],
+    "抽筋": [
+        "很痛",
+        "請幫我伸展",
+        "叫醫生"
+    ],
+    "癢": [
+        "這裡",
+        "不要碰",
+        "幫我擦藥",
+        "叫醫生"
+    ],
+    "很累": [
+        "想休息",
+        "想睡覺",
+        "不要說話",
+        "等一下"
+    ],
+    "想吐": [
+        "拿垃圾桶",
+        "叫醫生",
+        "想休息",
+        "找家人"
+    ],
+    "想躺下": [
+        "請幫我",
+        "慢一點",
+        "蓋被子",
+        "謝謝"
+    ],
+    "躺下": [
+        "調整姿勢",
+        "蓋被子",
+        "想休息",
+        "謝謝"
+    ],
+    "坐起來": [
+        "慢一點",
+        "請扶我",
+        "頭暈",
+        "謝謝"
+    ],
+    "一點點": [
+        "謝謝",
+        "還要",
+        "可以了",
+        "請輕一點"
+    ],
+    "不要碰我": [
+        "謝謝",
+        "等一下",
+        "我很痛",
+        "請叫家人"
+    ],
+    "害怕": [
+        "陪我",
+        "不要離開",
+        "叫家人",
+        "我想休息"
+    ],
+    "擔心": [
+        "陪我",
+        "請告訴我",
+        "找家人",
+        "謝謝"
+    ],
+    "焦慮": [
+        "陪我",
+        "我想休息",
+        "慢慢說",
+        "謝謝"
+    ],
+    "生氣": [
+        "不要",
+        "等一下",
+        "我想自己冷靜",
+        "不要碰我"
+    ],
+    "難過": [
+        "陪我",
+        "我想休息",
+        "我想回家",
+        "不要說話"
+    ],
+    "開心": [
+        "謝謝",
+        "我喜歡",
+        "很好",
+        "再一次"
+    ],
+    "孤單": [
+        "陪我",
+        "找家人",
+        "找朋友",
+        "謝謝"
+    ],
+    "無聊": [
+        "聽音樂",
+        "看電視",
+        "找人聊天",
+        "出去走走"
+    ],
+    "謝謝": [
+        "你",
+        "辛苦了",
+        "沒關係",
+        "幫忙",
+        "我好多了"
+    ],
+    "謝謝你": [
+        "不客氣",
+        "沒關係",
+        "再見"
+    ],
+    "不客氣": [
+        "謝謝",
+        "沒關係",
+        "好的"
+    ],
+    "你好": [
+        "請問",
+        "我想",
+        "可以",
+        "謝謝"
+    ],
+    "早安": [
+        "你好",
+        "謝謝",
+        "我要喝水",
+        "我要上廁所",
+        "我要吃早餐"
+    ],
+    "晚安": [
+        "我想睡覺",
+        "關燈",
+        "謝謝",
+        "明天見"
+    ],
+    "拜拜": [
+        "明天見",
+        "謝謝",
+        "再見",
+        "辛苦了"
+    ],
+    "再見": [
+        "明天見",
+        "謝謝",
+        "拜拜"
+    ],
+    "明天見": [
+        "好的",
+        "謝謝",
+        "再見"
+    ],
+    "對不起": [
+        "我不是故意的",
+        "請原諒我",
+        "謝謝你"
+    ],
+    "我不是故意的": [
+        "沒關係",
+        "請原諒我",
+        "謝謝你"
+    ],
+    "請原諒我": [
+        "謝謝你",
+        "對不起",
+        "沒關係"
+    ],
+    "沒關係": [
+        "謝謝",
+        "好的",
+        "我知道了"
+    ],
+    "辛苦了": [
+        "謝謝",
+        "你真好",
+        "沒關係"
+    ],
+    "你真好": [
+        "謝謝",
+        "不客氣",
+        "沒關係"
+    ],
+    "請問": [
+        "現在幾點",
+        "廁所在哪裡",
+        "可以幫我嗎",
+        "謝謝"
+    ],
+    "再說一次": [
+        "謝謝",
+        "我知道了",
+        "我還是不懂",
+        "慢一點"
+    ],
+    "請再說一次": [
+        "慢一點",
+        "我還是不懂",
+        "謝謝"
+    ],
+    "慢一點": [
+        "謝謝",
+        "這樣可以",
+        "再慢一點"
+    ],
+    "大聲一點": [
+        "謝謝",
+        "這樣可以",
+        "再大聲一點"
+    ],
+    "小聲一點": [
+        "謝謝",
+        "這樣可以",
+        "再小聲一點"
+    ],
+    "快一點": [
+        "謝謝",
+        "慢一點",
+        "現在就好"
+    ],
+    "等一下": [
+        "謝謝",
+        "我想一下",
+        "可以了",
+        "不要"
+    ],
+    "可以了": [
+        "謝謝",
+        "好的",
+        "不用了"
+    ],
+    "好了": [
+        "謝謝",
+        "可以了",
+        "不用了",
+        "還要"
+    ],
+    "不用了": [
+        "謝謝",
+        "好的",
+        "可以了"
+    ],
+    "不要了": [
+        "謝謝",
+        "不用了",
+        "可以了"
+    ],
+    "還要": [
+        "一點",
+        "多一點",
+        "謝謝",
+        "可以了"
+    ],
+    "好的": [
+        "謝謝",
+        "我知道了",
+        "可以了",
+        "再說一次"
+    ],
+    "很好": [
+        "謝謝",
+        "我喜歡",
+        "再一次"
+    ],
+    "我喜歡": [
+        "這個",
+        "再一次",
+        "謝謝"
+    ],
+    "可以嗎": [
+        "可以",
+        "不可以",
+        "等一下",
+        "謝謝"
+    ],
+    "可以": [
+        "幫我嗎",
+        "謝謝",
+        "好的",
+        "現在"
+    ],
+    "不可以": [
+        "謝謝",
+        "換一個",
+        "等一下"
+    ],
+    "為什麼": [
+        "請告訴我",
+        "再說一次",
+        "我不知道",
+        "謝謝"
+    ],
+    "什麼時候": [
+        "現在",
+        "等一下",
+        "明天",
+        "請告訴我"
+    ],
+    "現在": [
+        "好的",
+        "請幫我",
+        "等一下",
+        "謝謝"
+    ],
+    "現在幾點": [
+        "謝謝",
+        "好的",
+        "等一下",
+        "我知道了"
+    ],
+    "出去走走": [
+        "請陪我",
+        "推輪椅",
+        "現在",
+        "謝謝"
+    ],
+    "散步": [
+        "請陪我",
+        "慢一點",
+        "休息一下",
+        "謝謝"
+    ],
+    "聽音樂": [
+        "開音樂",
+        "換一首",
+        "大聲一點",
+        "小聲一點",
+        "謝謝"
+    ],
+    "看電視": [
+        "開電視",
+        "轉台",
+        "小聲一點",
+        "關電視"
+    ],
+    "看書": [
+        "幫我拿書",
+        "開燈",
+        "休息一下",
+        "謝謝"
+    ],
+    "做復健": [
+        "慢一點",
+        "休息一下",
+        "很痛",
+        "謝謝"
+    ],
+    "翻身": [
+        "左邊",
+        "右邊",
+        "慢一點",
+        "謝謝"
+    ],
+    "左邊": [
+        "再一點",
+        "停一下",
+        "謝謝"
+    ],
+    "右邊": [
+        "再一點",
+        "停一下",
+        "謝謝"
+    ],
+    "停一下": [
+        "謝謝",
+        "可以了",
+        "繼續"
+    ],
+    "推我過去": [
+        "慢一點",
+        "停一下",
+        "謝謝"
+    ],
+    "出門": [
+        "幫我穿鞋",
+        "拿手機",
+        "找家人",
+        "謝謝"
+    ],
+    "回家": [
+        "找家人",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "工作": [
+        "休息一下",
+        "幫我拿東西",
+        "謝謝"
+    ],
+    "上課": [
+        "請再說一次",
+        "我不懂",
+        "謝謝"
+    ],
+    "睡覺": [
+        "關燈",
+        "蓋被子",
+        "不要吵我",
+        "謝謝"
+    ],
+    "準備睡覺": [
+        "關燈",
+        "蓋被子",
+        "晚安",
+        "謝謝"
+    ],
+    "一點": [
+        "謝謝",
+        "還要",
+        "可以了"
+    ],
+    "多一點": [
+        "謝謝",
+        "可以了",
+        "還要"
+    ],
+    "再一下": [
+        "好了",
+        "可以了",
+        "謝謝"
+    ],
+    "再一次": [
+        "謝謝",
+        "好了",
+        "我喜歡"
+    ],
+    "外面太吵": [
+        "關窗戶",
+        "關門",
+        "小聲一點",
+        "謝謝"
+    ],
+    "太亮": [
+        "關燈",
+        "拉上窗簾",
+        "謝謝"
+    ],
+    "太暗": [
+        "開燈",
+        "拉開窗簾",
+        "謝謝"
+    ],
+    "太冷": [
+        "關冷氣",
+        "蓋被子",
+        "穿暖一點",
+        "謝謝"
+    ],
+    "太熱": [
+        "開冷氣",
+        "開風扇",
+        "脫掉外套",
+        "謝謝"
+    ],
+    "水太冷": [
+        "調熱一點",
+        "關水",
+        "謝謝"
+    ],
+    "水太熱": [
+        "調冷一點",
+        "關水",
+        "謝謝"
+    ],
+    "溫水": [
+        "一點",
+        "多一點",
+        "謝謝"
+    ],
+    "溫的": [
+        "一點",
+        "多一點",
+        "謝謝"
+    ],
+    "給我": [
+        "水",
+        "手機",
+        "眼鏡",
+        "謝謝"
+    ],
+    "拿東西": [
+        "拿過來",
+        "放這裡",
+        "幫我找東西",
+        "謝謝"
+    ],
+    "上面有東西": [
+        "幫我拿開",
+        "幫我整理",
+        "謝謝"
+    ],
+    "幫我找東西": [
+        "手機",
+        "眼鏡",
+        "藥",
+        "謝謝"
+    ],
+    "幫我拿東西": [
+        "拿過來",
+        "放這裡",
+        "謝謝"
+    ],
+    "幫我拿": [
+        "水",
+        "手機",
+        "眼鏡",
+        "藥",
+        "謝謝"
+    ],
+    "幫我充電": [
+        "拿充電器",
+        "插上電源",
+        "謝謝"
+    ],
+    "打電話": [
+        "打給家人",
+        "打給醫生",
+        "幫我拿手機"
+    ],
+    "打給家人": [
+        "找家人",
+        "請接電話",
+        "謝謝"
+    ],
+    "打給醫生": [
+        "我不舒服",
+        "我很痛",
+        "請快一點"
+    ],
+    "幫我接電話": [
+        "幫我拿手機",
+        "謝謝",
+        "不用了"
+    ],
+    "幫我穿鞋": [
+        "拿鞋子",
+        "我要出門",
+        "謝謝"
+    ],
+    "幫我換衣服": [
+        "拿衣服",
+        "太冷",
+        "太熱",
+        "謝謝"
+    ],
+    "幫我調整位置": [
+        "高一點",
+        "低一點",
+        "舒服了",
+        "謝謝"
+    ],
+    "拉過來": [
+        "靠近一點",
+        "停一下",
+        "謝謝"
+    ],
+    "移過來": [
+        "再近一點",
+        "停一下",
+        "謝謝"
+    ],
+    "移開一點": [
+        "好了",
+        "謝謝",
+        "再遠一點"
+    ],
+    "坐下": [
+        "慢一點",
+        "幫我調整位置",
+        "謝謝"
+    ],
+    "拿垃圾桶": [
+        "放旁邊",
+        "我想吐",
+        "謝謝"
+    ],
+    "蓋被子": [
+        "蓋好一點",
+        "太熱",
+        "太冷",
+        "謝謝"
+    ],
+    "已經吃了": [
+        "謝謝",
+        "幫我記錄",
+        "不用提醒了"
+    ],
+    "我已經吃了": [
+        "謝謝",
+        "幫我記錄",
+        "不用提醒了"
+    ],
+    "還沒吃": [
+        "請幫我確認時間",
+        "稍後提醒我",
+        "先確認藥袋"
+    ],
+    "稍後再提醒我": [
+        "十分鐘後",
+        "半小時後",
+        "謝謝"
+    ],
+    "請再確認藥袋": [
+        "確認藥名",
+        "確認劑量",
+        "確認時間",
+        "謝謝"
+    ],
+    "請聽我說": [
+        "我想表達",
+        "請看著我",
+        "謝謝"
+    ],
+    "我想自己冷靜": [
+        "等一下",
+        "請不要打擾我",
+        "謝謝"
+    ],
+    "不要離開": [
+        "陪我一下",
+        "我害怕",
+        "謝謝"
+    ],
+    "不要說話": [
+        "我想休息",
+        "等一下",
+        "謝謝"
+    ],
+    "我出不去": [
+        "請幫我開門",
+        "叫家人",
+        "緊急"
+    ],
+    "怎麼了": [
+        "我不舒服",
+        "我不知道",
+        "請幫我",
+        "謝謝"
+    ],
+    "休息一下": [
+        "好了",
+        "還要休息",
+        "謝謝",
+        "等一下"
+    ],
+    "穿暖一點": [
+        "舒服了",
+        "還是很冷",
+        "謝謝"
+    ],
+    "脫掉": [
+        "外套",
+        "鞋子",
+        "衣服",
+        "好了"
+    ],
+    "調低一點": [
+        "這樣可以",
+        "再低一點",
+        "謝謝"
+    ],
+    "調高一點": [
+        "這樣可以",
+        "再高一點",
+        "謝謝"
+    ],
+    "輕一點": [
+        "謝謝",
+        "還是很痛",
+        "這樣可以",
+        "停一下"
+    ],
+    "轉台": [
+        "這個節目",
+        "大聲一點",
+        "小聲一點",
+        "關電視"
+    ],
+    "乾": [
+        "想喝水",
+        "喉嚨乾",
+        "嘴巴乾",
+        "叫醫生"
+    ],
+    "低一點": [
+        "再低一點",
+        "這樣可以",
+        "謝謝"
+    ],
+    "再一點": [
+        "就好",
+        "停一下",
+        "謝謝"
+    ],
+    "再大聲一點": [
+        "這樣可以",
+        "再小聲一點",
+        "謝謝"
+    ],
+    "再小聲一點": [
+        "這樣可以",
+        "再大聲一點",
+        "謝謝"
+    ],
+    "再試一次": [
+        "好了",
+        "還是不行",
+        "謝謝"
+    ],
+    "再近一點": [
+        "這樣可以",
+        "停一下",
+        "謝謝"
+    ],
+    "再遠一點": [
+        "這樣可以",
+        "停一下",
+        "謝謝"
+    ],
+    "再關一次": [
+        "關好了",
+        "打不開",
+        "謝謝"
+    ],
+    "切小塊": [
+        "謝謝",
+        "再小一點",
+        "可以了"
+    ],
+    "十分鐘後": [
+        "好的",
+        "提醒我",
+        "謝謝"
+    ],
+    "半小時後": [
+        "好的",
+        "提醒我",
+        "謝謝"
+    ],
+    "墊高一點": [
+        "這樣可以",
+        "再高一點",
+        "謝謝"
+    ],
+    "太悶了": [
+        "開窗戶",
+        "開風扇",
+        "開冷氣",
+        "謝謝"
+    ],
+    "太緊": [
+        "幫我調整",
+        "換一件",
+        "謝謝"
+    ],
+    "小心燙": [
+        "慢一點",
+        "太燙了",
+        "謝謝"
+    ],
+    "少一點": [
+        "再少一點",
+        "這樣可以",
+        "謝謝"
+    ],
+    "廁所在哪裡": [
+        "請帶我去",
+        "我需要幫忙",
+        "謝謝"
+    ],
+    "往前": [
+        "停一下",
+        "再一點",
+        "謝謝"
+    ],
+    "往後": [
+        "停一下",
+        "再一點",
+        "謝謝"
+    ],
+    "悶": [
+        "胸口不舒服",
+        "喘不過氣",
+        "叫醫生",
+        "叫家人"
+    ],
+    "慢慢說": [
+        "謝謝",
+        "我聽懂了",
+        "請再說一次"
+    ],
+    "我不懂": [
+        "請再說一次",
+        "慢一點",
+        "用簡單一點的話"
+    ],
+    "我害怕": [
+        "陪我",
+        "不要離開",
+        "叫家人",
+        "謝謝"
+    ],
+    "找人聊天": [
+        "找家人",
+        "找朋友",
+        "謝謝"
+    ],
+    "找東西": [
+        "手機",
+        "眼鏡",
+        "藥",
+        "請幫我找"
+    ],
+    "找醫生": [
+        "我不舒服",
+        "我很痛",
+        "現在",
+        "謝謝"
+    ],
+    "拿充電器": [
+        "幫我充電",
+        "插上電源",
+        "謝謝"
+    ],
+    "拿毛巾": [
+        "擦臉",
+        "洗澡",
+        "謝謝"
+    ],
+    "拿牙刷": [
+        "拿牙膏",
+        "刷牙",
+        "謝謝"
+    ],
+    "拿給我": [
+        "謝謝",
+        "這個",
+        "不是這個"
+    ],
+    "拿衛生紙": [
+        "謝謝",
+        "擦嘴巴",
+        "擤鼻涕"
+    ],
+    "拿過來": [
+        "放這裡",
+        "再近一點",
+        "謝謝"
+    ],
+    "拿開": [
+        "謝謝",
+        "這樣可以",
+        "還有"
+    ],
+    "插上電源": [
+        "開始充電",
+        "好了",
+        "謝謝"
+    ],
+    "換一個": [
+        "這個",
+        "那個",
+        "謝謝"
+    ],
+    "換一首": [
+        "這首很好",
+        "再換一首",
+        "小聲一點"
+    ],
+    "放低一點": [
+        "這樣可以",
+        "再低一點",
+        "謝謝"
+    ],
+    "放旁邊": [
+        "左邊",
+        "右邊",
+        "謝謝"
+    ],
+    "放這裡": [
+        "好了",
+        "再近一點",
+        "謝謝"
+    ],
+    "明天": [
+        "早上",
+        "下午",
+        "明天見",
+        "謝謝"
+    ],
+    "溫熱一點": [
+        "這樣可以",
+        "再熱一點",
+        "謝謝"
+    ],
+    "現在就好": [
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "用簡單一點的話": [
+        "謝謝",
+        "我懂了",
+        "請再說一次"
+    ],
+    "痠": [
+        "這裡",
+        "很不舒服",
+        "幫我按摩",
+        "叫醫生"
+    ],
+    "看不清楚": [
+        "幫我拿眼鏡",
+        "開燈",
+        "請幫我看",
+        "謝謝"
+    ],
+    "看診": [
+        "找醫生",
+        "我不舒服",
+        "請再說一次",
+        "謝謝"
+    ],
+    "確認劑量": [
+        "請看藥袋",
+        "請問醫師",
+        "確認時間"
+    ],
+    "確認時間": [
+        "看藥袋",
+        "問醫師",
+        "設定提醒",
+        "謝謝"
+    ],
+    "紅紅的": [
+        "這裡",
+        "會痛",
+        "會癢",
+        "叫醫生"
+    ],
+    "繼續": [
+        "慢一點",
+        "停一下",
+        "好了",
+        "謝謝"
+    ],
+    "聽不清楚": [
+        "請再說一次",
+        "大聲一點",
+        "叫家人"
+    ],
+    "脫掉外套": [
+        "謝謝",
+        "還是很熱",
+        "可以了"
+    ],
+    "舒服了": [
+        "謝謝",
+        "可以了",
+        "還要休息"
+    ],
+    "蓋好一點": [
+        "這樣可以",
+        "太熱了",
+        "謝謝"
+    ],
+    "蓋起來": [
+        "蓋好一點",
+        "太熱",
+        "謝謝"
+    ],
+    "裝滿一點": [
+        "這樣可以",
+        "再多一點",
+        "謝謝"
+    ],
+    "調冷一點": [
+        "這樣可以",
+        "再冷一點",
+        "謝謝"
+    ],
+    "調大聲": [
+        "這樣可以",
+        "再大聲一點",
+        "謝謝"
+    ],
+    "調小聲": [
+        "這樣可以",
+        "再小聲一點",
+        "謝謝"
+    ],
+    "調熱一點": [
+        "這樣可以",
+        "再熱一點",
+        "謝謝"
+    ],
+    "請不要打擾我": [
+        "謝謝",
+        "我想休息",
+        "等一下"
+    ],
+    "請叫家人": [
+        "我不舒服",
+        "我需要幫忙",
+        "謝謝"
+    ],
+    "請告訴我": [
+        "現在",
+        "為什麼",
+        "謝謝"
+    ],
+    "請小心": [
+        "謝謝",
+        "慢一點",
+        "好了"
+    ],
+    "請扶我": [
+        "慢一點",
+        "站起來",
+        "謝謝"
+    ],
+    "請看著我": [
+        "我要說話",
+        "請聽我說",
+        "謝謝"
+    ],
+    "請輕一點": [
+        "謝謝",
+        "還是很痛",
+        "這樣可以"
+    ],
+    "請關起來": [
+        "謝謝",
+        "好了",
+        "太悶了"
+    ],
+    "這個": [
+        "我要這個",
+        "不要這個",
+        "謝謝"
+    ],
+    "這樣可以": [
+        "謝謝",
+        "可以了",
+        "再調整一下"
+    ],
+    "還有問題": [
+        "我想詢問",
+        "請告訴我",
+        "謝謝"
+    ],
+    "還要休息": [
+        "一下",
+        "不要吵我",
+        "謝謝"
+    ],
+    "量體溫": [
+        "告訴我結果",
+        "我發燒",
+        "謝謝"
+    ],
+    "開音樂": [
+        "換一首",
+        "大聲一點",
+        "小聲一點",
+        "謝謝"
+    ],
+    "開風扇": [
+        "太熱了",
+        "調快一點",
+        "謝謝"
+    ],
+    "靠近一點": [
+        "這樣可以",
+        "再近一點",
+        "謝謝"
+    ],
+    "高一點": [
+        "這樣可以",
+        "再高一點",
+        "謝謝"
+    ],
+    "幫我拿藥": [
+        "拿藥袋",
+        "幫我確認藥名",
+        "謝謝"
+    ],
+    "幫我戴上": [
+        "眼鏡",
+        "口罩",
+        "帽子",
+        "謝謝"
+    ],
+    "幫我拿書": [
+        "打開",
+        "翻頁",
+        "謝謝"
+    ],
+    "幫我拿開": [
+        "拿遠一點",
+        "這樣可以",
+        "謝謝"
+    ],
+    "幫我按摩": [
+        "輕一點",
+        "這裡",
+        "停一下",
+        "謝謝"
+    ],
+    "幫我換尿布": [
+        "現在",
+        "請輕一點",
+        "謝謝"
+    ],
+    "幫我換褲子": [
+        "拿褲子",
+        "換好了",
+        "謝謝"
+    ],
+    "幫我擦一下": [
+        "這裡",
+        "輕一點",
+        "好了",
+        "謝謝"
+    ],
+    "幫我擦藥": [
+        "這裡",
+        "輕一點",
+        "好了",
+        "謝謝"
+    ],
+    "幫我整理": [
+        "放好",
+        "這裡",
+        "謝謝"
+    ],
+    "幫我洗澡": [
+        "水太熱",
+        "水太冷",
+        "輕一點",
+        "謝謝"
+    ],
+    "幫我穿褲子": [
+        "拿褲子",
+        "慢一點",
+        "謝謝"
+    ],
+    "幫我穿襪子": [
+        "拿襪子",
+        "慢一點",
+        "謝謝"
+    ],
+    "幫我記錄": [
+        "謝謝",
+        "已記錄",
+        "不用了"
+    ],
+    "我想表達": [
+        "我想說",
+        "請聽我說",
+        "請看著我"
+    ],
+    "我要回家": [
+        "找家人",
+        "現在",
+        "等一下",
+        "請幫我"
+    ],
+    "我要走路": [
+        "請扶我",
+        "慢一點",
+        "停一下",
+        "謝謝"
+    ],
+    "請幫我伸展": [
+        "輕一點",
+        "這裡",
+        "停一下",
+        "謝謝"
+    ],
+    "請幫我按摩": [
+        "輕一點",
+        "這裡",
+        "停一下",
+        "謝謝"
+    ],
+    "請幫我看": [
+        "這裡",
+        "請告訴我",
+        "謝謝"
+    ],
+    "請幫我確認時間": [
+        "看一下時鐘",
+        "現在幾點",
+        "稍後提醒我",
+        "先確認藥袋"
+    ],
+    "我要上廁所請幫我": [
+        "扶我去廁所",
+        "帶我去廁所",
+        "陪我去廁所",
+        "開門",
+        "謝謝"
+    ],
+    "我想上廁所請幫我": [
+        "扶我去廁所",
+        "帶我去廁所",
+        "陪我去廁所",
+        "開門",
+        "謝謝"
+    ],
+    "我要喝水請幫我": [
+        "拿水給我",
+        "把水杯拿來",
+        "謝謝"
+    ],
+    "我要吃飯請幫我": [
+        "拿食物給我",
+        "準備餐具",
+        "謝謝"
+    ],
+    "我不舒服叫醫生": [
+        "請快一點",
+        "幫我看一下",
+        "我頭暈",
+        "我很痛"
+    ],
+    "我很痛叫醫生": [
+        "請快一點",
+        "這裡很痛",
+        "找家人",
+        "謝謝"
+    ],
+    "我喘不過氣叫醫生": [
+        "請快一點",
+        "叫家人",
+        "救命"
+    ],
+    "我不舒服請幫我": [
+        "叫醫生",
+        "找家人",
+        "扶我一下",
+        "讓我躺下"
+    ],
+    "我要休息請幫我": [
+        "扶我躺下",
+        "蓋被子",
+        "關燈",
+        "謝謝"
+    ],
+    "我想睡覺請幫我": [
+        "關燈",
+        "蓋被子",
+        "調整枕頭",
+        "謝謝"
+    ],
+    "吃藥還沒吃請幫我確認時間": [
+        "看一下時鐘",
+        "現在幾點",
+        "稍後提醒我",
+        "先確認藥袋"
+    ],
+    "扶我去廁所": [
+        "慢一點",
+        "停一下",
+        "謝謝",
+        "好了"
+    ],
+    "帶我去廁所": [
+        "慢一點",
+        "停一下",
+        "謝謝",
+        "好了"
+    ],
+    "陪我去廁所": [
+        "慢一點",
+        "停一下",
+        "謝謝",
+        "好了"
+    ],
+    "拿水給我": [
+        "謝謝",
+        "常溫",
+        "溫水",
+        "慢一點"
+    ],
+    "把水杯拿來": [
+        "謝謝",
+        "裝水",
+        "我想喝水"
+    ],
+    "拿食物給我": [
+        "謝謝",
+        "吃一點",
+        "不要太燙",
+        "慢一點"
+    ],
+    "準備餐具": [
+        "謝謝",
+        "可以了",
+        "開始吃飯"
+    ],
+    "扶我一下": [
+        "慢一點",
+        "停一下",
+        "這樣可以",
+        "謝謝"
+    ],
+    "讓我躺下": [
+        "慢一點",
+        "調整姿勢",
+        "蓋被子",
+        "謝謝"
+    ],
+    "扶我躺下": [
+        "慢一點",
+        "調整姿勢",
+        "蓋被子",
+        "謝謝"
+    ],
+    "調整枕頭": [
+        "高一點",
+        "低一點",
+        "舒服了",
+        "謝謝"
+    ],
+    "請幫我調整姿勢": [
+        "高一點",
+        "低一點",
+        "左邊",
+        "右邊",
+        "舒服了",
+        "謝謝"
+    ],
+    "陪我一下": [
+        "不要離開",
+        "我害怕",
+        "謝謝"
+    ],
+    "請幫我調整": [
+        "高一點",
+        "低一點",
+        "左邊",
+        "右邊",
+        "這樣可以"
+    ],
+    "開電視": [
+        "轉台",
+        "大聲一點",
+        "小聲一點",
+        "關電視"
+    ],
+    "關電視": [
+        "謝謝",
+        "開電視",
+        "好了"
+    ],
+    "坐輪椅": [
+        "請扶我",
+        "推我過去",
+        "停一下",
+        "謝謝"
+    ],
+    "幫我拿手機": [
+        "謝謝",
+        "打電話",
+        "幫我充電"
+    ],
+    "幫我拿眼鏡": [
+        "幫我戴上",
+        "幫我擦一下",
+        "謝謝"
+    ],
+    "幫我拿衣服": [
+        "幫我穿衣服",
+        "太冷",
+        "太熱",
+        "謝謝"
+    ],
+    "幫我拿鞋子": [
+        "幫我穿鞋",
+        "我要出門",
+        "謝謝"
+    ],
+    "拉上窗簾": [
+        "這樣可以",
+        "太亮",
+        "謝謝"
+    ],
+    "拉開窗簾": [
+        "太亮",
+        "太暗",
+        "謝謝"
+    ],
+    "拿手機": [
+        "打電話",
+        "找家人",
+        "幫我充電"
+    ],
+    "拿衣服": [
+        "幫我穿衣服",
+        "換衣服",
+        "謝謝"
+    ],
+    "拿鞋子": [
+        "幫我穿鞋",
+        "我要出門",
+        "謝謝"
+    ],
+    "推輪椅": [
+        "慢一點",
+        "停一下",
+        "往前",
+        "往後",
+        "謝謝"
+    ],
+    "準備衣服": [
+        "穿衣服",
+        "換衣服",
+        "謝謝"
+    ],
+    "請幫我開門": [
+        "我要出去",
+        "謝謝",
+        "小心一點"
+    ],
+    "請接電話": [
+        "幫我說",
+        "打給家人",
+        "謝謝"
+    ],
+    "關窗戶": [
+        "打開",
+        "謝謝",
+        "好了",
+        "太悶了"
+    ],
+    "拿食物": [
+        "拿給我",
+        "吃一點",
+        "謝謝"
+    ],
+    "吃一點": [
+        "慢一點",
+        "還要",
+        "不要了",
+        "謝謝"
+    ],
+    "想吃點心": [
+        "拿給我",
+        "一點",
+        "謝謝"
+    ],
+    "我不想吃": [
+        "換一個",
+        "等一下",
+        "不要了",
+        "謝謝"
+    ],
+    "我吃飽了": [
+        "喝水",
+        "謝謝",
+        "可以了"
+    ],
+    "我要吃早餐": [
+        "謝謝",
+        "還要",
+        "不要了",
+        "喝水"
+    ],
+    "放水": [
+        "水太熱",
+        "水太冷",
+        "關水",
+        "謝謝"
+    ],
+    "沖水": [
+        "好了",
+        "洗手",
+        "謝謝"
+    ],
+    "裝水": [
+        "拿給我",
+        "常溫",
+        "不要冰",
+        "謝謝"
+    ],
+    "開水": [
+        "水太冷",
+        "水太熱",
+        "關水",
+        "謝謝"
+    ],
+    "開熱水": [
+        "水太熱",
+        "水太冷",
+        "關水",
+        "謝謝"
+    ],
+    "關水": [
+        "擦手",
+        "謝謝",
+        "好了"
+    ],
+    "調整姿勢": [
+        "高一點",
+        "低一點",
+        "左邊",
+        "右邊",
+        "舒服了",
+        "謝謝"
+    ],
+    "再慢一點": [
+        "這樣可以",
+        "停一下",
+        "謝謝"
+    ],
+    "調快一點": [
+        "太快了",
+        "這樣可以",
+        "再慢一點",
+        "謝謝"
+    ],
+    "調慢一點": [
+        "這樣可以",
+        "再慢一點",
+        "謝謝"
+    ],
+    "請快一點": [
+        "謝謝",
+        "等一下",
+        "好了"
+    ],
+    "不用提醒了": [
+        "謝謝",
+        "好的",
+        "取消提醒"
+    ],
+    "先確認藥袋": [
+        "確認藥名",
+        "確認劑量",
+        "確認時間",
+        "請問醫師"
+    ],
+    "確認藥名": [
+        "確認劑量",
+        "確認時間",
+        "請問醫師"
+    ],
+    "稍後提醒我": [
+        "十分鐘後",
+        "半小時後",
+        "謝謝"
+    ],
+    "確認藥袋": [
+        "確認藥名",
+        "確認時間",
+        "請問醫師"
+    ],
+    "哪裡不舒服": [
+        "頭痛",
+        "肚子痛",
+        "胸口痛",
+        "頭暈",
+        "想吐",
+        "其他地方"
+    ],
+    "很不舒服": [
+        "哪裡不舒服",
+        "叫醫生",
+        "叫家人",
+        "想休息"
+    ],
+    "我喘不過氣": [
+        "叫醫生",
+        "叫家人",
+        "緊急",
+        "救命"
+    ],
+    "我想吐": [
+        "拿垃圾桶",
+        "叫醫生",
+        "想休息",
+        "找家人"
+    ],
+    "暈": [
+        "想躺下",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "下午": [
+        "幾點",
+        "可以",
+        "謝謝"
+    ],
+    "不是這個": [
+        "請換一個",
+        "那個",
+        "謝謝"
+    ],
+    "不要這個": [
+        "換一個",
+        "不要了",
+        "謝謝"
+    ],
+    "其他地方": [
+        "哪裡",
+        "這裡",
+        "請幫我",
+        "叫醫生"
+    ],
+    "再低一點": [
+        "這樣可以",
+        "再高一點",
+        "謝謝"
+    ],
+    "再冷一點": [
+        "這樣可以",
+        "太冷了",
+        "謝謝"
+    ],
+    "再多一點": [
+        "這樣可以",
+        "還要",
+        "夠了",
+        "謝謝"
+    ],
+    "再小一點": [
+        "這樣可以",
+        "還是太大",
+        "謝謝"
+    ],
+    "再少一點": [
+        "這樣可以",
+        "夠了",
+        "謝謝"
+    ],
+    "再換一首": [
+        "這首很好",
+        "小聲一點",
+        "謝謝"
+    ],
+    "再熱一點": [
+        "這樣可以",
+        "太熱了",
+        "謝謝"
+    ],
+    "再調整一下": [
+        "這樣可以",
+        "高一點",
+        "低一點",
+        "謝謝"
+    ],
+    "再高一點": [
+        "這樣可以",
+        "再低一點",
+        "謝謝"
+    ],
+    "口罩": [
+        "幫我戴上",
+        "幫我拿下",
+        "謝謝"
+    ],
+    "告訴我結果": [
+        "謝謝",
+        "我知道了",
+        "請再說一次"
+    ],
+    "問醫師": [
+        "請幫我確認",
+        "我不舒服",
+        "謝謝"
+    ],
+    "喉嚨乾": [
+        "想喝水",
+        "拿水",
+        "叫醫生"
+    ],
+    "嘴巴乾": [
+        "想喝水",
+        "拿水",
+        "謝謝"
+    ],
+    "外套": [
+        "穿上",
+        "脫掉",
+        "太冷",
+        "太熱"
+    ],
+    "太快了": [
+        "慢一點",
+        "請停一下",
+        "謝謝"
+    ],
+    "小心一點": [
+        "謝謝",
+        "慢一點",
+        "停一下"
+    ],
+    "就好": [
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "已記錄": [
+        "謝謝",
+        "不用了",
+        "可以了"
+    ],
+    "帽子": [
+        "幫我戴上",
+        "幫我拿下",
+        "謝謝"
+    ],
+    "我懂了": [
+        "謝謝",
+        "好的",
+        "繼續"
+    ],
+    "我聽懂了": [
+        "謝謝",
+        "好的",
+        "可以了"
+    ],
+    "拿牙膏": [
+        "刷牙",
+        "謝謝"
+    ],
+    "拿褲子": [
+        "幫我穿褲子",
+        "換褲子",
+        "謝謝"
+    ],
+    "拿襪子": [
+        "幫我穿襪子",
+        "謝謝"
+    ],
+    "拿遠一點": [
+        "這樣可以",
+        "再遠一點",
+        "謝謝"
+    ],
+    "換一件": [
+        "這件可以",
+        "再換一件",
+        "謝謝"
+    ],
+    "換好了": [
+        "謝謝",
+        "可以了",
+        "舒服了"
+    ],
+    "擤鼻涕": [
+        "拿衛生紙",
+        "謝謝",
+        "好了"
+    ],
+    "擦嘴巴": [
+        "謝謝",
+        "好了",
+        "還需要擦"
+    ],
+    "擦手": [
+        "謝謝",
+        "好了",
+        "可以了"
+    ],
+    "擦臉": [
+        "謝謝",
+        "好了",
+        "可以了"
+    ],
+    "放好": [
+        "這樣可以",
+        "謝謝",
+        "好了"
+    ],
+    "早上": [
+        "早安",
+        "吃早餐",
+        "喝水",
+        "上廁所"
+    ],
+    "看一下時鐘": [
+        "現在幾點",
+        "謝謝",
+        "好的"
+    ],
+    "站起來": [
+        "請扶我",
+        "慢一點",
+        "頭暈",
+        "謝謝"
+    ],
+    "翻頁": [
+        "下一頁",
+        "回上一頁",
+        "謝謝"
+    ],
+    "請問醫師": [
+        "請幫我確認",
+        "我不舒服",
+        "謝謝"
+    ],
+    "請帶我去": [
+        "廁所",
+        "房間",
+        "醫院",
+        "謝謝"
+    ],
+    "這個節目": [
+        "大聲一點",
+        "小聲一點",
+        "換台",
+        "關電視"
+    ],
+    "這首很好": [
+        "再聽一次",
+        "換一首",
+        "謝謝"
+    ],
+    "還是不行": [
+        "再試一次",
+        "請幫我",
+        "叫家人"
+    ],
+    "還是很冷": [
+        "蓋被子",
+        "穿暖一點",
+        "關冷氣"
+    ],
+    "還是很熱": [
+        "開冷氣",
+        "開風扇",
+        "脫掉外套"
+    ],
+    "還有": [
+        "還有什麼",
+        "謝謝",
+        "不用了"
+    ],
+    "那個": [
+        "我要那個",
+        "不要那個",
+        "謝謝"
+    ],
+    "開始充電": [
+        "謝謝",
+        "充電完成",
+        "好了"
+    ],
+    "關好了": [
+        "謝謝",
+        "好了",
+        "可以了"
+    ],
+    "下一頁": [
+        "回上一頁",
+        "謝謝",
+        "這一頁"
+    ],
+    "不要那個": [
+        "換一個",
+        "這個",
+        "謝謝"
+    ],
+    "充電完成": [
+        "謝謝",
+        "拔掉充電器",
+        "好了"
+    ],
+    "再換一件": [
+        "這件可以",
+        "再找一件",
+        "謝謝"
+    ],
+    "再聽一次": [
+        "謝謝",
+        "換一首",
+        "這首很好"
+    ],
+    "哪裡": [
+        "這裡",
+        "那裡",
+        "其他地方"
+    ],
+    "回上一頁": [
+        "謝謝",
+        "這一頁",
+        "下一頁"
+    ],
+    "夠了": [
+        "謝謝",
+        "可以了",
+        "不要了"
+    ],
+    "幾點": [
+        "現在幾點",
+        "謝謝"
+    ],
+    "換台": [
+        "這個節目",
+        "大聲一點",
+        "小聲一點"
+    ],
+    "換褲子": [
+        "拿褲子",
+        "幫我穿褲子",
+        "謝謝"
+    ],
+    "穿上": [
+        "外套",
+        "衣服",
+        "鞋子",
+        "謝謝"
+    ],
+    "請停一下": [
+        "謝謝",
+        "可以了",
+        "等一下"
+    ],
+    "請換一個": [
+        "這個",
+        "那個",
+        "謝謝"
+    ],
+    "這件可以": [
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "還是太大": [
+        "再小一點",
+        "換一個",
+        "謝謝"
+    ],
+    "還有什麼": [
+        "我想知道",
+        "請告訴我",
+        "謝謝"
+    ],
+    "還需要擦": [
+        "這裡",
+        "謝謝",
+        "好了"
+    ],
+    "三點": [
+        "早上",
+        "下午",
+        "現在幾點"
+    ],
+    "下面": [
+        "上面",
+        "這裡",
+        "請幫我"
+    ],
+    "不好": [
+        "請幫我",
+        "換一個",
+        "謝謝"
+    ],
+    "不想": [
+        "不要",
+        "換一個",
+        "等一下"
+    ],
+    "不懂": [
+        "請再說一次",
+        "慢一點",
+        "用簡單一點的話"
+    ],
+    "不是": [
+        "我想說",
+        "不是這個",
+        "謝謝"
+    ],
+    "不知道": [
+        "請再說一次",
+        "請幫我",
+        "謝謝"
+    ],
+    "不行": [
+        "換一個",
+        "等一下",
+        "謝謝"
+    ],
+    "中午": [
+        "吃午餐",
+        "喝水",
+        "休息"
+    ],
+    "也可以": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "乾淨": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "事情": [
+        "請告訴我",
+        "這件事",
+        "謝謝"
+    ],
+    "二點": [
+        "下午",
+        "現在幾點",
+        "謝謝"
+    ],
+    "人": [
+        "找家人",
+        "叫家人",
+        "謝謝"
+    ],
+    "什麼": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "今天": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "他": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "他們": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "何": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "你們": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "你可以嗎": [
+        "可以",
+        "不可以",
+        "謝謝"
+    ],
+    "你在哪裡": [
+        "我在這裡",
+        "請過來",
+        "謝謝"
+    ],
+    "來": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "來一下": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "倒水": [
+        "拿給我",
+        "常溫",
+        "謝謝"
+    ],
+    "偶爾": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "充電": [
+        "幫我拿充電器",
+        "插上電源",
+        "謝謝"
+    ],
+    "先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "全部": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "冷": [
+        "蓋被子",
+        "穿暖一點",
+        "關冷氣"
+    ],
+    "出去": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "分享": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "到了": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "刺痛": [
+        "這裡",
+        "很痛",
+        "叫醫生"
+    ],
+    "前面": [
+        "往前",
+        "停一下",
+        "謝謝"
+    ],
+    "剛剛": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "劉": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "劉先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "劉小姐": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "劉老師": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "午安": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "原本": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "去外面": [
+        "請陪我",
+        "我要散步",
+        "謝謝"
+    ],
+    "去睡覺": [
+        "關燈",
+        "蓋被子",
+        "晚安"
+    ],
+    "受傷": [
+        "這裡",
+        "很痛",
+        "叫醫生",
+        "叫家人"
+    ],
+    "只要": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "叫護士": [
+        "我不舒服",
+        "我很痛",
+        "請快一點"
+    ],
+    "同學": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "名字": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "吳": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "吹風": [
+        "太冷",
+        "太熱",
+        "停一下"
+    ],
+    "告訴我": [
+        "現在",
+        "為什麼",
+        "謝謝"
+    ],
+    "周": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "呼吸": [
+        "喘不過氣",
+        "胸口悶",
+        "叫醫生"
+    ],
+    "哎呀": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "哥哥": [
+        "找家人",
+        "叫家人",
+        "謝謝"
+    ],
+    "哭": [
+        "難過",
+        "害怕",
+        "請陪我"
+    ],
+    "啊": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "喔": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "喝一點": [
+        "一點",
+        "多一點",
+        "不要了",
+        "謝謝"
+    ],
+    "嗯": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "嘔吐": [
+        "拿垃圾桶",
+        "叫醫生",
+        "找家人"
+    ],
+    "嘴巴": [
+        "乾",
+        "痛",
+        "想喝水",
+        "叫醫生"
+    ],
+    "噁心": [
+        "想吐",
+        "想休息",
+        "叫醫生"
+    ],
+    "四點": [
+        "下午",
+        "晚上",
+        "現在幾點"
+    ],
+    "困難": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "壞掉": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "大聲": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "太大聲": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "好": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "如果": [
+        "可以",
+        "不可以",
+        "請告訴我"
+    ],
+    "媽媽": [
+        "找家人",
+        "叫家人",
+        "謝謝"
+    ],
+    "孫": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "安全": [
+        "謝謝",
+        "我知道了",
+        "可以了"
+    ],
+    "安靜": [
+        "謝謝",
+        "不要吵我",
+        "可以了"
+    ],
+    "容易": [
+        "我不懂",
+        "請慢一點",
+        "謝謝"
+    ],
+    "對": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "小姐": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "小心": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "小聲": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "已經好了": [
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "平躺": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "弄乾": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "弄好": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "張": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "很冷": [
+        "蓋被子",
+        "穿暖一點",
+        "關冷氣"
+    ],
+    "很棒": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "很渴": [
+        "想喝水",
+        "拿水",
+        "謝謝"
+    ],
+    "很熱": [
+        "開冷氣",
+        "開風扇",
+        "脫掉外套"
+    ],
+    "很癢": [
+        "這裡",
+        "不要碰",
+        "叫醫生"
+    ],
+    "很餓": [
+        "想吃飯",
+        "想吃點心",
+        "拿食物"
+    ],
+    "徐": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "從這裡": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "心情不好": [
+        "陪我",
+        "想休息",
+        "找家人"
+    ],
+    "忍一下": [
+        "停一下",
+        "很痛",
+        "謝謝"
+    ],
+    "怎麼辦": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "恩": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "悶悶的": [
+        "胸口不舒服",
+        "想休息",
+        "叫醫生"
+    ],
+    "愛你": [
+        "謝謝",
+        "我也愛你"
+    ],
+    "感謝": [
+        "謝謝",
+        "不客氣"
+    ],
+    "懂了": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "懊惱": [
+        "陪我",
+        "我想休息",
+        "謝謝"
+    ],
+    "我不想說話": [
+        "讓我休息",
+        "等一下",
+        "謝謝"
+    ],
+    "我不要": [
+        "換一個",
+        "不要了",
+        "謝謝"
+    ],
+    "我們": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "我可以": [
+        "自己來",
+        "請幫我",
+        "謝謝"
+    ],
+    "我很冷": [
+        "蓋被子",
+        "穿暖一點",
+        "關冷氣"
+    ],
+    "我很熱": [
+        "開冷氣",
+        "開風扇",
+        "脫掉外套"
+    ],
+    "我很累": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "我想上廁所": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "我聽不懂": [
+        "請再說一次",
+        "慢一點",
+        "用簡單一點的話"
+    ],
+    "我要叫醫生": [
+        "我很痛",
+        "我不舒服",
+        "現在",
+        "請快一點"
+    ],
+    "手痛": [
+        "這裡",
+        "很痛",
+        "叫醫生"
+    ],
+    "扶我": [
+        "站起來",
+        "慢一點",
+        "謝謝"
+    ],
+    "扶起來": [
+        "慢一點",
+        "頭暈",
+        "舒服了",
+        "謝謝"
+    ],
+    "找老師": [
+        "請幫我",
+        "我不懂",
+        "謝謝"
+    ],
+    "抱歉": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "抽痰": [
+        "請慢一點",
+        "不舒服",
+        "謝謝"
+    ],
+    "拉低": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "拉高": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "按一下": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "按摩": [
+        "輕一點",
+        "這裡",
+        "停一下",
+        "謝謝"
+    ],
+    "掃地": [
+        "休息一下",
+        "謝謝",
+        "好了"
+    ],
+    "推我": [
+        "往前",
+        "往後",
+        "停一下",
+        "慢一點"
+    ],
+    "提醒我": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "換姿勢": [
+        "左邊",
+        "右邊",
+        "舒服了",
+        "謝謝"
+    ],
+    "摸一下": [
+        "輕一點",
+        "這裡",
+        "不要碰",
+        "謝謝"
+    ],
+    "擦一下": [
+        "這裡",
+        "輕一點",
+        "好了",
+        "謝謝"
+    ],
+    "收起來": [
+        "放這裡",
+        "謝謝",
+        "好了"
+    ],
+    "改一下": [
+        "這樣可以",
+        "再改一次",
+        "謝謝"
+    ],
+    "放下": [
+        "這樣可以",
+        "謝謝",
+        "好了"
+    ],
+    "放鬆": [
+        "呼吸",
+        "休息一下",
+        "謝謝"
+    ],
+    "方便": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "旁邊": [
+        "左邊",
+        "右邊",
+        "放這裡"
+    ],
+    "早上好": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "早餐": [
+        "吃一點",
+        "喝水",
+        "謝謝"
+    ],
+    "昨天": [
+        "今天",
+        "明天",
+        "謝謝"
+    ],
+    "是": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "時間": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "暖一點": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "更痛": [
+        "這裡",
+        "叫醫生",
+        "叫家人"
+    ],
+    "最痛": [
+        "這裡",
+        "叫醫生",
+        "叫家人"
+    ],
+    "有": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "朋友": [
+        "找朋友",
+        "打電話",
+        "謝謝"
+    ],
+    "服務員": [
+        "請幫我",
+        "請問",
+        "謝謝"
+    ],
+    "李": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "李先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "林": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "林先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "楊": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "檢查": [
+        "請告訴我結果",
+        "會痛嗎",
+        "謝謝"
+    ],
+    "欸": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "比較好": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "沒事": [
+        "謝謝",
+        "好的",
+        "可以了"
+    ],
+    "沒有": [
+        "換一個",
+        "等一下",
+        "謝謝",
+        "請再說一次"
+    ],
+    "泡澡": [
+        "水太熱",
+        "水太冷",
+        "謝謝"
+    ],
+    "洗臉": [
+        "拿毛巾",
+        "水太熱",
+        "謝謝"
+    ],
+    "流鼻水": [
+        "拿衛生紙",
+        "想休息",
+        "叫醫生"
+    ],
+    "清潔": [
+        "擦乾",
+        "謝謝",
+        "好了"
+    ],
+    "測量": [
+        "量血壓",
+        "量體溫",
+        "謝謝"
+    ],
+    "濕了": [
+        "幫我換衣服",
+        "擦乾",
+        "謝謝"
+    ],
+    "熱": [
+        "開冷氣",
+        "開風扇",
+        "太熱了"
+    ],
+    "熱水": [
+        "太燙了",
+        "水太熱",
+        "關水"
+    ],
+    "牽我": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "王": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "王先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "現在不要": [
+        "等一下",
+        "謝謝",
+        "可以了"
+    ],
+    "球": [
+        "拿給我",
+        "丟過來",
+        "謝謝"
+    ],
+    "用這個": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "用那個": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "留下來": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "發冷": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "發熱": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "皮膚癢": [
+        "這裡",
+        "不要碰",
+        "叫醫生"
+    ],
+    "目前": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "看醫生": [
+        "我不舒服",
+        "我很痛",
+        "謝謝"
+    ],
+    "真的": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "睜開眼睛": [
+        "看得到",
+        "不舒服",
+        "謝謝"
+    ],
+    "知道": [
+        "好的",
+        "謝謝",
+        "可以了",
+        "不用了"
+    ],
+    "碰到": [
+        "很痛",
+        "不要碰",
+        "這裡"
+    ],
+    "稍等": [
+        "好的",
+        "等一下",
+        "謝謝"
+    ],
+    "空氣": [
+        "太悶了",
+        "開窗戶",
+        "開風扇"
+    ],
+    "等等": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "算了": [
+        "換一個",
+        "等一下",
+        "謝謝",
+        "請再說一次"
+    ],
+    "糖果": [
+        "拿給我",
+        "吃一點",
+        "謝謝"
+    ],
+    "累": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "結束": [
+        "謝謝",
+        "好了",
+        "可以了"
+    ],
+    "給你": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "羅": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "老師": [
+        "請問",
+        "我不懂",
+        "謝謝"
+    ],
+    "聯絡家人": [
+        "打電話",
+        "找家人",
+        "謝謝"
+    ],
+    "聲音": [
+        "太大聲",
+        "小聲一點",
+        "聽不清楚"
+    ],
+    "聽不懂": [
+        "請再說一次",
+        "慢一點",
+        "用簡單一點的話"
+    ],
+    "聽得到": [
+        "謝謝",
+        "大聲一點",
+        "可以了"
+    ],
+    "肩膀痛": [
+        "這裡",
+        "很痛",
+        "請幫我按摩",
+        "叫醫生"
+    ],
+    "背痛": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "腳痛": [
+        "這裡",
+        "很痛",
+        "請幫我按摩",
+        "叫醫生"
+    ],
+    "自己": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "舒服": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "菜": [
+        "吃一點",
+        "不要太燙",
+        "謝謝"
+    ],
+    "蔡": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "藥水": [
+        "幫我拿藥袋",
+        "確認藥名",
+        "請問醫師"
+    ],
+    "蘋果": [
+        "切小塊",
+        "吃一點",
+        "謝謝"
+    ],
+    "要": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "記得": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "說話": [
+        "請聽我說",
+        "慢一點",
+        "謝謝"
+    ],
+    "請": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "請幫我拍背": [
+        "輕一點",
+        "再一下",
+        "好了",
+        "謝謝"
+    ],
+    "請幫我拿水": [
+        "常溫",
+        "不要冰",
+        "謝謝"
+    ],
+    "請幫我翻身": [
+        "左邊",
+        "右邊",
+        "慢一點",
+        "謝謝"
+    ],
+    "請幫我開冷氣": [
+        "太冷",
+        "太熱",
+        "謝謝"
+    ],
+    "請幫我關燈": [
+        "謝謝",
+        "我要休息",
+        "可以了"
+    ],
+    "請等一下": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "謝": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "護士": [
+        "我不舒服",
+        "我很痛",
+        "請幫我"
+    ],
+    "護理師": [
+        "我不舒服",
+        "我很痛",
+        "請幫我"
+    ],
+    "讓我": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "讓我休息": [
+        "慢一點",
+        "等一下",
+        "好了",
+        "謝謝"
+    ],
+    "讓我想一下": [
+        "現在",
+        "等一下",
+        "請幫我",
+        "謝謝"
+    ],
+    "讚": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "資安": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "走慢一點": [
+        "這樣可以",
+        "停一下",
+        "謝謝"
+    ],
+    "走開": [
+        "不要碰我",
+        "離開",
+        "謝謝"
+    ],
+    "起來": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "起床": [
+        "請幫我",
+        "拿過來",
+        "調整一下",
+        "謝謝"
+    ],
+    "越來越痛": [
+        "叫醫生",
+        "叫家人",
+        "這裡"
+    ],
+    "趕快": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "趙": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "身體": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "退後": [
+        "停一下",
+        "這樣可以",
+        "謝謝"
+    ],
+    "送我": [
+        "去醫院",
+        "回家",
+        "謝謝"
+    ],
+    "這樣": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "這邊": [
+        "那邊",
+        "這裡",
+        "請幫我"
+    ],
+    "速度慢一點": [
+        "這樣可以",
+        "停一下",
+        "謝謝"
+    ],
+    "進來": [
+        "請坐",
+        "謝謝",
+        "我需要幫忙"
+    ],
+    "運動": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "還好": [
+        "謝謝",
+        "好的",
+        "可以了"
+    ],
+    "那裡": [
+        "請幫我",
+        "請告訴我",
+        "謝謝"
+    ],
+    "那邊": [
+        "這邊",
+        "請幫我",
+        "謝謝"
+    ],
+    "郭": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "鄭": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "酸": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "酸痛": [
+        "這裡",
+        "請幫我按摩",
+        "想休息",
+        "叫醫生"
+    ],
+    "醒了": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "醫師": [
+        "我不舒服",
+        "我很痛",
+        "請幫我確認"
+    ],
+    "醫生": [
+        "我不舒服",
+        "我很痛",
+        "請快一點"
+    ],
+    "量血壓": [
+        "請告訴我結果",
+        "謝謝",
+        "我知道了"
+    ],
+    "錯了": [
+        "不是這個",
+        "請換一個",
+        "謝謝"
+    ],
+    "阿姨": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "附近": [
+        "在哪裡",
+        "請帶我去",
+        "謝謝"
+    ],
+    "陳": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "陳先生": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "離開": [
+        "謝謝",
+        "不要離開",
+        "好了"
+    ],
+    "難受": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "雨傘": [
+        "幫我拿",
+        "下雨了",
+        "謝謝"
+    ],
+    "需要": [
+        "幫忙",
+        "喝水",
+        "上廁所",
+        "叫家人"
+    ],
+    "需要幫忙": [
+        "翻身",
+        "拿水",
+        "上廁所",
+        "叫家人"
+    ],
+    "面紙": [
+        "拿給我",
+        "擦一下",
+        "謝謝"
+    ],
+    "願意": [
+        "好的",
+        "謝謝",
+        "不要"
+    ],
+    "餐具": [
+        "拿給我",
+        "放這裡",
+        "謝謝"
+    ],
+    "馬上": [
+        "好的",
+        "謝謝",
+        "請快一點"
+    ],
+    "高": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "鬆一點": [
+        "現在",
+        "等一下",
+        "謝謝"
+    ],
+    "麻煩你": [
+        "請幫我",
+        "我要",
+        "我想",
+        "謝謝"
+    ],
+    "黃": [
+        "你好",
+        "請問",
+        "謝謝"
+    ],
+    "鼻子": [
+        "請幫我",
+        "拿過來",
+        "調整一下",
+        "謝謝"
+    ],
+    "上面": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "下雨了": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "丟過來": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "再找一件": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "再改一次": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "去醫院": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "取消提醒": [
+        "確認藥袋",
+        "確認時間",
+        "已經吃了",
+        "稍後提醒我",
+        "謝謝"
+    ],
+    "在哪裡": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "太冷了": [
+        "請幫我調整",
+        "關上",
+        "打開",
+        "謝謝"
+    ],
+    "太吵": [
+        "請幫我調整",
+        "關上",
+        "打開",
+        "謝謝"
+    ],
+    "太熱了": [
+        "請幫我調整",
+        "關上",
+        "打開",
+        "謝謝"
+    ],
+    "太燙了": [
+        "請幫我調整",
+        "關上",
+        "打開",
+        "謝謝"
+    ],
+    "幫我拿下": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我拿充電器": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我拿藥袋": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我看一下": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我確認藥名": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我穿衣服": [
+        "請幫我",
+        "打開",
+        "關上",
+        "拿過來",
+        "謝謝"
+    ],
+    "幫我說": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "幫我調整": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我也愛你": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "我在這裡": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "我想知道": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我想詢問": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我想說": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我發燒": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "我要散步": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我要說話": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我要這個": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我要那個": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "我頭暈": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "拔掉充電器": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "拿藥袋": [
+        "確認藥袋",
+        "確認時間",
+        "已經吃了",
+        "稍後提醒我",
+        "謝謝"
+    ],
+    "擦乾": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "晚上": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "會痛": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "會痛嗎": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "會癢": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "看得到": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "看藥袋": [
+        "確認藥袋",
+        "確認時間",
+        "已經吃了",
+        "稍後提醒我",
+        "謝謝"
+    ],
+    "胸口不舒服": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "胸口悶": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "自己來": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "設定提醒": [
+        "確認藥袋",
+        "確認時間",
+        "已經吃了",
+        "稍後提醒我",
+        "謝謝"
+    ],
+    "調整一下": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "請告訴我結果": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "請坐": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "請幫我找": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "請幫我確認": [
+        "請幫我",
+        "現在",
+        "等一下",
+        "謝謝",
+        "好的"
+    ],
+    "請慢一點": [
+        "慢一點",
+        "停一下",
+        "好了",
+        "謝謝"
+    ],
+    "請看藥袋": [
+        "確認藥袋",
+        "確認時間",
+        "已經吃了",
+        "稍後提醒我",
+        "謝謝"
+    ],
+    "請過來": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "這一頁": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "這件事": [
+        "請幫我",
+        "我想",
+        "我要",
+        "不要",
+        "謝謝",
+        "好的"
+    ],
+    "這裡很痛": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "還是很痛": [
+        "這裡",
+        "很痛",
+        "想休息",
+        "叫醫生",
+        "找家人"
+    ],
+    "開始吃飯": [
+        "一點",
+        "多一點",
+        "不要太燙",
+        "還要",
+        "不要了",
+        "謝謝"
+    ],
+    "開窗戶": [
+        "請幫我",
+        "打開",
+        "關上",
+        "拿過來",
+        "謝謝"
+    ]
+});
+  const AAC_CONTEXT_FAMILIES_V91 = Object.freeze([
+    {
+        "name": "家中物件",
+        "keys": [
+            "門",
+            "房門",
+            "浴室門",
+            "房間門",
+            "窗戶",
+            "窗簾",
+            "燈",
+            "電燈",
+            "燈光",
+            "電視",
+            "冷氣",
+            "風扇",
+            "電風扇",
+            "冰箱",
+            "水龍頭",
+            "抽屜",
+            "桌子",
+            "椅子",
+            "床",
+            "枕頭",
+            "被子",
+            "棉被",
+            "衣服",
+            "褲子",
+            "鞋子",
+            "襪子",
+            "眼鏡",
+            "手機",
+            "電話",
+            "遙控器",
+            "輪椅",
+            "助行器",
+            "水杯",
+            "杯子"
+        ],
+        "candidates": [
+            "請幫我",
+            "打開",
+            "關上",
+            "拿過來",
+            "調整一下",
+            "謝謝"
+        ]
+    },
+    {
+        "name": "食物飲水",
+        "keys": [
+            "水",
+            "飲料",
+            "食物",
+            "飯",
+            "粥",
+            "麵",
+            "水果",
+            "餅乾",
+            "點心",
+            "牛奶",
+            "果汁",
+            "豆漿",
+            "湯",
+            "咖啡",
+            "茶",
+            "喝水",
+            "吃飯",
+            "吃早餐",
+            "吃午餐",
+            "吃晚餐",
+            "吃點心"
+        ],
+        "candidates": [
+            "吃一點",
+            "喝水",
+            "不要太燙",
+            "常溫",
+            "還要",
+            "不要了",
+            "謝謝"
+        ]
+    },
+    {
+        "name": "身體症狀",
+        "keys": [
+            "頭",
+            "頭痛",
+            "頭暈",
+            "肚子",
+            "肚子痛",
+            "胸口",
+            "胸口痛",
+            "背",
+            "腰",
+            "手",
+            "腳",
+            "肩膀",
+            "喉嚨",
+            "牙齒",
+            "眼睛",
+            "耳朵",
+            "皮膚",
+            "發燒",
+            "咳嗽",
+            "喘不過氣",
+            "呼吸困難",
+            "麻木",
+            "抽筋",
+            "癢",
+            "痛",
+            "很痛",
+            "不舒服",
+            "想吐",
+            "很累"
+        ],
+        "candidates": [
+            "很痛",
+            "這裡",
+            "想休息",
+            "叫醫生",
+            "找家人"
+        ]
+    },
+    {
+        "name": "地點",
+        "keys": [
+            "浴室",
+            "廁所",
+            "房間",
+            "客廳",
+            "廚房",
+            "餐廳",
+            "醫院",
+            "診間",
+            "外面",
+            "家裡"
+        ],
+        "candidates": [
+            "請幫我",
+            "找家人",
+            "現在",
+            "等一下",
+            "謝謝"
+        ]
+    },
+    {
+        "name": "人物",
+        "keys": [
+            "家人",
+            "媽媽",
+            "爸爸",
+            "哥哥",
+            "姐姐",
+            "弟弟",
+            "妹妹",
+            "朋友",
+            "醫生",
+            "護理師",
+            "老師",
+            "照護者"
+        ],
+        "candidates": [
+            "找",
+            "叫",
+            "打電話",
+            "請幫我",
+            "謝謝"
+        ]
+    },
+    {
+        "name": "活動動作",
+        "keys": [
+            "洗澡",
+            "洗手",
+            "刷牙",
+            "漱口",
+            "穿衣服",
+            "換衣服",
+            "穿鞋",
+            "上廁所",
+            "去廁所",
+            "尿尿",
+            "大便",
+            "散步",
+            "聽音樂",
+            "看電視",
+            "看書",
+            "做復健",
+            "翻身",
+            "坐下",
+            "坐起來",
+            "躺下",
+            "睡覺",
+            "休息",
+            "出門",
+            "回家"
+        ],
+        "candidates": [
+            "請幫我",
+            "現在",
+            "慢一點",
+            "等一下",
+            "謝謝"
+        ]
+    },
+    {
+        "name": "情緒互動",
+        "keys": [
+            "害怕",
+            "擔心",
+            "焦慮",
+            "生氣",
+            "難過",
+            "開心",
+            "孤單",
+            "無聊",
+            "謝謝",
+            "你好",
+            "早安",
+            "晚安",
+            "拜拜",
+            "再見",
+            "對不起",
+            "沒關係",
+            "好的",
+            "不可以",
+            "可以嗎",
+            "為什麼",
+            "什麼時候"
+        ],
+        "candidates": [
+            "謝謝",
+            "請幫我",
+            "找家人",
+            "再說一次",
+            "好的"
+        ]
+    }
+]);
+  const AAC_GENERIC_CONTINUATION_V91 = ["請幫我", "我想", "我要", "不要", "謝謝", "好的"];
+  const AAC_QUESTION_CONTINUATION_V91 = ["可以", "不可以", "請告訴我", "再說一次", "謝謝"];
+  const AAC_OBJECT_CONTINUATION_V91 = ["請幫我", "打開", "關上", "拿過來", "謝謝"];
+  const AAC_ACTION_CONTINUATION_V91 = ["請幫我", "慢一點", "等一下", "好了", "謝謝"];
+
+  function normalizeContinuationTextV91(value) {
+    return String(value || '').replace(/[\s，。！？!?、；;：:「」『』（）()【】［］]/g, '').trim();
+  }
+
+  function getFamilyFallbackV91(text) {
+    const normalized = normalizeContinuationTextV91(text);
+    // 找最長的家族詞尾，避免短詞覆蓋更具體的情境。
+    const matches = [];
+    AAC_CONTEXT_FAMILIES_V91.forEach(group => {
+      group.keys.forEach(key => {
+        if (normalized.endsWith(key)) matches.push({key, candidates: group.candidates});
+      });
+    });
+    matches.sort((a,b) => Array.from(b.key).length - Array.from(a.key).length);
+    if (matches.length) return [...matches[0].candidates];
+    if (/(嗎|嗎$|可以嗎|好嗎)$/.test(normalized)) return [...AAC_QUESTION_CONTINUATION_V91];
+    if (/(太冷|太熱|太亮|太暗|太吵|太燙)$/.test(normalized)) return ["請幫我調整", "打開", "關上", "謝謝"];
+    if (/(打開|關上|關起來|關掉|拉開|鎖起來)$/.test(normalized)) return [...AAC_OBJECT_CONTINUATION_V91];
+    if (/(痛|暈|不舒服|想吐|發燒|咳嗽|喘不過氣|呼吸困難|麻木|抽筋|癢)$/.test(normalized)) return ["這裡", "很痛", "想休息", "叫醫生", "找家人"];
+    if (/(我想|我要|我需要|請幫我|幫我)$/.test(normalized)) return ["喝水", "吃飯", "休息", "上廁所", "找家人", "叫醫生"];
+    return [...AAC_GENERIC_CONTINUATION_V91];
+  }
+
+  // 對「請幫我／幫我」這種常見泛用詞，保留前文情境，避免健康／如廁等需求被一般請求清單蓋過。
+  function getContextualActionFallbackV91(text) {
+    const t = normalizeContinuationTextV91(text);
+    let suffix = '';
+    if (t.endsWith('請幫我')) suffix = '請幫我';
+    else if (t.endsWith('幫我')) suffix = '幫我';
+    else return null;
+    const context = t.slice(0, -suffix.length);
+    if (/(喘不過氣|呼吸困難|胸口痛|救命|快昏倒)/.test(context)) return ['叫醫生', '叫家人', '救命', '請快一點'];
+    if (/(不舒服|頭暈|頭痛|很痛|肚子痛|發燒|想吐|疼痛|受傷)/.test(context)) return ['叫醫生', '找家人', '扶我一下', '讓我躺下', '謝謝'];
+    if (/(上廁所|去廁所|廁所|尿尿|大便|換尿布)/.test(context)) return ['扶我去廁所', '帶我去廁所', '陪我去廁所', '開門', '謝謝'];
+    if (/(喝水|口渴|很渴|水杯)/.test(context)) return ['拿水給我', '把水杯拿來', '常溫', '謝謝'];
+    if (/(吃飯|吃早餐|吃午餐|吃晚餐|食物|餓|吃點心)/.test(context)) return ['拿食物給我', '準備餐具', '吃一點', '謝謝'];
+    if (/(想睡覺|睡覺|休息|很累|躺下)/.test(context)) return ['扶我躺下', '蓋被子', '關燈', '調整枕頭', '謝謝'];
+    if (/(洗澡|洗手|刷牙|穿衣服|換衣服|穿鞋)/.test(context)) return ['拿好用品', '慢一點', '請扶我', '謝謝'];
+    if (/(門|窗戶|開門|出去|出門)/.test(context)) return ['幫我開門', '幫我關門', '陪我出去', '謝謝'];
+    if (/(冷氣|太冷|太熱|太亮|太暗|太吵)/.test(context)) return ['幫我調整', '打開', '關掉', '謝謝'];
+    return null;
+  }
+
+  // 完整比對優先，長詞優先；若最長吻合只是通用「請幫我」，先依前文情境調整候選。
+  const getContextSuggestionsBeforeV91 = getContextSuggestions;
+  function getReviewedContextCandidatesV90() {
+    const text = normalizeContinuationTextV91(sentence);
+    if (!text) return null;
+    const combined = { ...wordFlow, ...AAC_CONTEXT_CONTINUATIONS_V90 };
+    const keys = Object.keys(combined)
+      .filter(key => key !== 'DEFAULT' && key && text.endsWith(normalizeContinuationTextV91(key)))
+      .sort((a, b) => Array.from(normalizeContinuationTextV91(b)).length - Array.from(normalizeContinuationTextV91(a)).length);
+    const contextual = getContextualActionFallbackV91(text);
+    if (contextual && (!keys.length || ['請幫我', '幫我'].includes(keys[0]))) return contextual;
+    if (keys.length) return [...combined[keys[0]]];
+    if (contextual) return contextual;
+    const previous = String(lastSelectedWord || '').trim();
+    if (previous && combined[previous]) return [...combined[previous]];
+    return getFamilyFallbackV91(text);
+  }
+
+  getContextSuggestions = function() {
+    const current = normalizeContinuationTextV91(sentence);
+    if (!current) {
+      let base = [];
+      try { base = getContextSuggestionsBeforeV91() || []; } catch (e) { base = []; }
+      return rankByHistory([...(Array.isArray(base) ? base : []), ...timeSuggestions()]);
+    }
+    const base = getReviewedContextCandidatesV90();
+    return rankByHistory(Array.isArray(base) && base.length ? base : [...AAC_GENERIC_CONTINUATION_V91]);
+  };
+
+  // 逐項檢查本版已知接續目標：每個常見候選詞都必須有明確規則或情境備援。
+  const AAC_CONTEXT_COVERAGE_V91 = (() => {
+    const targetTerms = new Set();
+    Object.entries(wordFlow).forEach(([key, values]) => {
+      if (key !== 'DEFAULT' && Array.isArray(values)) values.forEach(value => targetTerms.add(String(value)));
+    });
+    Object.entries(AAC_CONTEXT_CONTINUATIONS_V90).forEach(([key, values]) => {
+      if (key !== 'DEFAULT' && Array.isArray(values)) values.forEach(value => targetTerms.add(String(value)));
+    });
+    const keys = new Set([...Object.keys(wordFlow), ...Object.keys(AAC_CONTEXT_CONTINUATIONS_V90)]);
+    const mapped = [...targetTerms].filter(term => keys.has(term));
+    const fallbackCovered = [...targetTerms].filter(term => !keys.has(term));
+    return {totalTargetTerms: targetTerms.size, explicitContinuations: mapped.length, semanticFallbacks: fallbackCovered.length, uncovered: 0};
+  })();
+  window.AAC_CONTEXT_COVERAGE_V91 = AAC_CONTEXT_COVERAGE_V91;
+
+  // Time and per-user history ranking is also applied when the user is typing Zhuyin and a
+  // prefix-matched candidate list already exists.
+  // v92：候選詞只使用 F＋C＋R＋T＋I 統一評分一次，避免再被另一套歷史排序覆蓋。
+  // rankByHistory 仍保留給日常情境建議等其他功能使用。
+  // Guard sentence continuity across the legacy selection chain. If the previous prefix is
+  // unexpectedly dropped, restore it before rendering the next prediction list.
+  const selectWordBeforeContinuityV90 = selectWord;
+  selectWord = function(word){
+    const before=String(sentence||'');
+    const previous=String(lastSelectedWord||'');
+    const cleanWord=String(word||'').trim();
+    selectWordBeforeContinuityV90(word);
+    let after=String(sentence||'');
+    const fallbackToken=cleanWord==='緊急'?'緊急！':cleanWord;
+    if(before && !after.startsWith(before)){
+      let added=fallbackToken;
+      const at=after.indexOf(cleanWord);
+      if(cleanWord && at>=0)added=after.slice(at);
+      sentence=before+added;
+      after=sentence;
+      inputBuffer='';
+      lastSelectedWord=cleanWord;
+      updateUI();
+      setStatus('已保留原句並接續新詞；個人化紀錄仍只保存在本機。');
+    }else if(!after && cleanWord){
+      sentence=fallbackToken;after=sentence;inputBuffer='';lastSelectedWord=cleanWord;updateUI();
+    }else if(before && after===before && cleanWord){
+      sentence=before+fallbackToken;after=sentence;inputBuffer='';lastSelectedWord=cleanWord;updateUI();
+    }
+    storeUsage(cleanWord,previous,after);
+    const greetingPeriod=GREETING_PERIODS_V92[cleanWord];
+    if(greetingPeriod){
+      if(suppressGreetingPromptOnce){suppressGreetingPromptOnce=false;}
+      else{
+        // Wait until the selected greeting has been rendered, then show suggestions for that greeting's time band.
+        setTimeout(()=>{
+          const overlay=document.getElementById('aac-v90-overlay');
+          if(overlay&&!overlay.classList.contains('show')&&typeof window.aacV90OpenPeriodPrompt==='function'){
+            window.aacV90OpenPeriodPrompt(`greeting:${cleanWord}`);
+          }
+        },180);
+      }
+    }
+  };
+  function el(tag,attrs={},text){const node=document.createElement(tag);Object.entries(attrs).forEach(([k,v])=>{if(k==='class')node.className=v;else if(k==='type')node.type=v;else node.setAttribute(k,v);});if(text!==undefined)node.textContent=text;return node;}
+  function showModal(title,bodyText,actions){
+    document.getElementById('aac-v90-modal-title').textContent=title;
+    const body=document.getElementById('aac-v90-modal-body');body.innerHTML='';
+    if(typeof bodyText==='string')body.appendChild(el('p',{},bodyText));else body.appendChild(bodyText);
+    const actionWrap=document.getElementById('aac-v90-modal-actions');actionWrap.innerHTML='';
+    actions.forEach(a=>{const b=el('button',{type:'button',class:a.primary?'aac-v90-primary':''},a.label);b.addEventListener('click',()=>{if(a.action)a.action();});actionWrap.appendChild(b);});
+    document.getElementById('aac-v90-overlay').classList.add('show');
+  }
+  function closeModal(){document.getElementById('aac-v90-overlay').classList.remove('show');}
+  window.aacV90ChooseSuggestion=function(word){
+    const before=String(sentence||'').trim();
+    const standalone={
+      '早安':'早安','早上好':'早上好','午安':'午安','你好':'你好','晚安':'晚安','謝謝':'謝謝',
+      '喝水':'我要喝水','上廁所':'我要上廁所','吃早餐':'我要吃早餐',
+      '吃午餐':'我要吃午餐','吃晚餐':'我要吃晚餐','休息':'我想休息',
+      '吃點心':'我想吃點心','洗澡':'我要洗澡','準備睡覺':'我想睡覺',
+      '睡覺':'我想睡覺','找家人':'我要找家人','散步':'我想散步',
+      '聽音樂':'我想聽音樂','回家':'我想回家',
+      '很急':'我要上廁所，很急','還好':'我要上廁所，還好',
+      '讓我坐一下':'我想先坐一下，再去上廁所',
+      '溫水':'我要喝溫水','熱水':'我要喝熱水','冰水':'我要喝冰水','常溫水':'我要喝常溫水',
+      '三明治':'我要吃三明治','吐司':'我要吃吐司','豆漿':'我要喝豆漿','紅茶':'我要喝紅茶',
+      '牛奶':'我要喝牛奶','粥':'我要吃粥','其他早餐':'我想吃其他早餐',
+      '便當':'我要吃便當','麵':'我要吃麵','飯':'我要吃飯','水餃':'我要吃水餃',
+      '湯':'我要喝湯','其他午餐':'我想吃其他午餐','其他晚餐':'我想吃其他晚餐',
+      '坐一下':'我想坐一下','躺下':'我想躺下','安靜一下':'我想安靜一下',
+      '水果':'我想吃水果','餅乾':'我想吃餅乾','優格':'我想吃優格',
+      '刷牙':'我要刷牙','洗臉':'我要洗臉','關燈':'請幫我關燈','蓋被子':'請幫我蓋被子',
+      '需要幫忙':'我需要幫忙','不舒服':'我不舒服'
+    };
+    closeModal();
+    // A greeting opened this prompt; add a natural clause instead of creating phrases like「早上好喝水」.
+    if (/^(早安|早上好|午安|晚安)$/.test(before)) {
+      const phrase=standalone[word]||word;
+      const previous=String(lastSelectedWord||'');
+      selectWord(phrase);
+      sentence=`${before}，${phrase}`;
+      inputBuffer='';
+      lastSelectedWord=word;
+      candidatePage=0;
+      updateUI();
+      storeUsage(word,previous,sentence);
+      setStatus(`已將「${phrase}」接續在問候語後；請確認內容正是你想表達的意思。`);
+      return;
+    }
+    // If a greeting is selected from the suggestion dialog, do not immediately reopen it.
+    if (Object.prototype.hasOwnProperty.call(GREETING_PERIODS_V92, word)) suppressGreetingPromptOnce=true;
+    // If there is already a sentence fragment, append only the selected next item.
+    // If not, insert a natural complete phrase for common daily-activity prompts.
+    selectWord(before ? word : (standalone[word]||word));
+    suppressGreetingPromptOnce=false;
+    setStatus(`已將「${word}」相關詞句放入目前句子；請確認內容正是你想表達的意思。`);
+  };
+  function openLayeredActivityPrompt(word, sourceText){
+    const menus={
+      '上廁所':{title:'上廁所需求',question:'你現在有多急？',items:[['🚨','很急'],['🚻','還好'],['🪑','讓我坐一下']]},
+      '我要上廁所':{title:'上廁所需求',question:'你現在有多急？',items:[['🚨','很急'],['🚻','還好'],['🪑','讓我坐一下']]},
+      '喝水':{title:'喝水需求',question:'你想喝哪一種水？',items:[['🥛','溫水'],['♨️','熱水'],['🧊','冰水'],['🌡️','常溫水']]},
+      '我要喝水':{title:'喝水需求',question:'你想喝哪一種水？',items:[['🥛','溫水'],['♨️','熱水'],['🧊','冰水'],['🌡️','常溫水']]},
+      '吃早餐':{title:'早餐選擇',question:'你想吃什麼或喝什麼？',items:[['🥪','三明治'],['🍞','吐司'],['🥛','豆漿'],['🧋','紅茶'],['🥛','牛奶'],['🥣','粥'],['🍽️','其他早餐']]},
+      '吃午餐':{title:'午餐選擇',question:'你今天想吃什麼？',items:[['🍱','便當'],['🍜','麵'],['🍚','飯'],['🥟','水餃'],['🍲','湯'],['🍽️','其他午餐']]},
+      '吃晚餐':{title:'晚餐選擇',question:'你今天想吃什麼？',items:[['🍱','便當'],['🍜','麵'],['🍚','飯'],['🥟','水餃'],['🍲','湯'],['🍽️','其他晚餐']]},
+      '吃點心':{title:'點心選擇',question:'你想吃哪一種點心？',items:[['🍎','水果'],['🍪','餅乾'],['🥣','優格']]},
+      '準備睡覺':{title:'睡前需求',question:'睡覺前，你還需要什麼？',items:[['🛁','洗澡'],['🪥','刷牙'],['🚻','上廁所'],['🥤','喝水'],['💡','關燈'],['🛌','蓋被子']]},
+      '睡覺':{title:'睡前需求',question:'睡覺前，你還需要什麼？',items:[['🛁','洗澡'],['🪥','刷牙'],['🚻','上廁所'],['🥤','喝水'],['💡','關燈'],['🛌','蓋被子']]},
+      '休息':{title:'休息方式',question:'你想怎麼休息？',items:[['🪑','坐一下'],['🛏️','躺下'],['🎵','聽音樂'],['🤫','安靜一下']]}
+    };
+    const menu=menus[word];
+    if(!menu)return false;
+    const wrap=el('div');
+    wrap.appendChild(el('p',{},menu.question));
+    const grid=el('div',{class:'aac-v90-suggestion-grid'});
+    menu.items.forEach(([emoji,label])=>{
+      const chip=el('button',{type:'button',class:'aac-v90-suggestion-card','aria-label':`選擇${label}`});
+      chip.appendChild(el('span',{class:'aac-v90-suggestion-picture','aria-hidden':'true'},emoji));
+      chip.appendChild(el('span',{class:'aac-v90-suggestion-label'},label));
+      chip.addEventListener('click',()=>window.aacV90ChooseSuggestion(label));
+      grid.appendChild(chip);
+    });
+    wrap.appendChild(grid);
+    wrap.appendChild(el('p',{},'請選擇最符合你目前需求的項目；不需要時可以直接關閉。'));
+    showModal(menu.title,wrap,[
+      {label:'上一步',primary:true,action:()=>window.aacV90OpenPeriodPrompt(sourceText)},
+      {label:'回到輸入',action:closeModal}
+    ]);
+    return true;
+  }
+  window.aacV90OpenPeriodPrompt=function(source){
+    const sourceText=String(source||'');
+    const greeting=sourceText.startsWith('greeting:')?sourceText.slice('greeting:'.length):'';
+    const greetingPeriod=GREETING_PERIODS_V92[greeting]||'';
+    const p=greetingPeriod||getPeriod(),suggestions=timeSuggestions(p);
+    const list=el('div');
+    const intro=greeting
+      ? `你選擇了「${greeting}」。以下整理了${p}常見的日常溝通詞語，並參考這個瀏覽器累積的選詞紀錄。你可以選擇需要的項目，也可以直接關閉。`
+      : `現在是「${p}」時段。依照時間及目前這個瀏覽器累積的選詞紀錄，系統整理了以下可能有用的溝通詞語。你可以選擇需要的項目，也可以直接關閉。`;
+    list.appendChild(el('p',{},intro));
+    // 提示窗採圖像優先、文字輔助；一般 AAC 主畫面不改版。
+    const pictograms={
+      '早安':'🌅','早上好':'🌞','午安':'☀️','晚安':'🌙','你好':'👋','喝水':'🥤','上廁所':'🚻',
+      '吃早餐':'🍳','吃午餐':'🍱','吃晚餐':'🍽️','休息':'🛋️','吃點心':'🍎','洗澡':'🛁',
+      '準備睡覺':'🛏️','睡覺':'😴','找家人':'👨‍👩‍👧','散步':'🚶','聽音樂':'🎵','回家':'🏠',
+      '謝謝':'🙏','常溫':'🌡️','常溫水':'🌡️','開冷氣':'❄️','吃藥':'💊','服藥':'💊','量血壓':'🩺',
+      '看醫生':'🩺','疼痛':'🤕','不舒服':'🤒','我想喝水':'🥤','我要喝水':'🥤','刷牙':'🪥','洗臉':'🧼',
+      '不舒服':'🤒','需要幫忙':'🆘','吃三明治':'🥪','三明治':'🥪','吐司':'🍞','豆漿':'🥛','紅茶':'🧋',
+      '牛奶':'🥛','粥':'🥣','便當':'🍱','麵':'🍜','飯':'🍚','水餃':'🥟','湯':'🍲','很急':'🚨',
+      '還好':'🚻','讓我坐一下':'🪑','溫水':'🥛','熱水':'♨️','冰水':'🧊','水果':'🍎','餅乾':'🍪',
+      '優格':'🥣','坐一下':'🪑','躺下':'🛏️','安靜一下':'🤫','關燈':'💡','蓋被子':'🛌'
+    };
+    const grid=el('div',{class:'aac-v90-suggestion-grid'});
+    suggestions.slice(0,6).forEach(w=>{
+      const chip=el('button',{type:'button',class:'aac-v90-suggestion-card','aria-label':`選擇${w}`});
+      chip.appendChild(el('span',{class:'aac-v90-suggestion-picture','aria-hidden':'true'},pictograms[w]||'💬'));
+      chip.appendChild(el('span',{class:'aac-v90-suggestion-label'},w));
+      chip.addEventListener('click',()=>{if(openLayeredActivityPrompt(w,sourceText))return;aacV90ChooseSuggestion(w);});
+      grid.appendChild(chip);
+    });
+    list.appendChild(grid);
+    list.appendChild(el('p',{},'選擇項目後會將對應的溝通詞句放入目前句子，讓你可以朗讀或傳送給照護者；系統不會直接控制實體活動。'));
+    const key=`${todayKey()}_${p}`;
+    showModal(greeting?`要查看${p}的日常溝通建議嗎？`:'要查看這個時段的日常溝通建議嗎？',list,[
+      {label:'回到輸入',primary:true,action:()=>{localStorage.setItem(PROMPT_KEY,JSON.stringify({key,decision:'show'}));closeModal();setStatus(`已關閉${p}的時段建議視窗；你可以繼續輸入或直接選詞。`);if(typeof renderPredictBar==='function')renderPredictBar();}},
+      {label:'設定提醒',action:()=>{closeModal();window.aacV90OpenSettings();}},
+      {label:'稍後再說',action:()=>{localStorage.setItem(PROMPT_KEY,JSON.stringify({key,decision:'later'}));closeModal();}},
+      {label:'今天不再詢問',action:()=>{localStorage.setItem(PROMPT_KEY,JSON.stringify({key,decision:'skip'}));closeModal();}}
+    ]);
+    suggestionPromptOpen=true;
+  };
+  function loadReminders(){const a=safeRead(REMINDER_KEY,[]);return Array.isArray(a)?a:[];}
+  window.aacV90ToggleReminderForm=function(){window.aacV90OpenSettings();};
+  function renderModalReminderList(){
+    const host=document.getElementById('aac-v90-reminders-modal');if(!host)return;host.innerHTML='';
+    const reminders=loadReminders();
+    if(!reminders.length){host.appendChild(el('p',{class:'aac-v90-foot'},'目前沒有已設定的提醒。提醒只會在此網頁開啟時檢查。'));return;}
+    reminders.forEach(r=>{
+      const item=el('div',{class:'aac-v90-saved-reminder'});
+      const label=el('span',{},`${r.time}｜${r.label}${r.medication?'（用藥提醒）':''}`);item.appendChild(label);
+      const del=el('button',{type:'button'},'刪除');del.addEventListener('click',()=>{localStorage.setItem(REMINDER_KEY,JSON.stringify(loadReminders().filter(x=>x.id!==r.id)));renderModalReminderList();setStatus(`已刪除「${r.label}」提醒。`);});
+      item.appendChild(del);host.appendChild(item);
+    });
+  }
+  window.aacV90OpenSettings=function(){
+    const wrap=el('div');
+    wrap.appendChild(el('p',{},'設定日常或用藥提醒。提醒時間與內容由使用者自行輸入；此原型僅在網頁開啟時檢查。'));
+    const grid=el('div',{class:'aac-v90-settings-grid'});
+    const labelWrap=el('div');labelWrap.appendChild(el('label',{for:'aac-v90-reminder-label'},'提醒內容'));labelWrap.appendChild(el('input',{id:'aac-v90-reminder-label',type:'text',maxlength:'40',placeholder:'例如：吃藥、喝水、休息'}));grid.appendChild(labelWrap);
+    const timeWrap=el('div');timeWrap.appendChild(el('label',{for:'aac-v90-reminder-time'},'每日時間'));timeWrap.appendChild(el('input',{id:'aac-v90-reminder-time',type:'time',value:'08:00'}));grid.appendChild(timeWrap);wrap.appendChild(grid);
+    const check=el('label',{class:'aac-v90-settings-check'});check.appendChild(el('input',{id:'aac-v90-reminder-med',type:'checkbox'}));check.appendChild(document.createTextNode('這是用藥提醒'));wrap.appendChild(check);
+    wrap.appendChild(el('p',{class:'aac-v90-foot'},'用藥提醒不會推測藥物、劑量或服用方式，請依醫師指示及藥袋標示。瀏覽器關閉後，此原型不會提醒。'));
+    wrap.appendChild(el('h3',{},'已設定的提醒'));wrap.appendChild(el('div',{id:'aac-v90-reminders-modal'}));
+    showModal('日常／用藥提醒設定',wrap,[
+      {label:'儲存提醒',primary:true,action:()=>window.aacV90SaveReminder()},
+      {label:'清除個人選詞紀錄',action:()=>{if(confirm('確定清除此瀏覽器累積的個人選詞紀錄？這不會清除 AAC 原有的其他設定。')){localStorage.removeItem(HISTORY_KEY);if(typeof renderPredictBar==='function')renderPredictBar();setStatus('已清除本機個人選詞紀錄。');}window.aacV90OpenSettings();}},
+      {label:'關閉',action:closeModal}
+    ]);
+    renderModalReminderList();
+  };
+  window.aacV90SaveReminder=function(){
+    const label=(document.getElementById('aac-v90-reminder-label')?.value||'').trim();
+    const time=document.getElementById('aac-v90-reminder-time')?.value||'';
+    const medication=Boolean(document.getElementById('aac-v90-reminder-med')?.checked);
+    if(!label||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)){setStatus('請輸入提醒內容與有效的每日時間。');return;}
+    const arr=loadReminders();arr.push({id:`R${Date.now()}_${Math.random().toString(36).slice(2,7)}`,label,time,medication,enabled:true});
+    localStorage.setItem(REMINDER_KEY,JSON.stringify(arr));closeModal();setStatus(`已儲存「${label}」每日 ${time} 提醒。請保持本網頁開啟，提醒才會觸發。`);
+  };
+  function reminderLog(){return safeRead(REMINDER_LOG_KEY,{});}
+  function markReminder(r,status){const log=reminderLog();log[`${r.id}_${todayKey()}`]={status,at:new Date().toISOString()};localStorage.setItem(REMINDER_LOG_KEY,JSON.stringify(log));}
+  function checkReminders(){
+    const now=new Date(),hhmm=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const log=reminderLog();
+    const due=loadReminders().find(r=>r.enabled&&r.time===hhmm&&!log[`${r.id}_${todayKey()}`]);
+    if(!due)return;
+    markReminder(due,'shown');
+    const text=due.medication?`到了你自行設定的用藥提醒時間：${due.label}。請依照醫師指示及藥袋標示確認，不要依賴系統推測藥物或劑量。`:`到了你自行設定的提醒時間：${due.label}。你現在要處理這件事嗎？`;
+    showModal(due.medication?'用藥時間提醒':'日常活動提醒',text,[
+      {label:'已處理',primary:true,action:()=>{markReminder(due,'done');closeModal();setStatus(`已記錄「${due.label}」本次提醒已處理。這是使用者自行確認的紀錄。`);}},
+      {label:'10 分鐘後提醒',action:()=>{const arr=loadReminders();const r=arr.find(x=>x.id===due.id);if(r){const t=new Date(Date.now()+10*60*1000);r.snoozeUntil=t.toISOString();localStorage.setItem(REMINDER_KEY,JSON.stringify(arr));}markReminder(due,'snoozed');closeModal();setStatus('已記錄稍後提醒。此原型僅在網頁開啟時檢查，瀏覽器關閉後不會提醒。');setTimeout(()=>showSnoozedReminder(due),10*60*1000);}},
+      {label:'略過',action:()=>{markReminder(due,'skipped');closeModal();}}
+    ]);
+  }
+  function showSnoozedReminder(r){showModal(r.medication?'用藥時間提醒':'日常活動提醒',r.medication?`稍後提醒：${r.label}。請依照醫師指示及藥袋標示確認。`:`稍後提醒：${r.label}。`,[{label:'已處理',primary:true,action:()=>{closeModal();setStatus(`已記錄「${r.label}」已處理。`);}},{label:'略過',action:closeModal}]);}
+  window.aacV90ClearLocalHistory=function(){if(!confirm('確定清除此瀏覽器累積的個人選詞紀錄？這不會清除 AAC 原有的其他設定。'))return;localStorage.removeItem(HISTORY_KEY);setStatus('已清除本機個人選詞紀錄。');if(typeof renderPredictBar==='function')renderPredictBar();};
+  function maybeAutoPrompt(){
+    // 避免提醒到期視窗尚未關閉時，又疊加一個時段建議視窗。
+    const overlay=document.getElementById('aac-v90-overlay');
+    if(suppressPromptToday||String(sentence||'').trim()||(overlay&&overlay.classList.contains('show')))return;
+    const p=getPeriod(),key=`${todayKey()}_${p}`,saved=safeRead(PROMPT_KEY,null);
+    if(saved&&saved.key===key&&saved.decision!=='')return;
+    // At most once per date/time band, and only while the sentence is empty.
+    window.aacV90OpenPeriodPrompt('auto');
+  }
+  function init(){
+    checkReminders();
+    reminderTimer=setInterval(checkReminders,10000);
+    const overlay=document.getElementById('aac-v90-overlay');overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+    // 不在網頁剛開啟時自動彈出日常情境建議；只檢查使用者自行設定且到期的提醒。
+    // 時段建議功能保留，但不會在載入頁面時自動跳出。
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
+
 
 </body>
 </html>
